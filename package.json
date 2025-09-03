@@ -1,0 +1,25 @@
+{
+  "name": "gas-project-cursor",
+  "version": "1.0.0",
+  "description": "GASプロジェクトのCursor開発環境",
+  "main": "index.js",
+  "scripts": {
+    "setup": "npm install -g @google/clasp",
+    "login": "clasp login",
+    "clone": "clasp clone 1d4SbemkCanj0RUeVfJjSIcDLdP6FZtOYQBrKouLn-Typ9G6aTTrB-Awd --rootDir ./src",
+    "push": "clasp push",
+    "pull": "clasp pull",
+    "open": "clasp open",
+    "status": "clasp status"
+  },
+  "keywords": [
+    "google-apps-script",
+    "clasp",
+    "cursor"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@google/clasp": "^2.5.0"
+  }
+}

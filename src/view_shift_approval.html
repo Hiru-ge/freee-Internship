@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <?!= HtmlService.createHtmlOutputFromFile('css').getContent(); ?>
+  </head>
+  <body>
+    <h1>自分へのシフトリクエスト一覧</h1>
+
+    <div class="form-group">
+      <label for="user-select">表示するユーザーを選択:</label>
+      <select id="user-select">
+        <option value="">読み込んでいます...</option>
+      </select>
+    </div>
+
+    <ul id="request-list-container">
+      <p>ユーザーを選択すると、リクエストが表示されます。</p>
+    </ul>
+
+    <hr>
+    <a href="#" onclick="goBack(); return false;">ホーム画面に戻る</a>
+
+    <script>
+      window.addEventListener('load', function() {
+        google.script.run.withSuccessHandler(populateUserDropdown).getEmployees();
+      });
+
+      function populateUserDropdown(employees) {
+        var userSelect = document.getElementById('user-select');
+        userSelect.innerHTML = '<option value="">選択してください</option>';
+        if (employees && employees.length > 0) {
+          employees.forEach(function(emp) {
+            var option = document.createElement('option');
+            option.value = emp.id;
+            option.textContent = emp.display_name;
+            userSelect.appendChild(option);
+          });
+        }
+        userSelect.addEventListener('change', handleUserSelectionChange);
+      }
+
+      function handleUserSelectionChange(event) {
+        var selectedUserId = event.target.value;
+        var container = document.getElementById('request-list-container');
+        if (selectedUserId) {
+          container.innerHTML = '<p>リクエストを読み込んでいます...</p>';
+          // ★★★ 呼び出す関数を新しいものに変更 ★★★
+          google.script.run.withSuccessHandler(displayRequests).getPendingRequestsForUser(selectedUserId);
+        } else {
+          container.innerHTML = '<p>ユーザーを選択すると、リクエストが表示されます。</p>';
+        }
+      }
+
+      function displayRequests(requestsJson) {
+        var container = document.getElementById('request-list-container');
+        container.innerHTML = '';
+        var requests = JSON.parse(requestsJson); // JSON文字列をオブジェクトに戻す
+
+        if (!requests || requests.length === 0) {
+          container.innerHTML = '<p>このユーザー宛の申請中リクエストはありません。</p>';
+          return;
+        }
+
+        var selectedUserId = document.getElementById('user-select').value;
+        requests.forEach(function(req) {
+          var listItem = document.createElement('li');
+          listItem.className = 'request-item';
+          listItem.id = 'req-' + req.requestId;
+          
+          var startDate = new Date(req.start);
+          var endDate = new Date(req.end);
+          var dateString = startDate.toLocaleDateString();
+          var timeString = startDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + ' - ' +
+                           endDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+          var infoDiv = document.createElement('div');
+          // ★★★ リクエスト種別に応じて表示を変更 ★★★
+          var requestTypeText = (req.type === 'change') ? 'シフト交代' : 'シフト追加';
+          var applicantText = (req.type === 'change') ? '申請者ID: ' + req.applicantId : '依頼元: ' + req.applicantId;
+          infoDiv.innerHTML = '<strong>種別:</strong> ' + requestTypeText + '<br>' +
+                              '<strong>' + applicantText + '</strong><br>' +
+                              '<strong>依頼日時:</strong> ' + dateString + ' ' + timeString;
+          
+          var buttonDiv = document.createElement('div');
+          buttonDiv.style.marginTop = '10px';
+
+          var approveBtn = document.createElement('button');
+          approveBtn.className = 'button approve';
+          approveBtn.textContent = '承認';
+          approveBtn.onclick = function() { handleApprove(req.type, req.requestId, selectedUserId); };
+
+          var denyBtn = document.createElement('button');
+          denyBtn.className = 'button deny';
+          denyBtn.textContent = '否認';
+          denyBtn.onclick = function() { handleDeny(req.type, req.requestId, selectedUserId); };
+          
+          buttonDiv.appendChild(approveBtn);
+          buttonDiv.appendChild(denyBtn);
+          listItem.appendChild(infoDiv);
+          listItem.appendChild(buttonDiv);
+          container.appendChild(listItem);
+        });
+      }
+
+      // ★★★ handleApprove / handleDeny を、リクエスト種別に応じて呼び出す関数を切り替えるように修正 ★★★
+      function handleApprove(type, requestId, approverId) {
+        document.querySelector('#req-' + requestId + ' .approve').disabled = true;
+        document.querySelector('#req-' + requestId + ' .deny').disabled = true;
+        
+        var functionToCall = (type === 'change') ? 'approveShiftChange' : 'approveShiftAddition';
+        
+        google.script.run
+          .withSuccessHandler(function() {
+            document.getElementById('req-' + requestId).innerHTML = '<strong>承認処理が完了しました。</strong>';
+          })
+          .withFailureHandler(handleFailure)
+          [functionToCall](requestId, approverId); // 動的に関数を呼び出す
+      }
+
+      function handleDeny(type, requestId, denierId) {
+        document.querySelector('#req-' + requestId + ' .approve').disabled = true;
+        document.querySelector('#req-' + requestId + ' .deny').disabled = true;
+        
+        var functionToCall = (type === 'change') ? 'denyShiftChange' : 'denyShiftAddition';
+
+        google.script.run
+          .withSuccessHandler(function() {
+            document.getElementById('req-' + requestId).innerHTML = '<strong>否認処理が完了しました。</strong>';
+          })
+          .withFailureHandler(handleFailure)
+          [functionToCall](requestId, denierId);
+      }
+
+      function handleFailure(error) {
+        alert('エラーが発生しました: ' + error.message);
+        location.reload();
+      }
+
+      function goBack() {
+        var url = "<?= ScriptApp.getService().getUrl() ?>";
+        window.top.location.href = url;
+      }
+    </script>
+  </body>
+</html>

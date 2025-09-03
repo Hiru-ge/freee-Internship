@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <?!= HtmlService.createHtmlOutputFromFile('css').getContent(); ?>
+  </head>
+  <body>
+    <div>
+      <h2>勤怠打刻(自分の名前をクリック)</h2>
+      <div></div>
+      <table border="1" class="employee-list">
+        <tbody>
+          <?
+          var record = getEmployees();
+          for (var i = 0; i <= record.length - 1; i++) {
+            var id = record[i]["id"]
+            var name = record[i]["display_name"]
+          ?>
+          <tr>
+            <td>
+              <a href="<?= getAppUrl() ?>?empId=<?= id ?>"><?= name ?></a>
+            </td>
+          </tr>
+          <? } ?>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="shift-div">
+      <h2>シフト表</h2>
+      <p>交代を依頼したいシフトをクリックすると、依頼フォームへ遷移します。</p>
+      <div class="month-navigation">
+        <h2 id="calendar-title"></h2>
+        <div class="month-navigation-buttons">
+          <button class="button small-button" onclick="prevWeek()"><</button>
+          <button class="button small-button" onclick="nextWeek()">></button>
+          <button class="button" onclick="viewMyRequests()">交代リクエスト確認</button>
+        </div>
+      </div>
+      
+      <div id="shift-calendar-container">
+        <p>シフト情報を読み込んでいます...</p>
+      </div>
+      
+      <hr>
+      
+      <div class="owner-controls">
+        <h3 class="owner-heading">管理者メニュー</h3>
+        <button class="button" onclick="requestShiftAddition()">シフト追加依頼</button>
+      </div>
+    </div>
+    <script>
+      var calendarYear;
+      var calendarMonth;
+      var allShiftsData;
+      var currentStartDate; // ページネーションの開始日
+      var daysInMonth;
+
+      window.addEventListener('load', function() {
+        var container = document.getElementById('shift-calendar-container');
+        container.innerHTML = '<p>シフト情報を読み込んでいます...</p>';
+        google.script.run.withSuccessHandler(initializeShifts).getShifts();
+      });
+
+      function initializeShifts(dataFromServer) {
+        allShiftsData = JSON.parse(dataFromServer);
+        console.log("サーバーから取得した全データ:", allShiftsData);
+        
+        calendarYear = allShiftsData.year;
+        calendarMonth = allShiftsData.month;
+        daysInMonth = new Date(calendarYear, calendarMonth, 0).getDate();
+
+        // 最初の表示範囲を設定
+        var now = new Date();
+        currentStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        
+        displayShifts(); // 描画開始
+      }
+
+      function displayShifts() {
+        var titleEl = document.getElementById('calendar-title');
+        titleEl.textContent = calendarYear + '年' + calendarMonth + '月';
+        
+        var container = document.getElementById('shift-calendar-container');
+        container.innerHTML = "";
+
+        var table = document.createElement('table');
+        table.className = 'shift-table';
+        var thead = document.createElement('thead');
+        var tbody = document.createElement('tbody');
+
+        // ヘッダー行の生成
+        var headerRow = document.createElement('tr');
+        var nameHeader = document.createElement('th');
+        nameHeader.textContent = '従業員名';
+        headerRow.appendChild(nameHeader);
+        
+        var datesToShow = []; // 表示する日付の配列
+        var currentDate = new Date(currentStartDate);
+        for(var i = 0; i < 7; i++) {
+            var day = currentDate.getDate();
+            if (currentDate.getMonth() === currentStartDate.getMonth() && day <= daysInMonth) {
+                datesToShow.push(day);
+                var dayHeader = document.createElement('th');
+                dayHeader.textContent = day + '日';
+                headerRow.appendChild(dayHeader);
+            }
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+        thead.appendChild(headerRow);
+
+        // ボディ行の生成
+        for (var employeeId in allShiftsData.shifts) {
+          var employeeData = allShiftsData.shifts[employeeId];
+          var employeeRow = document.createElement('tr');
+          var nameCell = document.createElement('td');
+          nameCell.textContent = employeeData.name;
+          employeeRow.appendChild(nameCell);
+
+          datesToShow.forEach(function(day) {
+            var shiftCell = document.createElement('td');
+            var shiftTime = employeeData.shifts[day] || "";
+            if (shiftTime) {
+              shiftCell.style.cursor = 'pointer';
+              shiftCell.style.textDecoration = 'underline';
+              shiftCell.onclick = function(id, d, time) {
+                return function() {
+                  startRequestForShift(id, d, time);
+                };
+              }(employeeId, day, shiftTime);
+            }
+            shiftCell.textContent = shiftTime;
+            employeeRow.appendChild(shiftCell);
+          });
+          tbody.appendChild(employeeRow);
+        }
+
+        table.appendChild(thead);
+        table.appendChild(tbody);
+        container.appendChild(table);
+        
+        updatePaginationButtons();
+      }
+      
+      function updatePaginationButtons() {
+        var prevBtn = document.querySelector('.month-navigation .button:first-of-type');
+        var nextBtn = document.querySelector('.month-navigation .button:last-of-type');
+
+        // 1日が開始日なら「前へ」を無効化
+        if (currentStartDate.getDate() === 1) {
+            prevBtn.disabled = true;
+            prevBtn.style.opacity = '0.5';
+        } else {
+            prevBtn.disabled = false;
+            prevBtn.style.opacity = '1.0';
+        }
+
+        // 最終日が表示範囲に含まれるかチェック
+        var lastDayOfDisplayedPeriod = currentStartDate.getDate() + 6;
+        
+        if (lastDayOfDisplayedPeriod >= daysInMonth) {
+            nextBtn.disabled = true;
+            nextBtn.style.opacity = '0.5';
+        } else {
+            nextBtn.disabled = false;
+            nextBtn.style.opacity = '1.0';
+        }
+      }
+
+
+      function nextWeek() {
+        var nextWeekStart = new Date(currentStartDate);
+        nextWeekStart.setDate(currentStartDate.getDate() + 7);
+        
+        // 次の週の開始日が月の最終日を超えていないかチェック
+        if (nextWeekStart.getMonth() === currentStartDate.getMonth()) {
+          currentStartDate = nextWeekStart;
+          displayShifts();
+        } else {
+          // 最終日を含む週に移動
+          var lastDayOfCurrentMonth = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth() + 1, 0);
+          currentStartDate = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth(), lastDayOfCurrentMonth.getDate() - (lastDayOfCurrentMonth.getDate() % 7) + 1);
+          if (currentStartDate.getDate() > lastDayOfCurrentMonth.getDate()) {
+            currentStartDate.setDate(lastDayOfCurrentMonth.getDate() - 6);
+          }
+          displayShifts();
+        }
+      }
+      
+      function prevWeek() {
+          if (currentStartDate.getDate() > 1) {
+              currentStartDate.setDate(currentStartDate.getDate() - 7);
+              displayShifts();
+          }
+      }
+
+      function startRequestForShift(employeeId, day, timeString) {
+        var times = timeString.split('-');
+        var startTime = times[0].padStart(2, '0') + ':00';
+        var endTime = times[1].padStart(2, '0') + ':00';
+        
+        var monthStr = String(calendarMonth).padStart(2, '0');
+        var dayStr = String(day).padStart(2, '0');
+        var dateStr = calendarYear + '-' + monthStr + '-' + dayStr;
+
+        var baseUrl = "<?= ScriptApp.getService().getUrl() ?>";
+        var params = '?page=request_form' +
+                    '&applicantId=' + encodeURIComponent(employeeId) +
+                    '&date=' + encodeURIComponent(dateStr) +
+                    '&start=' + encodeURIComponent(startTime) +
+                    '&end=' + encodeURIComponent(endTime);
+        window.top.location.href = baseUrl + params;
+      }
+
+      function requestShiftAddition() {
+        var url = "<?= ScriptApp.getService().getUrl() ?>?page=add_form";
+        window.top.location.href = url;
+      }
+
+      function viewMyRequests() {
+        var url = "<?= ScriptApp.getService().getUrl() ?>?page=approval";
+        window.top.location.href = url;
+      }
+    </script>
+  </body>
+</html>

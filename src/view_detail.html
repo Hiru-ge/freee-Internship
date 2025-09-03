@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <?!= HtmlService.createHtmlOutputFromFile('css').getContent(); ?>
+    <script>
+      // https://developers.google.com/apps-script/guides/html/communication#forms
+      function preventFormSubmit() {
+        var forms = document.querySelectorAll('form');
+        for (var i = 0; i < forms.length; i++) {
+          forms[i].addEventListener('submit', function(event) {
+            event.preventDefault();
+          });
+        }
+      }
+      window.addEventListener('load', preventFormSubmit);
+
+      /**
+       *  タイムレコーダーの登録ボタンクリック時に発火
+       */ 
+      function handleWorkRecordFormSubmit(formObject) {
+        updateWRMessage('更新中....')
+        // .gsファイルのpostWorkRecordファンクションを呼び出し、成功したらmessage更新
+        google.script.run.withSuccessHandler(updateWRMessage).postWorkRecord(formObject);
+      }
+      /**
+       *  タイムレコーダーの登録ボタン下のメッセージを更新
+       */
+      function updateWRMessage(message) {
+        var div = document.getElementById('wr_submit_message');
+        div.innerHTML = message;
+      }
+    </script>
+  </head>
+  <body>
+    <div>
+      <h3>
+      <span>
+          <?
+            var emp = getEmployee().employee
+          ?>
+          <?= emp.display_name ?>
+      </span>さんの勤怠履歴(今月分)
+      </h3>
+      <div></div>
+      <table border="1">
+        <thead>
+          <th>種別</th>
+          <th>日時</th>
+        </thead>
+        <tbody>
+          <?
+          // 勤怠情報を取得 ※時間がずれる場合はプロジェクトの設定からタイムゾーンを設定してください
+          var record = getTimeClocks();
+          // 勤怠情報の配列の繰り返し処理
+          for (var i = 0; i <= record.length - 1; i++) {
+          ?>
+          <tr>
+            <th>
+              <?= record[i]['type'] ?>
+            </th>
+            <th>
+              <?= record[i]['date'] ?>
+            </th>
+          </tr>
+          <? } ?>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3>勤怠を登録</h3>
+      <form id="workRecordForm" onsubmit="handleWorkRecordFormSubmit(this)">
+        <div>
+          <label>タイプ</label>
+          <select name="target_type" id="pet-select">
+            <option value="clock_in">出勤</option>
+            <option value="break_begin">休憩開始</option>
+            <option value="break_end">休憩終了</option>
+            <option value="clock_out">退勤</option>
+          </select>
+          <br/>
+          <label>登録日時: </label>
+          <input type="date" name="target_date"/>
+          <input type="time" name="target_time"/>
+          <div class="btn-frame">
+            <input type="submit" value="登録" class="btn"/>
+            <div id="wr_submit_message"></div>
+          </div>
+        </div>
+      </form>
+      <div>
+    <div class="btn-frame">
+      <a href="<?= getAppUrl() ?>">ホーム画面に戻る</a>
+    </div>
+  </body>
+</html>
