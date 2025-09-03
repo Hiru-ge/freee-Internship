@@ -37,6 +37,90 @@ function getRequestOptions(method, payload) {
 }
 
 /**
+ * APIレスポンスからデータを抽出するヘルパー関数
+ * @param {object} response - UrlFetchApp.fetchのレスポンス
+ * @param {string} dataKey - レスポンスから取得するデータのキー（例: 'employees', 'time_clocks'）
+ * @param {string} errorContext - エラー時のコンテキスト文字列
+ * @returns {object|null} 抽出されたデータ、エラーの場合はnull
+ */
+function extractApiData(response, dataKey, errorContext) {
+  var responseJson = JSON.parse(response.getContentText());
+  
+  if (response.getResponseCode() != 200) {
+    console.error('APIエラー:', responseJson.message || '不明なエラー');
+    console.error('レスポンスコード:', response.getResponseCode());
+    console.error('レスポンス内容:', responseJson);
+    return null;
+  }
+  
+  // レスポンスが配列の場合はそのまま使用、オブジェクトの場合は指定されたキーのプロパティを取得
+  var data = Array.isArray(responseJson) ? responseJson : responseJson[dataKey];
+  
+  if (!data) {
+    console.error(errorContext + 'が取得できませんでした:', responseJson);
+    return null;
+  }
+  
+  return data;
+}
+
+/**
+ * 日時を日本語形式でフォーマットするヘルパー関数
+ * @param {Date} dateObj - フォーマット対象のDateオブジェクト
+ * @returns {string} フォーマットされた日時文字列
+ */
+function formatDateTimeJapanese(dateObj) {
+  return dateObj.getFullYear() + '年' 
+    + (dateObj.getMonth() + 1) + '月' 
+    + dateObj.getDate() + '日 ' 
+    + dateObj.getHours() + '時' 
+    + dateObj.getMinutes() + '分';
+}
+
+/**
+ * シフト時間文字列をパースするヘルパー関数
+ * @param {string} timeString - シフト時間文字列（例: "18-20"）
+ * @returns {object|null} {startHour: 18, endHour: 20} または null
+ */
+function parseShiftTime(timeString) {
+  if (!timeString || typeof timeString !== 'string') {
+    return null;
+  }
+  
+  var parts = timeString.split('-');
+  if (parts.length !== 2) {
+    return null;
+  }
+  
+  var startHour = parseInt(parts[0], 10);
+  var endHour = parseInt(parts[1], 10);
+  
+  if (isNaN(startHour) || isNaN(endHour)) {
+    return null;
+  }
+  
+  return {
+    startHour: startHour,
+    endHour: endHour
+  };
+}
+
+/**
+ * シフト時間の重複チェックを行うヘルパー関数
+ * @param {object} existingShift - 既存のシフト情報 {startHour: 18, endHour: 20}
+ * @param {number} requestStartHour - リクエスト開始時刻
+ * @param {number} requestEndHour - リクエスト終了時刻
+ * @returns {boolean} 重複している場合はtrue
+ */
+function isShiftOverlapping(existingShift, requestStartHour, requestEndHour) {
+  if (!existingShift) {
+    return false;
+  }
+  
+  return (existingShift.startHour < requestEndHour) && (existingShift.endHour > requestStartHour);
+}
+
+/**
  * ページを開いた時に最初に呼ばれるルートメソッド
  */
 function doGet(e) {
@@ -100,19 +184,9 @@ function getEmployees() {
     + companyId.toString() 
     + '/employees?limit=50&with_no_payroll_calculation=true'
   var response = UrlFetchApp.fetch(requestUrl, getRequestOptions())
-  var responseJson = JSON.parse(response.getContentText())
-
-  // レスポンスの構造を確認し、適切に処理する
-  if (response.getResponseCode() != 200) {
-    console.error('APIエラー:', responseJson.message || '不明なエラー');
-    return [];
-  }
-
-  // レスポンスが配列の場合はそのまま使用、オブジェクトの場合はemployeesプロパティを取得
-  var employees = Array.isArray(responseJson) ? responseJson : responseJson.employees;
   
-  if (!employees || !Array.isArray(employees)) {
-    console.error('従業員データが取得できませんでした:', responseJson);
+  var employees = extractApiData(response, 'employees', '従業員データ');
+  if (!employees) {
     return [];
   }
 
@@ -135,20 +209,14 @@ function getEmployee() {
     + '?company_id=' + companyId.toString()
     + '&year=2022&month=9'  // ※ 年月を指定しているので注意
   var response = UrlFetchApp.fetch(requestUrl, getRequestOptions())
-  var responseJson = JSON.parse(response.getContentText())
   
-  if (response.getResponseCode() != 200) {
-    console.error('APIエラー:', responseJson.message || '不明なエラー');
+  var employees = extractApiData(response, 'employee', '従業員データ');
+  if (!employees) {
     return null;
   }
   
-  // レスポンスが配列の場合はそのまま使用、オブジェクトの場合はemployeeプロパティを取得
-  var employee = Array.isArray(responseJson) ? responseJson[0] : responseJson.employee;
-  
-  if (!employee) {
-    console.error('従業員データが取得できませんでした:', responseJson);
-    return null;
-  }
+  // レスポンスが配列の場合は最初の要素、オブジェクトの場合はemployeeプロパティを取得
+  var employee = Array.isArray(employees) ? employees[0] : employees;
   
   return employee;
 }
@@ -163,18 +231,9 @@ function getTimeClocks() {
     + selectedEmpId.toString()
     + '/time_clocks?company_id=' + companyId.toString()
   var response = UrlFetchApp.fetch(requestUrl, getRequestOptions())
-  var responseJson = JSON.parse(response.getContentText())
   
-  if (response.getResponseCode() != 200) {
-    console.error('APIエラー:', responseJson.message || '不明なエラー');
-    return [];
-  }
-
-  // レスポンスが配列の場合はそのまま使用、オブジェクトの場合はtime_clocksプロパティを取得
-  var timeClocks = Array.isArray(responseJson) ? responseJson : responseJson.time_clocks;
-  
-  if (!timeClocks || !Array.isArray(timeClocks)) {
-    console.error('勤怠データが取得できませんでした:', responseJson);
+  var timeClocks = extractApiData(response, 'time_clocks', '勤怠データ');
+  if (!timeClocks) {
     return [];
   }
 
@@ -190,11 +249,7 @@ function getTimeClocks() {
     // 打刻時刻をDateオブジェクトに変換
     var dateObj = new Date(datetime)
     // 見やすい日時にフォーマット
-    var dateStr = dateObj.getFullYear() + '年' 
-      + (dateObj.getMonth() + 1) + '月' 
-      + dateObj.getDate() + '日 ' 
-      + dateObj.getHours() + '時' 
-      + dateObj.getMinutes() + '分'
+    var dateStr = formatDateTimeJapanese(dateObj)
 
     // 打刻種別をわかりやすい単語に変換
     var typeName = ''
@@ -450,10 +505,11 @@ function createShiftChangeRequest(applicantId, targetStartStr, targetEndStr, app
       return true;
     }
     var existingShift = employeeShiftInfo.shifts[requestDay];
-    var parts = existingShift.split('-');
-    var existingStartHour = parseInt(parts[0], 10);
-    var existingEndHour = parseInt(parts[1], 10);
-    var isOverlapping = (existingStartHour < requestEndHour) && (existingEndHour > requestStartHour);
+    var parsedExistingShift = parseShiftTime(existingShift);
+    if (!parsedExistingShift) {
+      return true;
+    }
+    var isOverlapping = isShiftOverlapping(parsedExistingShift, requestStartHour, requestEndHour);
     return !isOverlapping;
   });
 
@@ -836,7 +892,11 @@ function checkForgottenClockIns() {
     }
     
     var shiftTime = employeeShiftData.shifts[today]; // 例: "18-23"
-    var shiftStartHour = parseInt(shiftTime.split('-')[0], 10);
+    var parsedShift = parseShiftTime(shiftTime);
+    if (!parsedShift) {
+      return; // シフト時間の形式が不正な場合はスキップ
+    }
+    var shiftStartHour = parsedShift.startHour;
 
     // --- 3. 打刻忘れの条件判定 ---
     // (条件1) シフト開始時刻を過ぎているか？ (例: 現在18時以降で、シフト開始が18時)
@@ -894,11 +954,8 @@ function createShiftAdditionRequest(approverId, targetStartStr, targetEndStr) {
     var employeeShiftInfo = allShifts.shifts[approverId];
     if (employeeShiftInfo.shifts && employeeShiftInfo.shifts[requestDay]) {
       var existingShift = employeeShiftInfo.shifts[requestDay];
-      var parts = existingShift.split('-');
-      var existingStartHour = parseInt(parts[0], 10);
-      var existingEndHour = parseInt(parts[1], 10);
-      var isOverlapping = (existingStartHour < requestEndHour) && (existingEndHour > requestStartHour);
-      if (isOverlapping) {
+      var parsedExistingShift = parseShiftTime(existingShift);
+      if (parsedExistingShift && isShiftOverlapping(parsedExistingShift, requestStartHour, requestEndHour)) {
         throw new Error(employeeShiftInfo.name + "さんは、その時間に既に別のシフトが入っています。");
       }
     }
@@ -952,19 +1009,21 @@ function getTimeClocksFor(employeeId, dateObj) {
   var y = dateObj.getFullYear();
   var m = dateObj.getMonth() + 1;
   var d = dateObj.getDate();
-  var dateStr = y + '-' + m + '-' + d;
+  // 月と日を2桁にフォーマット（例: 8 → "08", 5 → "05"）
+  var mStr = m < 10 ? '0' + m : String(m);
+  var dStr = d < 10 ? '0' + d : String(d);
+  var dateStr = y + '-' + mStr + '-' + dStr;
 
   var requestUrl = 'https://api.freee.co.jp/hr/api/v1/employees/' +
-                   employeeId +
+                   String(employeeId) +
                    '/time_clocks?company_id=' + companyId +
                    '&from_date=' + dateStr + '&to_date=' + dateStr;
                    
   var response = UrlFetchApp.fetch(requestUrl, getRequestOptions());
-  var responseJson = JSON.parse(response.getContentText());
-
-  if (response.getResponseCode() != 200) {
-    console.error("勤怠情報の取得に失敗しました。従業員ID: " + employeeId);
+  
+  var timeClocks = extractApiData(response, null, "勤怠情報");
+  if (!timeClocks) {
     return [];
   }
-  return responseJson;
+  return timeClocks;
 }
