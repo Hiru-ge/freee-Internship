@@ -9,6 +9,12 @@
       <h2>勤怠打刻(自分の名前をクリック)</h2>
       <div></div>
       <table border="1" class="employee-list">
+        <thead>
+          <tr>
+            <th>従業員名</th>
+            <th>給与状況（103万の壁ゲージ）</th>
+          </tr>
+        </thead>
         <tbody>
           <?
           var record = getEmployees();
@@ -19,6 +25,16 @@
           <tr>
             <td>
               <a href="<?= getAppUrl() ?>?empId=<?= id ?>"><?= name ?></a>
+            </td>
+            <td>
+              <div class="wage-gauge" data-employee-id="<?= id ?>">
+                <div class="gauge-container">
+                  <div class="gauge-bar">
+                    <div class="gauge-fill" style="width: 0%"></div>
+                  </div>
+                  <div class="gauge-text">計算中...</div>
+                </div>
+              </div>
             </td>
           </tr>
           <? } ?>
@@ -60,6 +76,9 @@
         var container = document.getElementById('shift-calendar-container');
         container.innerHTML = '<p>シフト情報を読み込んでいます...</p>';
         google.script.run.withSuccessHandler(initializeShifts).getShifts();
+        
+        // 給与ゲージの初期化
+        initializeWageGauges();
       });
 
       function initializeShifts(dataFromServer) {
@@ -220,6 +239,97 @@
       function viewMyRequests() {
         var url = "<?= ScriptApp.getService().getUrl() ?>?page=approval";
         window.top.location.href = url;
+      }
+
+      // 給与ゲージの初期化
+      function initializeWageGauges() {
+        console.log('給与ゲージの初期化を開始');
+        var now = new Date();
+        var currentMonth = now.getMonth() + 1;
+        var currentYear = now.getFullYear();
+        
+        console.log('現在の年月:', currentMonth, currentYear);
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            console.log('給与データ取得成功:', result);
+            updateAllWageGauges(result);
+          })
+          .withFailureHandler(function(error) {
+            console.error('給与データ取得失敗:', error);
+            // エラー時の表示
+            var gauges = document.querySelectorAll('.wage-gauge');
+            gauges.forEach(function(gauge) {
+              var gaugeText = gauge.querySelector('.gauge-text');
+              if (gaugeText) {
+                gaugeText.innerHTML = 'エラー: 給与データの取得に失敗しました<br>' + error.message;
+              }
+            });
+          })
+          .getAllEmployeesWages(currentMonth, currentYear);
+      }
+
+      // 全従業員の給与ゲージを更新
+      function updateAllWageGauges(wagesData) {
+        console.log('給与ゲージ更新開始:', wagesData);
+        try {
+          var wages = JSON.parse(wagesData);
+          console.log('パース後の給与データ:', wages);
+          
+          if (wages && wages.length > 0) {
+            wages.forEach(function(wageInfo) {
+              updateWageGauge(wageInfo.employeeId, wageInfo);
+            });
+          } else {
+            console.log('給与データが空です');
+            // 空データ時の表示
+            var gauges = document.querySelectorAll('.wage-gauge');
+            gauges.forEach(function(gauge) {
+              var gaugeText = gauge.querySelector('.gauge-text');
+              if (gaugeText) {
+                gaugeText.innerHTML = 'シフトデータがありません';
+              }
+            });
+          }
+        } catch (error) {
+          console.error('給与データの処理中にエラー:', error);
+        }
+      }
+
+      // 個別の給与ゲージを更新
+      function updateWageGauge(employeeId, wageInfo) {
+        var gaugeElement = document.querySelector('.wage-gauge[data-employee-id="' + employeeId + '"]');
+        if (!gaugeElement) return;
+
+        var gaugeFill = gaugeElement.querySelector('.gauge-fill');
+        var gaugeText = gaugeElement.querySelector('.gauge-text');
+        
+        var percentage = Math.min(wageInfo.percentage, 100);
+        var wageFormatted = (wageInfo.wage / 10000).toFixed(1) + '万円';
+        var targetFormatted = (wageInfo.target / 10000).toFixed(0) + '万円';
+        
+        // ゲージバーの幅を更新
+        gaugeFill.style.width = percentage + '%';
+        
+        // 色を設定（103万円に近づくほど赤くなる）
+        if (percentage >= 90) {
+          gaugeFill.style.backgroundColor = '#ff4444'; // 赤
+        } else if (percentage >= 70) {
+          gaugeFill.style.backgroundColor = '#ffaa00'; // オレンジ
+        } else if (percentage >= 50) {
+          gaugeFill.style.backgroundColor = '#ffff00'; // 黄色
+        } else {
+          gaugeFill.style.backgroundColor = '#44ff44'; // 緑
+        }
+        
+        // テキストを更新
+        gaugeText.innerHTML = wageFormatted + ' / ' + targetFormatted + '<br>' + 
+                             percentage.toFixed(1) + '%';
+        
+        // 103万円を超えている場合の警告表示
+        if (wageInfo.wage >= wageInfo.target) {
+          gaugeText.innerHTML += '<br><span style="color: red; font-weight: bold;">⚠️ 103万円超過！</span>';
+        }
       }
     </script>
   </body>

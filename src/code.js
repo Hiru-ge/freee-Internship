@@ -204,6 +204,12 @@ function getEmployees() {
  */
 function getEmployee() {
   var selectedEmpId = PropertiesService.getUserProperties().getProperty('selectedEmpId')
+  
+  if (!selectedEmpId) {
+    console.error('従業員IDが設定されていません');
+    return null;
+  }
+  
   var requestUrl = 'https://api.freee.co.jp/hr/api/v1/employees/'
     + selectedEmpId.toString()
     + '?company_id=' + companyId.toString()
@@ -212,11 +218,15 @@ function getEmployee() {
   
   var employees = extractApiData(response, 'employee', '従業員データ');
   if (!employees) {
+    console.error('従業員データの取得に失敗しました');
     return null;
   }
   
   // レスポンスが配列の場合は最初の要素、オブジェクトの場合はemployeeプロパティを取得
   var employee = Array.isArray(employees) ? employees[0] : employees;
+  
+  // 従業員データの構造を確認
+  console.log('取得した従業員データ:', employee);
   
   return employee;
 }
@@ -1026,4 +1036,249 @@ function getTimeClocksFor(employeeId, dateObj) {
     return [];
   }
   return timeClocks;
+}
+
+/**
+ * 時間帯別時給の設定
+ * 各時間帯の開始時刻、終了時刻、時給レートを定義
+ */
+var TIME_ZONE_WAGE_RATES = {
+  normal: { start: 9, end: 18, rate: 1000, name: '通常時給' },      // 9:00-18:00
+  evening: { start: 18, end: 22, rate: 1200, name: '夜間手当' },    // 18:00-22:00
+  night: { start: 22, end: 9, rate: 1500, name: '深夜手当' }        // 22:00-9:00
+};
+
+/**
+ * 従業員の基本時給を取得する
+ * @param {string|number} employeeId - 従業員ID
+ * @returns {number} 基本時給（円）
+ */
+function getHourlyWage(employeeId) {
+  // 現在は固定値で実装。将来的にfreee APIから取得可能
+  // TODO: freee APIから従業員の時給情報を取得する実装
+  return 1000; // デフォルト時給1000円
+}
+
+/**
+ * 時間帯別時給レートを取得する
+ * @returns {object} 時間帯別時給設定
+ */
+function getTimeZoneWageRates() {
+  return TIME_ZONE_WAGE_RATES;
+}
+
+/**
+ * 指定された時間がどの時間帯に属するかを判定する
+ * @param {number} hour - 時間（0-23）
+ * @returns {string} 時間帯のキー（'normal', 'evening', 'night'）
+ */
+function getTimeZone(hour) {
+  if (hour >= 9 && hour < 18) {
+    return 'normal';
+  } else if (hour >= 18 && hour < 22) {
+    return 'evening';
+  } else {
+    return 'night';
+  }
+}
+
+/**
+ * シフト時間から時間帯別の勤務時間を計算する
+ * @param {string} shiftTime - シフト時間文字列（例: "18-22"）
+ * @returns {object} 時間帯別勤務時間 {normal: 0, evening: 4, night: 0}
+ */
+function calculateWorkHoursByTimeZone(shiftTime) {
+  var parsedShift = parseShiftTime(shiftTime);
+  if (!parsedShift) {
+    return { normal: 0, evening: 0, night: 0 };
+  }
+
+  var startHour = parsedShift.startHour;
+  var endHour = parsedShift.endHour;
+  var timeZoneHours = { normal: 0, evening: 0, night: 0 };
+
+  // 開始時刻から終了時刻まで1時間ずつチェック
+  for (var hour = startHour; hour < endHour; hour++) {
+    var timeZone = getTimeZone(hour);
+    timeZoneHours[timeZone]++;
+  }
+
+  return timeZoneHours;
+}
+
+/**
+ * 指定された従業員の月間勤務時間を時間帯別に計算する
+ * @param {string|number} employeeId - 従業員ID
+ * @param {number} month - 月（1-12）
+ * @param {number} year - 年
+ * @returns {object} 時間帯別月間勤務時間 {normal: 0, evening: 0, night: 0}
+ */
+function calculateMonthlyWorkHours(employeeId, month, year) {
+  var allShiftsJson = getShifts();
+  if (!allShiftsJson) {
+    return { normal: 0, evening: 0, night: 0 };
+  }
+
+  var allShifts = JSON.parse(allShiftsJson);
+  var employeeShifts = allShifts.shifts[employeeId];
+  
+  if (!employeeShifts || !employeeShifts.shifts) {
+    return { normal: 0, evening: 0, night: 0 };
+  }
+
+  var monthlyHours = { normal: 0, evening: 0, night: 0 };
+
+  // 指定された年月のシフトを集計
+  for (var day in employeeShifts.shifts) {
+    var shiftTime = employeeShifts.shifts[day];
+    if (shiftTime) {
+      var dayHours = calculateWorkHoursByTimeZone(shiftTime);
+      monthlyHours.normal += dayHours.normal;
+      monthlyHours.evening += dayHours.evening;
+      monthlyHours.night += dayHours.night;
+    }
+  }
+
+  return monthlyHours;
+}
+
+/**
+ * 従業員の月給を計算する
+ * @param {string|number} employeeId - 従業員ID
+ * @param {number} month - 月（1-12）
+ * @param {number} year - 年
+ * @returns {object} 給与情報 {total: 0, breakdown: {}, workHours: {}}
+ */
+function calculateMonthlyWage(employeeId, month, year) {
+  try {
+    var baseHourlyWage = getHourlyWage(employeeId);
+    var timeZoneRates = getTimeZoneWageRates();
+    var monthlyWorkHours = calculateMonthlyWorkHours(employeeId, month, year);
+
+    var breakdown = {};
+    var total = 0;
+
+    // 時間帯別給与を計算
+    for (var timeZone in monthlyWorkHours) {
+      var hours = monthlyWorkHours[timeZone];
+      var rate = timeZoneRates[timeZone].rate;
+      var wage = hours * rate;
+      
+      breakdown[timeZone] = {
+        hours: hours,
+        rate: rate,
+        wage: wage,
+        name: timeZoneRates[timeZone].name
+      };
+      
+      total += wage;
+    }
+
+    var result = {
+      total: total,
+      breakdown: breakdown,
+      workHours: monthlyWorkHours
+    };
+    
+    return result;
+    
+  } catch (error) {
+    // エラー時はデフォルト値を返す
+    return {
+      total: 0,
+      breakdown: {},
+      workHours: { normal: 0, evening: 0, night: 0 }
+    };
+  }
+}
+
+/**
+ * 全従業員の給与状況を一括取得する
+ * @param {number} month - 月（1-12）
+ * @param {number} year - 年
+ * @returns {string} 全従業員の給与情報のJSON文字列
+ */
+function getAllEmployeesWages(month, year) {
+  var employees = getEmployees();
+  if (!employees) {
+    return JSON.stringify([]);
+  }
+
+  var allWages = [];
+  
+  employees.forEach(function(employee) {
+    var wageInfo = calculateMonthlyWage(employee.id, month, year);
+    
+    allWages.push({
+      employeeId: employee.id,
+      employeeName: employee.display_name,
+      wage: wageInfo.total,
+      breakdown: wageInfo.breakdown,
+      workHours: wageInfo.workHours,
+      target: 1030000, // 103万円
+      percentage: (wageInfo.total / 1030000) * 100
+    });
+  });
+
+  return JSON.stringify(allWages);
+}
+
+/**
+ * 指定された従業員の給与状況を取得する
+ * @param {string|number} employeeId - 従業員ID
+ * @param {number} month - 月（1-12）
+ * @param {number} year - 年
+ * @returns {string} 従業員の給与情報のJSON文字列
+ */
+function getEmployeeWageInfo(employeeId, month, year) {
+  try {
+    // 従業員情報を取得
+    var employees = getEmployees();
+    if (!employees || employees.length === 0) {
+      return JSON.stringify({
+        error: '従業員情報が取得できません',
+        employeeId: employeeId
+      });
+    }
+    
+    var employee = findEmployeeById(employeeId, employees);
+    if (!employee) {
+      return JSON.stringify({
+        error: '指定された従業員IDが見つかりません',
+        employeeId: employeeId
+      });
+    }
+    
+    // 給与計算を実行
+    var wageInfo = calculateMonthlyWage(employeeId, month, year);
+    
+    var result = {
+      employeeId: employeeId,
+      employeeName: employee.display_name,
+      wage: wageInfo.total,
+      breakdown: wageInfo.breakdown,
+      workHours: wageInfo.workHours,
+      target: 1030000, // 103万円
+      percentage: (wageInfo.total / 1030000) * 100,
+      isOverLimit: wageInfo.total >= 1030000,
+      remaining: Math.max(0, 1030000 - wageInfo.total)
+    };
+    
+    return JSON.stringify(result);
+    
+  } catch (error) {
+    return JSON.stringify({
+      error: '給与計算中にエラーが発生しました: ' + error.message,
+      employeeId: employeeId
+      });
+  }
+}
+
+/**
+ * 現在選択されている従業員IDを取得する
+ * @returns {string|null} 選択されている従業員ID、設定されていない場合はnull
+ */
+function getSelectedEmployeeId() {
+  var selectedEmpId = PropertiesService.getUserProperties().getProperty('selectedEmpId');
+  return selectedEmpId;
 }

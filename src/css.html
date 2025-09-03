@@ -134,7 +134,7 @@
   
   /* 勤怠打刻テーブルのスタイルを改善 */
   table.employee-list {
-    width: 30%;
+    width: 70%;
   }
 
   table.employee-list th {
@@ -289,5 +289,101 @@
     cursor: pointer;
     padding: 0.4rem;
     margin: 0;
+  }
+
+  /* 給与ゲージのスタイル */
+  .wage-gauge {
+    padding: 10px;
+    background-color: #4a4a4a;
+    border-radius: 8px;
+    margin: 5px 0;
+  }
+
+  .gauge-container {
+    text-align: center;
+  }
+
+  .gauge-bar {
+    width: 100%;
+    height: 20px;
+    background-color: #333;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 8px;
+    border: 1px solid #777;
+  }
+
+  .gauge-fill {
+    height: 100%;
+    background-color: #44ff44;
+    transition: width 0.5s ease, background-color 0.3s ease;
+    border-radius: 10px;
+  }
+
+  .gauge-text {
+    font-size: 0.9em;
+    color: #f0f0f0;
+    line-height: 1.4;
+  }
+
+  /* 従業員詳細画面の給与ゲージ */
+  .wage-gauge-detail {
+    background-color: #4a4a4a;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 20px 0;
+  }
+
+  .wage-gauge-detail .gauge-bar {
+    height: 25px;
+    margin-bottom: 15px;
+  }
+
+  .wage-breakdown {
+    margin-top: 20px;
+  }
+
+  .wage-breakdown h4 {
+    color: #f0f0f0;
+    margin-bottom: 15px;
+  }
+
+  .wage-breakdown table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #555;
+  }
+
+  .wage-breakdown th,
+  .wage-breakdown td {
+    padding: 10px;
+    text-align: center;
+    border: 1px solid #777;
+  }
+
+  .wage-breakdown th {
+    background-color: #666;
+    color: #f0f0f0;
+    font-weight: bold;
+  }
+
+  .wage-breakdown td {
+    color: #f0f0f0;
+  }
+
+  /* 従業員リストテーブルの調整 */
+  .employee-list th,
+  .employee-list td {
+    padding: 12px;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  .employee-list th:first-child {
+    width: 40%;
+  }
+
+  .employee-list th:last-child {
+    width: 60%;
   }
 </style>

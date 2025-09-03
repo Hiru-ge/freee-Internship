@@ -15,6 +15,11 @@
       }
       window.addEventListener('load', preventFormSubmit);
 
+      // 給与ゲージの初期化
+      window.addEventListener('load', function() {
+        initializeWageGauge();
+      });
+
       /**
        *  タイムレコーダーの登録ボタンクリック時に発火
        */ 
@@ -30,6 +35,167 @@
         var div = document.getElementById('wr_submit_message');
         div.innerHTML = message;
       }
+
+      // 給与ゲージの初期化
+      function initializeWageGauge() {
+        var now = new Date();
+        var currentMonth = now.getMonth() + 1;
+        var currentYear = now.getFullYear();
+        
+        // 現在の従業員IDを取得（複数の方法を試行）
+        var empId = null;
+        
+        // 方法1: URLパラメータから取得
+        try {
+          var urlParams = new URLSearchParams(window.location.search);
+          empId = urlParams.get('empId');
+        } catch (error) {
+          // エラーは無視して次の方法を試行
+        }
+        
+        // 方法2: 現在のURLから直接抽出
+        if (!empId) {
+          try {
+            var currentUrl = window.location.href;
+            var empIdMatch = currentUrl.match(/empId=(\d+)/);
+            if (empIdMatch) {
+              empId = empIdMatch[1];
+            }
+          } catch (error) {
+            // エラーは無視して次の方法を試行
+          }
+        }
+        
+        // 方法3: サーバーサイドから従業員IDを取得
+        if (!empId) {
+          google.script.run
+            .withSuccessHandler(function(serverEmpId) {
+              if (serverEmpId) {
+                initializeWageGaugeWithId(serverEmpId, currentMonth, currentYear);
+              } else {
+                showWageGaugeError('従業員IDが取得できません');
+              }
+            })
+            .withFailureHandler(function(error) {
+              // デバッグ用の固定値を使用
+              var debugEmpId = '3316116';
+              initializeWageGaugeWithId(debugEmpId, currentMonth, currentYear);
+            })
+            .getSelectedEmployeeId();
+          return; // 非同期処理のため、ここで終了
+        }
+        
+        // 従業員IDが取得できた場合
+        if (empId) {
+          initializeWageGaugeWithId(empId, currentMonth, currentYear);
+        } else {
+          showWageGaugeError('従業員IDが取得できません');
+        }
+      }
+
+      // 従業員IDを使用して給与ゲージを初期化
+      function initializeWageGaugeWithId(empId, month, year) {
+        google.script.run
+          .withSuccessHandler(function(result) {
+            updateWageGaugeDetail(result);
+          })
+          .withFailureHandler(function(error) {
+            showWageGaugeError('給与データの取得に失敗しました: ' + error.message);
+          })
+          .getEmployeeWageInfo(empId, month, year);
+      }
+
+      // 給与ゲージのエラー表示
+      function showWageGaugeError(message) {
+        var gaugeText = document.querySelector('.gauge-text');
+        if (gaugeText) {
+          gaugeText.innerHTML = 'エラー: ' + message;
+        }
+      }
+
+      // 給与ゲージの詳細表示を更新
+      function updateWageGaugeDetail(wageData) {
+        try {
+          var wageInfo = JSON.parse(wageData);
+          
+          // エラーチェック
+          if (wageInfo.error) {
+            var gaugeText = document.querySelector('.gauge-text');
+            if (gaugeText) {
+              gaugeText.innerHTML = 'エラー: ' + wageInfo.error;
+            }
+            return;
+          }
+          
+          var gaugeFill = document.querySelector('.gauge-fill');
+          var gaugeText = document.querySelector('.gauge-text');
+          var breakdownDiv = document.getElementById('wage-breakdown');
+          
+          if (!gaugeFill || !gaugeText || !breakdownDiv) {
+            return;
+          }
+          
+          var percentage = Math.min(wageInfo.percentage, 100);
+          var wageFormatted = (wageInfo.wage / 10000).toFixed(1) + '万円';
+          var targetFormatted = (wageInfo.target / 10000).toFixed(0) + '万円';
+          
+          // ゲージバーの幅を更新
+          gaugeFill.style.width = percentage + '%';
+          
+          // 色を設定（103万円に近づくほど赤くなる）
+          if (percentage >= 90) {
+            gaugeFill.style.backgroundColor = '#ff4444'; // 赤
+          } else if (percentage >= 70) {
+            gaugeFill.style.backgroundColor = '#ffaa00'; // オレンジ
+          } else if (percentage >= 50) {
+            gaugeFill.style.backgroundColor = '#ffff00'; // 黄色
+          } else {
+            gaugeFill.style.backgroundColor = '#44ff44'; // 緑
+          }
+          
+          // テキストを更新
+          gaugeText.innerHTML = wageFormatted + ' / ' + targetFormatted + '<br>' + 
+                               percentage.toFixed(1) + '%';
+          
+          // 103万円を超えている場合の警告表示
+          if (wageInfo.wage >= wageInfo.target) {
+            gaugeText.innerHTML += '<br><span style="color: red; font-weight: bold;">⚠️ 103万円超過！</span>';
+          }
+          
+          // 給与内訳を表示
+          var breakdownHtml = '<h4>給与内訳</h4>';
+          breakdownHtml += '<table border="1" style="width: 100%; margin-top: 10px;">';
+          breakdownHtml += '<tr><th>時間帯</th><th>勤務時間</th><th>時給</th><th>給与</th></tr>';
+          
+          if (wageInfo.breakdown && Object.keys(wageInfo.breakdown).length > 0) {
+            for (var timeZone in wageInfo.breakdown) {
+              var detail = wageInfo.breakdown[timeZone];
+              breakdownHtml += '<tr>';
+              breakdownHtml += '<td>' + detail.name + '</td>';
+              breakdownHtml += '<td>' + detail.hours + '時間</td>';
+              breakdownHtml += '<td>' + detail.rate.toLocaleString() + '円</td>';
+              breakdownHtml += '<td>' + detail.wage.toLocaleString() + '円</td>';
+              breakdownHtml += '</tr>';
+            }
+          } else {
+            breakdownHtml += '<tr><td colspan="4">シフトデータがありません</td></tr>';
+          }
+          
+          breakdownHtml += '<tr style="font-weight: bold;">';
+          breakdownHtml += '<td colspan="3">合計</td>';
+          breakdownHtml += '<td>' + wageInfo.wage.toLocaleString() + '円</td>';
+          breakdownHtml += '</tr>';
+          breakdownHtml += '</table>';
+          
+          breakdownDiv.innerHTML = breakdownHtml;
+          
+        } catch (error) {
+          var gaugeText = document.querySelector('.gauge-text');
+          if (gaugeText) {
+            gaugeText.innerHTML = 'エラー: 給与データの処理に失敗しました<br>' + error.message;
+          }
+        }
+      }
     </script>
   </head>
   <body>
@@ -37,9 +203,13 @@
       <h3>
       <span>
           <?
-            var emp = getEmployee().employee
+            var emp = getEmployee()
+            if (emp && emp.display_name) {
           ?>
           <?= emp.display_name ?>
+          <? } else { ?>
+          従業員情報が取得できません
+          <? } ?>
       </span>さんの勤怠履歴(今月分)
       </h3>
       <div></div>
@@ -52,8 +222,9 @@
           <?
           // 勤怠情報を取得 ※時間がずれる場合はプロジェクトの設定からタイムゾーンを設定してください
           var record = getTimeClocks();
-          // 勤怠情報の配列の繰り返し処理
-          for (var i = 0; i <= record.length - 1; i++) {
+          if (record && record.length > 0) {
+            // 勤怠情報の配列の繰り返し処理
+            for (var i = 0; i <= record.length - 1; i++) {
           ?>
           <tr>
             <th>
@@ -63,10 +234,33 @@
               <?= record[i]['date'] ?>
             </th>
           </tr>
+          <? 
+            }
+          } else {
+          ?>
+          <tr>
+            <th colspan="2">勤怠記録がありません</th>
+          </tr>
           <? } ?>
         </tbody>
       </table>
     </div>
+
+    <div>
+      <h3>給与状況（103万の壁ゲージ）</h3>
+      <div id="wage-gauge-detail" class="wage-gauge-detail">
+        <div class="gauge-container">
+          <div class="gauge-bar">
+            <div class="gauge-fill" style="width: 0%"></div>
+          </div>
+          <div class="gauge-text">計算中...</div>
+        </div>
+        <div id="wage-breakdown" class="wage-breakdown">
+          <!-- 給与内訳がここに表示されます -->
+        </div>
+      </div>
+    </div>
+
     <div>
       <h3>勤怠を登録</h3>
       <form id="workRecordForm" onsubmit="handleWorkRecordFormSubmit(this)">
