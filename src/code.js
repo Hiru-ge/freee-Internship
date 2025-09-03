@@ -12,7 +12,7 @@
  * またApps Scriptから外部のAPIをcallするために以下の設定をしておいてください
  *   - https://script.google.com/home/usersettings
  */
-var accessToken = '4ODmEiUCIvd9ioQ63mf8ZRQyfdsHLe7F0WJ2XPS1zRM'
+var accessToken = 'T5rtCwC7-alVD7xvSD3QRmwQ5ZHijRSHDsvrnyhCEp0'
 var companyId =  12127317
 var SHIFT_SHEET_NAME = "シフト表";
 var SHIFT_MANAGEMENT_SHEET_NAME = "シフト交代管理";
@@ -102,12 +102,26 @@ function getEmployees() {
   var response = UrlFetchApp.fetch(requestUrl, getRequestOptions())
   var responseJson = JSON.parse(response.getContentText())
 
-  // ★修正: IDでソートする処理を追加
-  responseJson.sort(function(a, b) {
+  // レスポンスの構造を確認し、適切に処理する
+  if (response.getResponseCode() != 200) {
+    console.error('APIエラー:', responseJson.message || '不明なエラー');
+    return [];
+  }
+
+  // レスポンスが配列の場合はそのまま使用、オブジェクトの場合はemployeesプロパティを取得
+  var employees = Array.isArray(responseJson) ? responseJson : responseJson.employees;
+  
+  if (!employees || !Array.isArray(employees)) {
+    console.error('従業員データが取得できませんでした:', responseJson);
+    return [];
+  }
+
+  // IDでソートする処理
+  employees.sort(function(a, b) {
     return a.id - b.id;
   });
 
-  return responseJson
+  return employees;
 }
 
 /**
@@ -122,11 +136,21 @@ function getEmployee() {
     + '&year=2022&month=9'  // ※ 年月を指定しているので注意
   var response = UrlFetchApp.fetch(requestUrl, getRequestOptions())
   var responseJson = JSON.parse(response.getContentText())
+  
   if (response.getResponseCode() != 200) {
-    console.error(responseJson.message)
-    return responseJson.message
+    console.error('APIエラー:', responseJson.message || '不明なエラー');
+    return null;
   }
-  return responseJson
+  
+  // レスポンスが配列の場合はそのまま使用、オブジェクトの場合はemployeeプロパティを取得
+  var employee = Array.isArray(responseJson) ? responseJson[0] : responseJson.employee;
+  
+  if (!employee) {
+    console.error('従業員データが取得できませんでした:', responseJson);
+    return null;
+  }
+  
+  return employee;
 }
 
 /**
@@ -140,16 +164,25 @@ function getTimeClocks() {
     + '/time_clocks?company_id=' + companyId.toString()
   var response = UrlFetchApp.fetch(requestUrl, getRequestOptions())
   var responseJson = JSON.parse(response.getContentText())
+  
   if (response.getResponseCode() != 200) {
-    console.error(responseJson.message)
-    return responseJson.message
+    console.error('APIエラー:', responseJson.message || '不明なエラー');
+    return [];
+  }
+
+  // レスポンスが配列の場合はそのまま使用、オブジェクトの場合はtime_clocksプロパティを取得
+  var timeClocks = Array.isArray(responseJson) ? responseJson : responseJson.time_clocks;
+  
+  if (!timeClocks || !Array.isArray(timeClocks)) {
+    console.error('勤怠データが取得できませんでした:', responseJson);
+    return [];
   }
 
   // 画面表示用にデータを加工する
   var formatedRecords = []
-  for (var i = 0; i <= responseJson.length - 1; i++) {
+  for (var i = 0; i <= timeClocks.length - 1; i++) {
     // [i]番目の勤怠情報
-    var timeClock = responseJson[i]
+    var timeClock = timeClocks[i]
     // 打刻種別を取り出す
     var type = timeClock['type']
     // 打刻時刻を取り出す
