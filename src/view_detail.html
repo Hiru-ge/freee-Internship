@@ -15,9 +15,10 @@
       }
       window.addEventListener('load', preventFormSubmit);
 
-      // 給与ゲージの初期化
+      // 給与ゲージと勤怠履歴の初期化
       window.addEventListener('load', function() {
         initializeWageGauge();
+        initializeAttendanceHistory();
       });
 
       /**
@@ -34,6 +35,191 @@
       function updateWRMessage(message) {
         var div = document.getElementById('wr_submit_message');
         div.innerHTML = message;
+      }
+
+      // 勤怠履歴の変数（シフト表と同様のパターン）
+      var attendanceYear;
+      var attendanceMonth;
+      var allAttendanceData;
+      var currentEmployeeId;
+
+      // 勤怠履歴の初期化
+      function initializeAttendanceHistory() {
+        // ローディングスピナーを表示
+        showLoadingSpinner();
+        
+        // 従業員IDを取得
+        currentEmployeeId = getCurrentEmployeeId();
+        if (!currentEmployeeId) {
+          showAttendanceError('従業員IDが取得できません');
+          return;
+        }
+
+        // 現在の年月を設定
+        var now = new Date();
+        attendanceYear = now.getFullYear();
+        attendanceMonth = now.getMonth() + 1;
+        
+        // 勤怠履歴を読み込み
+        loadAttendanceData();
+      }
+
+      // 現在の従業員IDを取得
+      function getCurrentEmployeeId() {
+        console.log('従業員ID取得を開始...');
+        console.log('現在のURL:', window.location.href);
+        console.log('URLパラメータ:', window.location.search);
+        
+        // 親ウィンドウのURLから取得を試行（Google Apps Scriptのiframe内での実行を考慮）
+        try {
+          var parentUrl = window.parent.location.href;
+          console.log('親ウィンドウのURL:', parentUrl);
+          
+          var match = parentUrl.match(/[?&]empId=(\d+)/);
+          console.log('親ウィンドウURLの正規表現マッチ結果:', match);
+          if (match && match[1]) {
+            console.log('親ウィンドウURLで従業員ID取得成功:', match[1]);
+            return match[1];
+          }
+        } catch (e) {
+          console.log('親ウィンドウURL取得でエラー（セキュリティ制限の可能性）:', e);
+        }
+
+        // 現在のウィンドウのURLパラメータから取得を試行
+        try {
+          var urlParams = new URLSearchParams(window.location.search);
+          var empId = urlParams.get('empId');
+          console.log('URLパラメータから取得:', empId);
+          if (empId) {
+            console.log('URLパラメータで従業員ID取得成功:', empId);
+            return empId;
+          }
+        } catch (e) {
+          console.log('URLパラメータ取得でエラー:', e);
+        }
+
+        // URLから正規表現で取得を試行
+        try {
+          var url = window.location.href;
+          var match = url.match(/[?&]empId=(\d+)/);
+          console.log('正規表現マッチ結果:', match);
+          if (match && match[1]) {
+            console.log('正規表現で従業員ID取得成功:', match[1]);
+            return match[1];
+          }
+        } catch (e) {
+          console.log('正規表現取得でエラー:', e);
+        }
+
+        // サーバーサイドから取得を試行
+        try {
+          console.log('サーバーサイドから取得を試行...');
+          var selectedEmpId = google.script.run.getSelectedEmployeeId();
+          console.log('サーバーサイドから取得:', selectedEmpId);
+          if (selectedEmpId) {
+            console.log('サーバーサイドで従業員ID取得成功:', selectedEmpId);
+            return selectedEmpId;
+          }
+        } catch (e) {
+          console.log('サーバーサイド取得でエラー:', e);
+        }
+
+        // フォールバック: デフォルトの従業員IDを使用（店長 太郎）
+        console.log('フォールバック: デフォルトの従業員IDを使用');
+        return '3313254'; // 店長 太郎のID
+      }
+
+      // 勤怠データを読み込み
+      function loadAttendanceData() {
+        var yearMonth = attendanceYear + '-' + String(attendanceMonth).padStart(2, '0');
+        console.log('勤怠データ読み込み開始...');
+        console.log('従業員ID:', currentEmployeeId);
+        console.log('年月:', yearMonth);
+        
+        // ローディングスピナーを表示
+        showLoadingSpinner();
+        
+        google.script.run
+          .withSuccessHandler(function(data) {
+            console.log('勤怠データ取得成功:', data);
+            displayAttendanceData(data);
+          })
+          .withFailureHandler(function(error) {
+            console.log('勤怠データ取得失敗:', error);
+            showAttendanceError('勤怠データの取得に失敗しました: ' + error.message);
+          })
+          .getTimeClocksForMonth(currentEmployeeId, yearMonth);
+      }
+
+      // 勤怠データを表示
+      function displayAttendanceData(dataJson) {
+        try {
+          var records = JSON.parse(dataJson);
+          var container = document.getElementById('attendance-container');
+          var title = document.getElementById('attendance-title');
+          
+          // タイトルを更新
+          title.textContent = attendanceYear + '年' + attendanceMonth + '月の勤怠履歴';
+          
+          // テーブルを生成
+          var html = '<table border="1">';
+          html += '<thead><tr><th>種別</th><th>日時</th></tr></thead>';
+          html += '<tbody>';
+          
+          if (!records || records.length === 0) {
+            // データがない場合は空の行を表示
+            html += '<tr><td colspan="2" style="text-align: center; padding: 40px; color: #999;">この月の勤怠記録がありません</td></tr>';
+          } else {
+            for (var i = 0; i < records.length; i++) {
+              var record = records[i];
+              html += '<tr>';
+              html += '<td>' + record.type + '</td>';
+              html += '<td>' + record.date + '</td>';
+              html += '</tr>';
+            }
+          }
+          
+          html += '</tbody></table>';
+          container.innerHTML = html;
+          
+        } catch (error) {
+          showAttendanceError('勤怠データの表示に失敗しました: ' + error.message);
+        }
+      }
+
+      // 前の月に移動
+      function prevMonth() {
+        attendanceMonth--;
+        if (attendanceMonth < 1) {
+          attendanceMonth = 12;
+          attendanceYear--;
+        }
+        loadAttendanceData();
+      }
+
+      // 次の月に移動
+      function nextMonth() {
+        attendanceMonth++;
+        if (attendanceMonth > 12) {
+          attendanceMonth = 1;
+          attendanceYear++;
+        }
+        loadAttendanceData();
+      }
+
+      // ローディングスピナーを表示
+      function showLoadingSpinner() {
+        var container = document.getElementById('attendance-container');
+        container.innerHTML = '<div class="loading-container">' +
+                             '<div class="loading-spinner"></div>' +
+                             '勤怠履歴を読み込み中...' +
+                             '</div>';
+      }
+
+      // エラー表示
+      function showAttendanceError(message) {
+        var container = document.getElementById('attendance-container');
+        container.innerHTML = '<p style="color: red;">エラー: ' + message + '</p>';
       }
 
       // 給与ゲージの初期化
@@ -210,40 +396,25 @@
           <? } else { ?>
           従業員情報が取得できません
           <? } ?>
-      </span>さんの勤怠履歴(今月分)
+      </span>さんの勤怠履歴
       </h3>
-      <div></div>
-      <table border="1">
-        <thead>
-          <th>種別</th>
-          <th>日時</th>
-        </thead>
-        <tbody>
-          <?
-          // 勤怠情報を取得 ※時間がずれる場合はプロジェクトの設定からタイムゾーンを設定してください
-          var record = getTimeClocks();
-          if (record && record.length > 0) {
-            // 勤怠情報の配列の繰り返し処理
-            for (var i = 0; i <= record.length - 1; i++) {
-          ?>
-          <tr>
-            <th>
-              <?= record[i]['type'] ?>
-            </th>
-            <th>
-              <?= record[i]['date'] ?>
-            </th>
-          </tr>
-          <? 
-            }
-          } else {
-          ?>
-          <tr>
-            <th colspan="2">勤怠記録がありません</th>
-          </tr>
-          <? } ?>
-        </tbody>
-      </table>
+      
+      <!-- 月別ページネーション（シフト表と同様のUI） -->
+      <div class="month-navigation">
+        <h3 id="attendance-title">勤怠履歴</h3>
+        <div class="month-navigation-buttons">
+          <button class="button small-button" onclick="prevMonth()"><</button>
+          <button class="button small-button" onclick="nextMonth()">></button>
+        </div>
+      </div>
+      
+      <!-- 勤怠履歴表示エリア -->
+      <div id="attendance-container">
+        <div class="loading-container">
+          <div class="loading-spinner"></div>
+          勤怠履歴を読み込み中...
+        </div>
+      </div>
     </div>
 
     <div>

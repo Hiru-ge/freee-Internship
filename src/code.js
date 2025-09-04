@@ -141,11 +141,16 @@ function doGet(e) {
       .evaluate().setTitle("シフト追加リクエスト");
   } else {
     var selectedEmpId = e.parameter.empId;
+    console.log('doGet - empIdパラメータ:', selectedEmpId);
+    console.log('doGet - 全パラメータ:', e.parameter);
+    
     if (selectedEmpId) { 
+      console.log('従業員詳細画面を表示 - 従業員ID:', selectedEmpId);
       PropertiesService.getUserProperties().setProperty('selectedEmpId', selectedEmpId.toString());
       return HtmlService.createTemplateFromFile("view_detail")
           .evaluate().setTitle("Detail: " + selectedEmpId.toString());
     } else { 
+      console.log('ホーム画面を表示');
       return HtmlService.createTemplateFromFile("view_home")
           .evaluate().setTitle("Home");
     }
@@ -284,6 +289,182 @@ function getTimeClocks() {
     })
   }
   return formatedRecords
+}
+
+/**
+ * 過去半年分の勤怠履歴を一括取得する
+ * @param {string|number} employeeId - 従業員ID
+ * @returns {string} 月別に整理された勤怠履歴のJSON文字列
+ */
+function getTimeClocksHistory(employeeId) {
+  try {
+    console.log('getTimeClocksHistory開始 - 従業員ID:', employeeId);
+    
+    var now = new Date();
+    var sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+    
+    // 6ヶ月前の日付を文字列にフォーマット
+    var fromDate = sixMonthsAgo.getFullYear() + '-' 
+      + String(sixMonthsAgo.getMonth() + 1).padStart(2, '0') + '-' 
+      + String(sixMonthsAgo.getDate()).padStart(2, '0');
+    
+    // 現在の日付を文字列にフォーマット
+    var toDate = now.getFullYear() + '-' 
+      + String(now.getMonth() + 1).padStart(2, '0') + '-' 
+      + String(now.getDate()).padStart(2, '0');
+    
+    console.log('取得期間:', fromDate, '〜', toDate);
+    
+    var requestUrl = 'https://api.freee.co.jp/hr/api/v1/employees/'
+      + employeeId.toString()
+      + '/time_clocks?company_id=' + companyId.toString()
+      + '&from_date=' + fromDate
+      + '&to_date=' + toDate;
+    
+    console.log('APIリクエストURL:', requestUrl);
+    
+    var response = UrlFetchApp.fetch(requestUrl, getRequestOptions());
+    console.log('APIレスポンスコード:', response.getResponseCode());
+    console.log('APIレスポンス内容:', response.getContentText());
+    
+    var timeClocks = extractApiData(response, 'time_clocks', '勤怠履歴データ');
+    console.log('抽出された勤怠データ:', timeClocks);
+    
+    if (!timeClocks) {
+      console.log('勤怠データが取得できませんでした');
+      return JSON.stringify({});
+    }
+    
+    // 月別に勤怠履歴を整理
+    var monthlyHistory = {};
+    
+    for (var i = 0; i < timeClocks.length; i++) {
+      var timeClock = timeClocks[i];
+      var datetime = timeClock['datetime'];
+      var dateObj = new Date(datetime);
+      
+      // 年月のキーを作成（例: "2025-01"）
+      var yearMonth = dateObj.getFullYear() + '-' + String(dateObj.getMonth() + 1).padStart(2, '0');
+      
+      if (!monthlyHistory[yearMonth]) {
+        monthlyHistory[yearMonth] = [];
+      }
+      
+      // 打刻種別をわかりやすい単語に変換
+      var typeName = '';
+      switch (timeClock['type']) {
+        case 'clock_in':
+          typeName = '出勤';
+          break;
+        case 'break_begin':
+          typeName = '休憩開始';
+          break;
+        case 'break_end':
+          typeName = '休憩終了';
+          break;
+        case 'clock_out':
+          typeName = '退勤';
+          break;
+      }
+      
+      monthlyHistory[yearMonth].push({
+        'date': formatDateTimeJapanese(dateObj),
+        'type': typeName,
+        'datetime': datetime,
+        'rawType': timeClock['type']
+      });
+    }
+    
+    // 各月のデータを日付順でソート
+    for (var month in monthlyHistory) {
+      monthlyHistory[month].sort(function(a, b) {
+        return new Date(a.datetime) - new Date(b.datetime);
+      });
+    }
+    
+    return JSON.stringify(monthlyHistory);
+    
+  } catch (error) {
+    console.error('勤怠履歴取得中にエラーが発生しました:', error.message);
+    return JSON.stringify({});
+  }
+}
+
+/**
+ * 指定された月の勤怠履歴を取得する
+ * @param {string|number} employeeId - 従業員ID
+ * @param {string} yearMonth - 年月（例: "2025-01"）
+ * @returns {string} 指定月の勤怠履歴のJSON文字列
+ */
+function getTimeClocksForMonth(employeeId, yearMonth) {
+  try {
+    console.log('getTimeClocksForMonth開始 - 従業員ID:', employeeId, '年月:', yearMonth);
+    
+    var historyJson = getTimeClocksHistory(employeeId);
+    console.log('勤怠履歴JSON取得結果:', historyJson);
+    
+    var monthlyHistory = JSON.parse(historyJson);
+    console.log('パース後の月別履歴:', monthlyHistory);
+    
+    if (monthlyHistory[yearMonth]) {
+      console.log('指定月のデータが見つかりました:', monthlyHistory[yearMonth]);
+      return JSON.stringify(monthlyHistory[yearMonth]);
+    } else {
+      console.log('指定月のデータが見つかりませんでした:', yearMonth);
+      return JSON.stringify([]);
+    }
+  } catch (error) {
+    console.error('月別勤怠履歴取得中にエラーが発生しました:', error.message);
+    return JSON.stringify([]);
+  }
+}
+
+/**
+ * 利用可能な月の一覧を取得する
+ * @param {string|number} employeeId - 従業員ID
+ * @returns {string} 利用可能な月の一覧のJSON文字列
+ */
+function getAvailableMonths(employeeId) {
+  try {
+    var historyJson = getTimeClocksHistory(employeeId);
+    var monthlyHistory = JSON.parse(historyJson);
+    
+    var availableMonths = [];
+    for (var yearMonth in monthlyHistory) {
+      if (monthlyHistory[yearMonth].length > 0) {
+        availableMonths.push({
+          yearMonth: yearMonth,
+          displayName: formatYearMonth(yearMonth),
+          recordCount: monthlyHistory[yearMonth].length
+        });
+      }
+    }
+    
+    // 年月順でソート（新しい順）
+    availableMonths.sort(function(a, b) {
+      return b.yearMonth.localeCompare(a.yearMonth);
+    });
+    
+    return JSON.stringify(availableMonths);
+  } catch (error) {
+    console.error('利用可能月一覧取得中にエラーが発生しました:', error.message);
+    return JSON.stringify([]);
+  }
+}
+
+/**
+ * 年月文字列を表示用にフォーマットする
+ * @param {string} yearMonth - 年月（例: "2025-01"）
+ * @returns {string} フォーマットされた年月（例: "2025年1月"）
+ */
+function formatYearMonth(yearMonth) {
+  var parts = yearMonth.split('-');
+  if (parts.length === 2) {
+    var year = parts[0];
+    var month = parseInt(parts[1], 10);
+    return year + '年' + month + '月';
+  }
+  return yearMonth;
 }
 
 /**
@@ -1303,6 +1484,8 @@ function getEmployeeWageInfo(employeeId, month, year) {
  * @returns {string|null} 選択されている従業員ID、設定されていない場合はnull
  */
 function getSelectedEmployeeId() {
+  console.log('getSelectedEmployeeId開始');
   var selectedEmpId = PropertiesService.getUserProperties().getProperty('selectedEmpId');
+  console.log('PropertiesServiceから取得した従業員ID:', selectedEmpId);
   return selectedEmpId;
 }
