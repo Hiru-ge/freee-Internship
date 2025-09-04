@@ -1531,16 +1531,6 @@ function getEmployeeWageInfo(employeeId, month, year) {
   }
 }
 
-/**
- * 現在選択されている従業員IDを取得する
- * @returns {string|null} 選択されている従業員ID、設定されていない場合はnull
- */
-function getSelectedEmployeeId() {
-  console.log('getSelectedEmployeeId開始');
-  var selectedEmpId = PropertiesService.getUserProperties().getProperty('selectedEmpId');
-  console.log('PropertiesServiceから取得した従業員ID:', selectedEmpId);
-  return selectedEmpId;
-}
 
 /**
  * 従業員IDを設定する
@@ -2255,4 +2245,3 @@ function getClockStatus(employeeId) {
     };
   }
 }
-
