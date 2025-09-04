@@ -140,6 +140,12 @@ function doGet(e) {
       .evaluate().setTitle("初回パスワード設定 - 勤怠管理システム");
   }
 
+  // パスワード忘れ画面のルーティング
+  if (page === 'forgot_password') {
+    return HtmlService.createTemplateFromFile("view_forgot_password")
+      .evaluate().setTitle("パスワードを忘れた場合 - 勤怠管理システム");
+  }
+
   // マイページトップのルーティング
   if (page === 'my_page') {
     if (!isAuthenticated()) {
@@ -1790,7 +1796,71 @@ function initializeVerificationCodesSheet() {
 }
 
 /**
- * 認証コードを送信する
+ * パスワード忘れ用の認証コードを送信する
+ * @param {string} employeeId - 従業員ID
+ * @returns {object} 結果オブジェクト {success: boolean, message: string}
+ */
+function sendPasswordResetCode(employeeId) {
+  try {
+    // 従業員情報を取得
+    var employees = getEmployees();
+    var employee = findEmployeeById(employeeId, employees);
+    
+    if (!employee || !employee.email) {
+      return {success: false, message: '従業員のメールアドレスが見つかりません'};
+    }
+    
+    // 6桁の認証コードを生成
+    var verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // 認証コード管理シートを初期化
+    var sheet = initializeVerificationCodesSheet();
+    
+    // 既存の認証コードを削除
+    var data = sheet.getDataRange().getValues();
+    for (var i = data.length - 1; i >= 1; i--) {
+      if (data[i][0] == employeeId) {
+        sheet.deleteRow(i + 1);
+        console.log('既存の認証コードを削除: 行' + (i + 1));
+      }
+    }
+    
+    // 新しい認証コードを保存
+    var currentTime = new Date();
+    var expirationTime = new Date(currentTime.getTime() + 10 * 60 * 1000); // 10分後
+    
+    var newRowData = [
+      employeeId.toString(),
+      verificationCode,
+      currentTime,
+      expirationTime
+    ];
+    sheet.appendRow(newRowData);
+    
+    console.log('パスワードリセット用認証コードを保存しました: 従業員ID=' + employeeId + ', コード=' + verificationCode);
+    
+    // メール送信
+    var subject = "【勤怠管理システム】パスワード再設定の認証コード";
+    var body = employee.display_name + "様\n\n" +
+               "勤怠管理システムのパスワード再設定の認証コードをお送りします。\n\n" +
+               "認証コード: " + verificationCode + "\n\n" +
+               "この認証コードは10分間有効です。\n" +
+               "認証コードを入力してパスワード再設定を完了してください。\n\n" +
+               "※このメールに心当たりがない場合は、無視してください。\n" +
+               "※パスワードを忘れた場合の再設定手続きです。";
+    
+    MailApp.sendEmail(employee.email, subject, body);
+    
+    console.log('パスワードリセット用認証コードを送信しました: 従業員ID ' + employeeId);
+    return {success: true, message: '認証コードを送信しました'};
+  } catch (error) {
+    console.error('パスワードリセット用認証コード送信エラー:', error);
+    return {success: false, message: '認証コードの送信に失敗しました'};
+  }
+}
+
+/**
+ * 認証コードを送信する（初回パスワード設定用）
  * @param {string} employeeId - 従業員ID
  * @returns {object} 結果オブジェクト {success: boolean, message: string}
  */
@@ -1853,7 +1923,77 @@ function sendVerificationCode(employeeId) {
 }
 
 /**
- * 認証コードを検証する
+ * パスワード忘れ用の認証コードを検証する
+ * @param {string} employeeId - 従業員ID
+ * @param {string} inputCode - 入力された認証コード
+ * @returns {object} 結果オブジェクト {success: boolean, message: string}
+ */
+function verifyPasswordResetCode(employeeId, inputCode) {
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(VERIFICATION_CODES_SHEET_NAME);
+    if (!sheet) {
+      console.log('認証コード管理シートが見つかりません');
+      return {success: false, message: '認証コードが見つかりません'};
+    }
+    
+    var data = sheet.getDataRange().getValues();
+    var currentTime = new Date();
+    
+    console.log('パスワードリセット用認証コード検証開始: 従業員ID=' + employeeId + ', 入力コード=' + inputCode);
+    console.log('シートデータ行数:', data.length);
+    
+    // 最新の認証コードを探す（最後に見つかった有効なもの）
+    var latestValidCode = null;
+    var latestValidIndex = -1;
+    
+    for (var i = 1; i < data.length; i++) {
+      var storedEmployeeId = data[i][0];
+      var storedCode = data[i][1];
+      var expirationTime = new Date(data[i][3]);
+      
+      console.log('行' + i + ': 従業員ID=' + storedEmployeeId + ', コード=' + storedCode + ', 期限=' + expirationTime);
+      
+      // 従業員IDの比較（文字列と数値の両方に対応）
+      if (storedEmployeeId == employeeId) {
+        console.log('従業員ID一致: ' + storedEmployeeId + ' == ' + employeeId);
+        
+        // 有効期限チェック
+        if (currentTime > expirationTime) {
+          console.log('期限切れの認証コードを削除: 行' + (i + 1));
+          sheet.deleteRow(i + 1);
+          continue;
+        }
+        
+        // 最新の有効な認証コードを記録
+        latestValidCode = storedCode;
+        latestValidIndex = i;
+      }
+    }
+    
+    if (latestValidCode === null) {
+      console.log('有効な認証コードが見つかりません');
+      return {success: false, message: '認証コードが見つかりません'};
+    }
+    
+    console.log('最新の有効な認証コード: ' + latestValidCode);
+    
+    // 認証コードチェック
+    if (latestValidCode == inputCode) {
+      // 認証成功 - 認証コードは削除せずに保持（パスワード再設定完了まで）
+      console.log('パスワードリセット用認証コード検証成功: 従業員ID ' + employeeId);
+      return {success: true, message: '認証が完了しました'};
+    } else {
+      console.log('認証コード不一致: 期待値=' + latestValidCode + ', 入力値=' + inputCode);
+      return {success: false, message: '認証コードが正しくありません'};
+    }
+  } catch (error) {
+    console.error('パスワードリセット用認証コード検証エラー:', error);
+    return {success: false, message: '認証に失敗しました'};
+  }
+}
+
+/**
+ * 認証コードを検証する（初回パスワード設定用）
  * @param {string} employeeId - 従業員ID
  * @param {string} inputCode - 入力された認証コード
  * @returns {object} 結果オブジェクト {success: boolean, message: string}
@@ -1977,6 +2117,38 @@ function setInitialPasswordWithVerification(employeeId, password, verificationCo
   } catch (error) {
     console.error('認証付き初回パスワード設定エラー:', error);
     return {success: false, message: 'パスワードの設定中にエラーが発生しました'};
+  }
+}
+
+/**
+ * 認証コード付きでパスワードを再設定する
+ * @param {string} employeeId - 従業員ID
+ * @param {string} password - 新しいパスワード
+ * @param {string} verificationCode - 認証コード
+ * @returns {object} 結果オブジェクト {success: boolean, message: string}
+ */
+function resetPasswordWithVerification(employeeId, password, verificationCode) {
+  try {
+    // 認証コードを検証
+    var verificationResult = verifyPasswordResetCode(employeeId, verificationCode);
+    if (!verificationResult.success) {
+      return verificationResult;
+    }
+    
+    // パスワードをハッシュ化して保存
+    var hashed = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, password, Utilities.Charset.UTF_8);
+    var hashedStr = Utilities.base64Encode(hashed);
+    
+    saveAuthInfo(employeeId, hashedStr, false);
+    
+    // パスワード再設定成功後、認証コードを削除
+    deleteVerificationCode(employeeId);
+    
+    console.log('認証付きパスワード再設定完了: 従業員ID ' + employeeId);
+    return {success: true, message: 'パスワードが正常に再設定されました'};
+  } catch (error) {
+    console.error('認証付きパスワード再設定エラー:', error);
+    return {success: false, message: 'パスワードの再設定中にエラーが発生しました'};
   }
 }
 
