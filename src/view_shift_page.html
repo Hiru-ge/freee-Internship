@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= HtmlService.createHtmlOutputFromFile('css').getContent(); ?>
+</head>
+<body>
+  <div class="shift-page-container">
+    <h1>シフトページ</h1>
+    
+    <!-- ナビゲーション -->
+    <div class="page-navigation">
+      <button class="button nav-button" onclick="goToMyPage()">マイページに戻る</button>
+      <button class="button nav-button" onclick="goToAuthSettings()">パスワード変更</button>
+      <button class="button nav-button logout" onclick="logout()">ログアウト</button>
+    </div>
+
+    <!-- シフト表 -->
+    <div class="shift-calendar-section">
+      <h2>シフト表</h2>
+      <p>交代を依頼したいシフトをクリックすると、依頼フォームへ遷移します。</p>
+      
+      <div class="month-navigation">
+        <h3 id="calendar-title"></h3>
+        <div class="month-navigation-buttons">
+          <button class="button small-button" onclick="prevWeek()"><</button>
+          <button class="button small-button" onclick="nextWeek()">></button>
+        </div>
+      </div>
+      
+      <div id="shift-calendar-container">
+        <p>シフト情報を読み込んでいます...</p>
+      </div>
+    </div>
+
+    <!-- 従業員一覧と103万の壁ゲージ（オーナーのみ） -->
+    <div id="employee-list-section" class="employee-list-section">
+      <h2>従業員一覧</h2>
+      <table border="1" class="employee-list">
+        <thead>
+          <tr>
+            <th>従業員名</th>
+            <th>給与状況（103万の壁ゲージ）</th>
+          </tr>
+        </thead>
+        <tbody id="employee-list-body">
+          <tr><td colspan="2">読み込み中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 個人の103万の壁ゲージ（従業員のみ） -->
+    <div id="personal-gauge-section" class="personal-gauge-section">
+      <h2>103万の壁ゲージ</h2>
+      <div class="wage-gauge" id="personal-wage-gauge">
+        <div class="gauge-container">
+          <div class="gauge-bar">
+            <div class="gauge-fill" style="width: 0%"></div>
+          </div>
+          <div class="gauge-text">読み込み中...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- シフト管理ボタン -->
+    <div class="shift-management">
+      <button class="button" onclick="goToRequestList()">自分へのリクエスト一覧</button>
+      <button id="shift-add-btn" class="button owner-only" onclick="goToShiftAddForm()" style="display: none;">シフト追加依頼</button>
+    </div>
+
+    <!-- メッセージ表示 -->
+    <div id="message" class="message" style="display: none;"></div>
+  </div>
+
+  <script>
+    var currentEmployeeId = null;
+    var isOwner = false;
+    var calendarYear;
+    var calendarMonth;
+    var allShiftsData;
+    var currentStartDate;
+    var daysInMonth;
+
+    // ページ読み込み時の初期化
+    document.addEventListener('DOMContentLoaded', function() {
+      loadUserInfo();
+      loadShifts();
+    });
+
+    // ユーザー情報の読み込み
+    function loadUserInfo() {
+      google.script.run
+        .withSuccessHandler(function(employeeId) {
+          if (employeeId) {
+            currentEmployeeId = employeeId;
+            checkOwnerPermissions();
+          }
+        })
+        .getSelectedEmployeeId();
+    }
+
+    // オーナー権限チェック
+    function checkOwnerPermissions() {
+      console.log('オーナー権限チェック開始...');
+      
+      google.script.run
+        .withSuccessHandler(function(isOwnerResult) {
+          isOwner = isOwnerResult;
+          console.log('オーナー権限チェック結果:', isOwner);
+          
+          // コンテナに権限モードのクラスを追加
+          var container = document.querySelector('.shift-page-container');
+          container.classList.remove('owner-mode', 'employee-mode');
+          
+          if (isOwner) {
+            // オーナーの場合：従業員一覧を表示、個人ゲージを非表示
+            console.log('オーナー権限確認 - 従業員一覧を表示');
+            container.classList.add('owner-mode');
+            document.getElementById('shift-add-btn').style.display = 'inline-block';
+            loadEmployeeList();
+          } else {
+            // 従業員の場合：個人ゲージを表示、従業員一覧を非表示
+            console.log('従業員権限確認 - 個人ゲージを表示');
+            container.classList.add('employee-mode');
+            document.getElementById('shift-add-btn').style.display = 'none';
+            loadPersonalGauge();
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('オーナー権限チェックエラー:', error);
+          // エラーの場合は従業員として扱う
+          isOwner = false;
+          console.log('エラーにより従業員として扱う - 個人ゲージを表示');
+          var container = document.querySelector('.shift-page-container');
+          container.classList.remove('owner-mode', 'employee-mode');
+          container.classList.add('employee-mode');
+          document.getElementById('shift-add-btn').style.display = 'none';
+          loadPersonalGauge();
+        })
+        .isCurrentUserOwner();
+    }
+
+    // 従業員一覧の読み込み（オーナーのみ）
+    function loadEmployeeList() {
+      // 重複実行を防ぐ
+      if (window.employeeListLoading) return;
+      window.employeeListLoading = true;
+      
+      // 従業員一覧と給与データを並行して取得
+      var now = new Date();
+      var currentMonth = now.getMonth() + 1;
+      var currentYear = now.getFullYear();
+      
+      // 従業員一覧の取得
+      google.script.run
+        .withSuccessHandler(function(employees) {
+          var tbody = document.getElementById('employee-list-body');
+          tbody.innerHTML = '';
+          
+          if (employees && employees.length > 0) {
+            employees.forEach(function(employee) {
+              var row = document.createElement('tr');
+              row.innerHTML = 
+                '<td>' + employee.display_name + '</td>' +
+                '<td><div class="wage-gauge" data-employee-id="' + employee.id + '">' +
+                '<div class="gauge-container">' +
+                '<div class="gauge-bar"><div class="gauge-fill" style="width: 0%"></div></div>' +
+                '<div class="gauge-text">読み込み中...</div>' +
+                '</div></div></td>';
+              tbody.appendChild(row);
+            });
+          } else {
+            tbody.innerHTML = '<tr><td colspan="2">従業員情報がありません</td></tr>';
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('従業員一覧取得エラー:', error);
+          document.getElementById('employee-list-body').innerHTML = '<tr><td colspan="2">エラーが発生しました</td></tr>';
+        })
+        .getEmployees();
+      
+      // 給与データの取得（並行実行）
+      google.script.run
+        .withSuccessHandler(function(wagesData) {
+          console.log('全従業員給与データ取得成功:', wagesData);
+          updateAllWageGauges(wagesData);
+        })
+        .withFailureHandler(function(error) {
+          console.error('全従業員給与データ取得失敗:', error);
+          // エラー時の表示
+          var gauges = document.querySelectorAll('.wage-gauge[data-employee-id]');
+          gauges.forEach(function(gauge) {
+            var gaugeText = gauge.querySelector('.gauge-text');
+            if (gaugeText) {
+              gaugeText.innerHTML = 'エラー: 給与データの取得に失敗しました<br>' + error.message;
+            }
+          });
+        })
+        .getAllEmployeesWages(currentMonth, currentYear);
+    }
+
+    // 個人の給与ゲージの読み込み（従業員のみ）
+    function loadPersonalGauge() {
+      // 重複実行を防ぐ
+      if (window.personalGaugeLoading) return;
+      window.personalGaugeLoading = true;
+      
+      // 読み込み状態を設定
+      var gaugeText = document.querySelector('#personal-wage-gauge .gauge-text');
+      if (gaugeText) {
+        gaugeText.textContent = '読み込み中...';
+      }
+      
+      // currentEmployeeIdが設定されていない場合は、一時的にダミーIDで実行
+      var employeeId = currentEmployeeId || 'temp';
+      
+      google.script.run
+        .withSuccessHandler(function(wageInfo) {
+          if (currentEmployeeId) { // 実際のIDが設定されている場合のみ更新
+            updatePersonalWageGauge(wageInfo);
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('給与情報取得エラー:', error);
+          if (currentEmployeeId) { // 実際のIDが設定されている場合のみエラー表示
+            document.querySelector('#personal-wage-gauge .gauge-text').textContent = 'エラーが発生しました';
+          }
+        })
+        .getWageInfo(employeeId);
+    }
+
+    // 個人の給与ゲージの更新
+    function updatePersonalWageGauge(wageInfo) {
+      var gaugeElement = document.getElementById('personal-wage-gauge');
+      if (!gaugeElement) return;
+      
+      var gaugeFill = gaugeElement.querySelector('.gauge-fill');
+      var gaugeText = gaugeElement.querySelector('.gauge-text');
+      
+      if (!wageInfo || wageInfo.wage === undefined || wageInfo.target === undefined) {
+        gaugeText.textContent = 'データがありません';
+        return;
+      }
+      
+      var percentage = Math.min(wageInfo.percentage, 100);
+      var wageFormatted = (wageInfo.wage / 10000).toFixed(1) + '万円';
+      var targetFormatted = (wageInfo.target / 10000).toFixed(0) + '万円';
+      
+      // ゲージバーの幅を更新
+      gaugeFill.style.width = percentage + '%';
+      
+      // 色を設定（103万円に近づくほど赤くなる）
+      if (percentage >= 90) {
+        gaugeFill.style.backgroundColor = '#ff4444'; // 赤
+      } else if (percentage >= 70) {
+        gaugeFill.style.backgroundColor = '#ffaa00'; // オレンジ
+      } else if (percentage >= 50) {
+        gaugeFill.style.backgroundColor = '#ffff00'; // 黄色
+      } else {
+        gaugeFill.style.backgroundColor = '#44ff44'; // 緑
+      }
+      
+      // テキストを更新
+      gaugeText.innerHTML = wageFormatted + ' / ' + targetFormatted + '<br>' + 
+                           percentage.toFixed(1) + '%';
+      
+      // 103万円を超えている場合の警告表示
+      if (wageInfo.wage >= wageInfo.target) {
+        gaugeText.innerHTML += '<br><span style="color: red; font-weight: bold;">⚠️ 103万円超過！</span>';
+      }
+    }
+
+
+    // 全従業員の給与ゲージを更新
+    function updateAllWageGauges(wagesData) {
+      console.log('給与ゲージ更新開始:', wagesData);
+      try {
+        var wages = JSON.parse(wagesData);
+        console.log('パース後の給与データ:', wages);
+        
+        if (wages && wages.length > 0) {
+          wages.forEach(function(wageInfo) {
+            updateWageGaugeForEmployee(wageInfo.employeeId, wageInfo);
+          });
+        } else {
+          console.log('給与データが空です');
+          // 空データ時の表示
+          var gauges = document.querySelectorAll('.wage-gauge[data-employee-id]');
+          gauges.forEach(function(gauge) {
+            var gaugeText = gauge.querySelector('.gauge-text');
+            if (gaugeText) {
+              gaugeText.innerHTML = 'シフトデータがありません';
+            }
+          });
+        }
+      } catch (error) {
+        console.error('給与データの処理中にエラー:', error);
+      }
+    }
+
+    // 給与ゲージの更新（従業員指定）
+    function updateWageGaugeForEmployee(employeeId, wageInfo) {
+      var gaugeElement = document.querySelector('.wage-gauge[data-employee-id="' + employeeId + '"]');
+      if (!gaugeElement) return;
+
+      var gaugeFill = gaugeElement.querySelector('.gauge-fill');
+      var gaugeText = gaugeElement.querySelector('.gauge-text');
+      
+      var percentage = Math.min(wageInfo.percentage, 100);
+      var wageFormatted = (wageInfo.wage / 10000).toFixed(1) + '万円';
+      var targetFormatted = (wageInfo.target / 10000).toFixed(0) + '万円';
+      
+      // ゲージバーの幅を更新
+      gaugeFill.style.width = percentage + '%';
+      
+      // 色を設定（103万円に近づくほど赤くなる）
+      if (percentage >= 90) {
+        gaugeFill.style.backgroundColor = '#ff4444'; // 赤
+      } else if (percentage >= 70) {
+        gaugeFill.style.backgroundColor = '#ffaa00'; // オレンジ
+      } else if (percentage >= 50) {
+        gaugeFill.style.backgroundColor = '#ffff00'; // 黄色
+      } else {
+        gaugeFill.style.backgroundColor = '#44ff44'; // 緑
+      }
+      
+      // テキストを更新
+      gaugeText.innerHTML = wageFormatted + ' / ' + targetFormatted + '<br>' + 
+                           percentage.toFixed(1) + '%';
+      
+      // 103万円を超えている場合の警告表示
+      if (wageInfo.wage >= wageInfo.target) {
+        gaugeText.innerHTML += '<br><span style="color: red; font-weight: bold;">⚠️ 103万円超過！</span>';
+      }
+    }
+
+    // シフト情報の読み込み
+    function loadShifts() {
+      var container = document.getElementById('shift-calendar-container');
+      container.innerHTML = '<p>シフト情報を読み込んでいます...</p>';
+      
+      google.script.run
+        .withSuccessHandler(initializeShifts)
+        .withFailureHandler(function(error) {
+          console.error('シフト情報取得エラー:', error);
+          container.innerHTML = '<p>シフト情報の取得に失敗しました</p>';
+        })
+        .getShifts();
+    }
+
+    function initializeShifts(dataFromServer) {
+      allShiftsData = JSON.parse(dataFromServer);
+      console.log("サーバーから取得した全データ:", allShiftsData);
+      
+      calendarYear = allShiftsData.year;
+      calendarMonth = allShiftsData.month;
+      daysInMonth = new Date(calendarYear, calendarMonth, 0).getDate();
+
+      // 最初の表示範囲を設定
+      var now = new Date();
+      currentStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      updateCalendarTitle();
+      displayShifts();
+    }
+
+    function updateCalendarTitle() {
+      var title = document.getElementById('calendar-title');
+      title.textContent = calendarYear + '年' + calendarMonth + '月';
+    }
+
+    function displayShifts() {
+      var titleEl = document.getElementById('calendar-title');
+      titleEl.textContent = calendarYear + '年' + calendarMonth + '月';
+      
+      var container = document.getElementById('shift-calendar-container');
+      container.innerHTML = "";
+
+      var table = document.createElement('table');
+      table.className = 'shift-calendar';
+      var thead = document.createElement('thead');
+      var tbody = document.createElement('tbody');
+
+      // ヘッダー行の生成
+      var headerRow = document.createElement('tr');
+      var nameHeader = document.createElement('th');
+      nameHeader.textContent = '従業員名';
+      headerRow.appendChild(nameHeader);
+      
+      var datesToShow = []; // 表示する日付の配列
+      var currentDate = new Date(currentStartDate);
+      for(var i = 0; i < 7; i++) {
+          var day = currentDate.getDate();
+          if (currentDate.getMonth() === currentStartDate.getMonth() && day <= daysInMonth) {
+              datesToShow.push(day);
+              var dayHeader = document.createElement('th');
+              dayHeader.textContent = day + '日';
+              headerRow.appendChild(dayHeader);
+          }
+          currentDate.setDate(currentDate.getDate() + 1);
+      }
+      thead.appendChild(headerRow);
+
+      // ボディ行の生成
+      for (var employeeId in allShiftsData.shifts) {
+        var employeeData = allShiftsData.shifts[employeeId];
+        var employeeRow = document.createElement('tr');
+        var nameCell = document.createElement('td');
+        nameCell.textContent = employeeData.name;
+        employeeRow.appendChild(nameCell);
+
+        datesToShow.forEach(function(day) {
+          var shiftCell = document.createElement('td');
+          var shiftTime = employeeData.shifts[day] || "";
+          if (shiftTime) {
+            shiftCell.style.cursor = 'pointer';
+            shiftCell.style.textDecoration = 'underline';
+            shiftCell.onclick = function(id, d, time) {
+              return function() {
+                startRequestForShift(id, d, time);
+              };
+            }(employeeId, day, shiftTime);
+          }
+          shiftCell.textContent = shiftTime;
+          employeeRow.appendChild(shiftCell);
+        });
+        tbody.appendChild(employeeRow);
+      }
+
+      table.appendChild(thead);
+      table.appendChild(tbody);
+      container.appendChild(table);
+      
+      updatePaginationButtons();
+    }
+    
+    function updatePaginationButtons() {
+      var prevBtn = document.querySelector('.month-navigation .button:first-of-type');
+      var nextBtn = document.querySelector('.month-navigation .button:last-of-type');
+
+      // 1日が開始日なら「前へ」を無効化
+      if (currentStartDate.getDate() === 1) {
+          prevBtn.disabled = true;
+          prevBtn.style.opacity = '0.5';
+      } else {
+          prevBtn.disabled = false;
+          prevBtn.style.opacity = '1.0';
+      }
+
+      // 最終日が表示範囲に含まれるかチェック
+      var lastDayOfDisplayedPeriod = currentStartDate.getDate() + 6;
+      
+      if (lastDayOfDisplayedPeriod >= daysInMonth) {
+          nextBtn.disabled = true;
+          nextBtn.style.opacity = '0.5';
+      } else {
+          nextBtn.disabled = false;
+          nextBtn.style.opacity = '1.0';
+      }
+    }
+
+    function prevWeek() {
+      if (currentStartDate.getDate() > 1) {
+          currentStartDate.setDate(currentStartDate.getDate() - 7);
+          displayShifts();
+      }
+    }
+
+    function nextWeek() {
+      var nextWeekStart = new Date(currentStartDate);
+      nextWeekStart.setDate(currentStartDate.getDate() + 7);
+      
+      // 次の週の開始日が月の最終日を超えていないかチェック
+      if (nextWeekStart.getMonth() === currentStartDate.getMonth()) {
+        currentStartDate = nextWeekStart;
+        displayShifts();
+      } else {
+        // 最終日を含む週に移動
+        var lastDayOfCurrentMonth = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth() + 1, 0);
+        currentStartDate = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth(), lastDayOfCurrentMonth.getDate() - (lastDayOfCurrentMonth.getDate() % 7) + 1);
+        if (currentStartDate.getDate() > lastDayOfCurrentMonth.getDate()) {
+          currentStartDate.setDate(lastDayOfCurrentMonth.getDate() - 6);
+        }
+        displayShifts();
+      }
+    }
+
+    function startRequestForShift(employeeId, day, timeString) {
+      var times = timeString.split('-');
+      var startTime = times[0].padStart(2, '0') + ':00';
+      var endTime = times[1].padStart(2, '0') + ':00';
+      
+      var monthStr = String(calendarMonth).padStart(2, '0');
+      var dayStr = String(day).padStart(2, '0');
+      var dateStr = calendarYear + '-' + monthStr + '-' + dayStr;
+
+      var baseUrl = "<?= ScriptApp.getService().getUrl() ?>";
+      var params = '?page=request_form' +
+                  '&applicantId=' + encodeURIComponent(employeeId) +
+                  '&date=' + encodeURIComponent(dateStr) +
+                  '&start=' + encodeURIComponent(startTime) +
+                  '&end=' + encodeURIComponent(endTime);
+      window.top.location.href = baseUrl + params;
+    }
+
+    // ナビゲーション関数
+    function goToMyPage() {
+      window.top.location.href = '<?= getAppUrl() ?>?page=my_page';
+    }
+
+    function goToRequestList() {
+      window.top.location.href = '<?= getAppUrl() ?>?page=approval';
+    }
+
+    function goToShiftAddForm() {
+      window.top.location.href = '<?= getAppUrl() ?>?page=add_form';
+    }
+
+    function goToAuthSettings() {
+      window.top.location.href = '<?= getAppUrl() ?>?page=password_change';
+    }
+
+    function logout() {
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            window.top.location.href = '<?= getAppUrl() ?>?page=login';
+          } else {
+            showMessage(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('ログアウトエラー:', error);
+          showMessage('ログアウト中にエラーが発生しました', 'error');
+        })
+        .logout();
+    }
+
+    // メッセージ表示
+    function showMessage(message, type) {
+      var messageDiv = document.getElementById('message');
+      messageDiv.textContent = message;
+      messageDiv.className = 'message ' + type;
+      messageDiv.style.display = 'block';
+      
+      // 3秒後にメッセージを非表示
+      setTimeout(function() {
+        messageDiv.style.display = 'none';
+      }, 3000);
+    }
+  </script>
+
+  <style>
+    .shift-page-container {
+      margin: 10px;
+      padding: 10px;
+    }
+
+    /* 初期状態：両方のセクションを非表示 */
+    #employee-list-section, #personal-gauge-section {
+      display: none !important;
+    }
+
+    /* 権限チェック完了後の表示制御 */
+    .owner-mode #employee-list-section {
+      display: block !important;
+    }
+
+    .employee-mode #personal-gauge-section {
+      display: block !important;
+    }
+
+    .shift-page-container h1 {
+      color: #ffca28;
+      margin: 0 0 10px 0;
+      font-size: 1.5em;
+    }
+
+    .page-navigation {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 15px;
+      justify-content: flex-start;
+    }
+
+    .nav-button {
+      padding: 8px 12px;
+      font-size: 12px;
+    }
+
+    .nav-button.logout {
+      background-color: #666;
+    }
+
+    .nav-button.logout:hover {
+      background-color: #777;
+    }
+
+    .employee-list-section, .personal-gauge-section, .shift-calendar-section {
+      margin-bottom: 15px;
+    }
+
+    .employee-list-section h2, .personal-gauge-section h2, .shift-calendar-section h2 {
+      color: #f0f0f0;
+      margin: 0 0 8px 0;
+      font-size: 1.1em;
+    }
+
+    .month-navigation {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .month-navigation h3 {
+      color: #f0f0f0;
+      margin: 0;
+      font-size: 1em;
+    }
+
+    .month-navigation-buttons {
+      display: flex;
+      gap: 5px;
+    }
+
+    .small-button {
+      padding: 6px 10px;
+      font-size: 12px;
+      min-width: 35px;
+    }
+
+    .shift-calendar {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: #555;
+    }
+
+    .shift-calendar th, .shift-calendar td {
+      border: 1px solid #777;
+      padding: 8px;
+      text-align: center;
+    }
+
+    .shift-calendar th {
+      background-color: #666;
+      color: #f0f0f0;
+      font-weight: bold;
+    }
+
+    .shift-calendar td {
+      color: #f0f0f0;
+    }
+
+    .shift-cell {
+      background-color: #4caf50;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .shift-cell:hover {
+      background-color: #45a049;
+    }
+
+    .empty-cell {
+      background-color: #555;
+    }
+
+    .shift-management {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-start;
+      margin-top: 15px;
+    }
+
+    .owner-only {
+      background-color: #ff9800;
+    }
+
+    .owner-only:hover {
+      background-color: #f57c00;
+    }
+
+    .message {
+      margin-top: 10px;
+      padding: 8px;
+      border-radius: 3px;
+      font-weight: bold;
+      font-size: 12px;
+    }
+
+    .message.success {
+      background-color: #4caf50;
+      color: white;
+    }
+
+    .message.error {
+      background-color: #f44336;
+      color: white;
+    }
+  </style>
+</body>
+</html>

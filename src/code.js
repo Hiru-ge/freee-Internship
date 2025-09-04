@@ -12,10 +12,12 @@
  * またApps Scriptから外部のAPIをcallするために以下の設定をしておいてください
  *   - https://script.google.com/home/usersettings
  */
-var accessToken = 'AM2rZxxNwflsyOzr2B1Tj5d9XRh2NAIQMuX9AuZFMsI'
+var accessToken = 'MpeflNrNGLTHEunHirdgeg6CCn6tIC4d5WTa0gj3sK8'
 var companyId =  12127317
 var SHIFT_SHEET_NAME = "シフト表";
 var SHIFT_MANAGEMENT_SHEET_NAME = "シフト交代管理";
+var AUTH_SETTINGS_SHEET_NAME = "認証設定";
+var VERIFICATION_CODES_SHEET_NAME = "認証コード管理";
 
 var COL_NUM_EMPID = 1
 var COL_NUM_MEMO = 2
@@ -126,6 +128,48 @@ function isShiftOverlapping(existingShift, requestStartHour, requestEndHour) {
 function doGet(e) {
   var page = e.parameter.page;
 
+  // ログイン画面のルーティング
+  if (page === 'login') {
+    return HtmlService.createTemplateFromFile("view_login")
+      .evaluate().setTitle("ログイン - 勤怠管理システム");
+  }
+  
+  // 初回パスワード設定画面のルーティング
+  if (page === 'initial_password') {
+    return HtmlService.createTemplateFromFile("view_initial_password")
+      .evaluate().setTitle("初回パスワード設定 - 勤怠管理システム");
+  }
+
+  // マイページトップのルーティング
+  if (page === 'my_page') {
+    if (!isAuthenticated()) {
+      return HtmlService.createTemplateFromFile("view_login")
+        .evaluate().setTitle("ログイン - 勤怠管理システム");
+    }
+    return HtmlService.createTemplateFromFile("view_my_page")
+      .evaluate().setTitle("マイページ - 勤怠管理システム");
+  }
+
+  // シフトページのルーティング
+  if (page === 'shift_page') {
+    if (!isAuthenticated()) {
+      return HtmlService.createTemplateFromFile("view_login")
+        .evaluate().setTitle("ログイン - 勤怠管理システム");
+    }
+    return HtmlService.createTemplateFromFile("view_shift_page")
+      .evaluate().setTitle("シフトページ - 勤怠管理システム");
+  }
+
+  // 認証が必要なページかどうかをチェック
+  var requiresAuth = ['approval', 'request_form', 'add_form', 'password_change'];
+  var isAuthRequired = requiresAuth.includes(page) || (!page && !e.parameter.empId);
+  
+  // 認証が必要なページで未認証の場合はログイン画面にリダイレクト
+  if (isAuthRequired && !isAuthenticated()) {
+    return HtmlService.createTemplateFromFile("view_login")
+      .evaluate().setTitle("ログイン - 勤怠管理システム");
+  }
+
   if (page === 'approval') {
     var template = HtmlService.createTemplateFromFile("view_shift_approval");
     return template.evaluate().setTitle("リクエスト一覧");
@@ -137,22 +181,30 @@ function doGet(e) {
     template.end = e.parameter.end;
     return template.evaluate().setTitle("シフト交代リクエスト");
   } else if (page === 'add_form') {
+    // シフト追加依頼画面はオーナーのみアクセス可能
+    if (!isCurrentUserOwner()) {
+      return HtmlService.createTemplateFromFile("view_login")
+        .evaluate().setTitle("ログイン - 勤怠管理システム");
+    }
     return HtmlService.createTemplateFromFile("view_shift_add_form")
       .evaluate().setTitle("シフト追加リクエスト");
+  } else if (page === 'password_change') {
+    return HtmlService.createTemplateFromFile("view_password_change")
+      .evaluate().setTitle("パスワード変更");
   } else {
     var selectedEmpId = e.parameter.empId;
     console.log('doGet - empIdパラメータ:', selectedEmpId);
     console.log('doGet - 全パラメータ:', e.parameter);
     
     if (selectedEmpId) { 
-      console.log('従業員詳細画面を表示 - 従業員ID:', selectedEmpId);
+      console.log('従業員ID指定でマイページトップにリダイレクト - 従業員ID:', selectedEmpId);
       PropertiesService.getUserProperties().setProperty('selectedEmpId', selectedEmpId.toString());
-      return HtmlService.createTemplateFromFile("view_detail")
-          .evaluate().setTitle("Detail: " + selectedEmpId.toString());
+      return HtmlService.createTemplateFromFile("view_my_page")
+          .evaluate().setTitle("マイページ - 勤怠管理システム");
     } else { 
-      console.log('ホーム画面を表示');
-      return HtmlService.createTemplateFromFile("view_home")
-          .evaluate().setTitle("Home");
+      console.log('ログイン画面を表示');
+      return HtmlService.createTemplateFromFile("view_login")
+          .evaluate().setTitle("ログイン - 勤怠管理システム");
     }
   }
 }
@@ -1489,3 +1541,718 @@ function getSelectedEmployeeId() {
   console.log('PropertiesServiceから取得した従業員ID:', selectedEmpId);
   return selectedEmpId;
 }
+
+/**
+ * 従業員IDを設定する
+ * @param {string} employeeId - 設定する従業員ID
+ */
+function setSelectedEmployeeId(employeeId) {
+  PropertiesService.getUserProperties().setProperty('selectedEmpId', employeeId);
+  console.log('従業員IDを設定しました:', employeeId);
+}
+
+
+/**
+ * 認証設定シートから従業員の認証情報を取得する
+ * @param {string} employeeId - 従業員ID
+ * @returns {object|null} 認証情報オブジェクト、見つからない場合はnull
+ */
+function getAuthInfo(employeeId) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(AUTH_SETTINGS_SHEET_NAME);
+  if (!sheet) {
+    console.log('認証設定シートが見つかりません');
+    return null;
+  }
+  
+  var data = sheet.getDataRange().getValues();
+  console.log('getAuthInfo: 検索対象の従業員ID =', employeeId, '(型:', typeof employeeId, ')');
+  console.log('getAuthInfo: シートデータ行数 =', data.length);
+  
+  // ヘッダー行をスキップして検索
+  for (var i = 1; i < data.length; i++) {
+    var storedEmployeeId = data[i][0];
+    console.log('getAuthInfo: 行' + i + 'の従業員ID =', storedEmployeeId, '(型:', typeof storedEmployeeId, ')');
+    
+    // 型を気にしない比較に変更
+    if (storedEmployeeId == employeeId) {
+      console.log('getAuthInfo: 従業員ID一致！パスワード =', data[i][1] ? '設定済み' : '未設定');
+      return {
+        employeeId: data[i][0],
+        hashedPassword: data[i][1],
+        passwordLastUpdated: data[i][2],
+        lastLogin: data[i][3]
+      };
+    }
+  }
+  
+  console.log('getAuthInfo: 従業員IDが見つかりませんでした');
+  return null;
+}
+
+/**
+ * 認証設定シートに従業員の認証情報を保存・更新する
+ * @param {string} employeeId - 従業員ID
+ * @param {string} hashedPassword - ハッシュ化されたパスワード
+ * @param {boolean} isLogin - ログイン処理かどうか（trueの場合は最終ログイン日時も更新）
+ */
+function saveAuthInfo(employeeId, hashedPassword, isLogin) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(AUTH_SETTINGS_SHEET_NAME);
+  if (!sheet) {
+    console.log('認証設定シートが見つかりません。');
+    return;
+  }
+  
+  var data = sheet.getDataRange().getValues();
+  var currentTime = new Date();
+  
+  // 既存の行を検索
+  var existingRowIndex = -1;
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === employeeId) {
+      existingRowIndex = i + 1; // 1ベースの行番号に変換
+      break;
+    }
+  }
+  
+  if (existingRowIndex > 0) {
+    // 既存の行を更新
+    sheet.getRange(existingRowIndex, 2).setValue(hashedPassword); // ハッシュ化パスワード
+    sheet.getRange(existingRowIndex, 3).setValue(currentTime); // パスワード最終更新日時
+    
+    if (isLogin) {
+      sheet.getRange(existingRowIndex, 4).setValue(currentTime); // 最終ログイン日時
+    }
+    
+    console.log('従業員ID ' + employeeId + ' の認証情報を更新しました');
+  } else {
+    // 新しい行を追加
+    var newRowData = [
+      employeeId,
+      hashedPassword,
+      currentTime,
+      isLogin ? currentTime : null
+    ];
+    sheet.appendRow(newRowData);
+    console.log('従業員ID ' + employeeId + ' の認証情報を新規作成しました');
+  }
+}
+
+/**
+ * 現在の従業員の認証情報を取得する（認証設定画面用）
+ * @returns {object|null} 認証情報オブジェクト、見つからない場合はnull
+ */
+function getCurrentAuthInfo() {
+  var selectedEmpId = getSelectedEmployeeId();
+  if (!selectedEmpId) {
+    console.log('選択された従業員IDがありません');
+    return null;
+  }
+  
+  return getAuthInfo(selectedEmpId);
+}
+
+/**
+ * パスワードを変更する
+ * @param {string} currentPassword - 現在のパスワード
+ * @param {string} newPassword - 新しいパスワード
+ * @returns {object} 結果オブジェクト {success: boolean, message: string}
+ */
+function changePassword(currentPassword, newPassword) {
+  try {
+    var selectedEmpId = getSelectedEmployeeId();
+    if (!selectedEmpId) {
+      return {success: false, message: '従業員IDが設定されていません'};
+    }
+    
+    var authInfo = getAuthInfo(selectedEmpId);
+    if (!authInfo) {
+      return {success: false, message: '認証情報が見つかりません'};
+    }
+    
+    // 現在のパスワードを検証（簡易的なハッシュ比較）
+    var currentHashed = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, currentPassword, Utilities.Charset.UTF_8);
+    var currentHashedStr = Utilities.base64Encode(currentHashed);
+    
+    if (currentHashedStr !== authInfo.hashedPassword) {
+      return {success: false, message: '現在のパスワードが正しくありません'};
+    }
+    
+    // 新しいパスワードをハッシュ化して保存
+    var newHashed = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, newPassword, Utilities.Charset.UTF_8);
+    var newHashedStr = Utilities.base64Encode(newHashed);
+    
+    saveAuthInfo(selectedEmpId, newHashedStr, false);
+    
+    return {success: true, message: 'パスワードが正常に変更されました'};
+  } catch (error) {
+    console.error('パスワード変更エラー:', error);
+    return {success: false, message: 'パスワードの変更中にエラーが発生しました'};
+  }
+}
+
+/**
+ * 初回パスワードを設定する
+ * @param {string} employeeId - 従業員ID
+ * @param {string} password - 設定するパスワード
+ * @returns {object} 結果オブジェクト {success: boolean, message: string}
+ */
+function setInitialPassword(employeeId, password) {
+  try {
+    if (!employeeId) {
+      return {success: false, message: '従業員IDが指定されていません'};
+    }
+    
+    // パスワードをハッシュ化して保存
+    var hashed = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, password, Utilities.Charset.UTF_8);
+    var hashedStr = Utilities.base64Encode(hashed);
+    
+    saveAuthInfo(employeeId, hashedStr, false);
+    
+    return {success: true, message: 'パスワードが正常に設定されました'};
+  } catch (error) {
+    console.error('初回パスワード設定エラー:', error);
+    return {success: false, message: 'パスワードの設定中にエラーが発生しました'};
+  }
+}
+
+/**
+ * ログイン処理
+ * @param {string} employeeId - 従業員ID
+ * @param {string} password - パスワード
+ * @returns {object} 結果オブジェクト {success: boolean, message: string, isFirstLogin: boolean}
+ */
+function login(employeeId, password) {
+  try {
+    console.log('login: 従業員ID =', employeeId, '(型:', typeof employeeId, ')');
+    
+    // 認証情報を取得
+    var authInfo = getAuthInfo(employeeId);
+    console.log('login: 認証情報 =', authInfo);
+    
+    if (!authInfo || !authInfo.hashedPassword) {
+      console.log('login: パスワードが設定されていません');
+      // パスワードが設定されていない場合は初回パスワード設定画面に誘導
+      return {success: false, message: 'パスワードが設定されていません。初回パスワード設定を行ってください。', needsPasswordSetup: true};
+    }
+    
+    // パスワードを検証
+    var inputHashed = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, password, Utilities.Charset.UTF_8);
+    var inputHashedStr = Utilities.base64Encode(inputHashed);
+    
+    if (inputHashedStr !== authInfo.hashedPassword) {
+      return {success: false, message: 'パスワードが正しくありません'};
+    }
+    
+    // ログイン成功 - セッション情報を保存
+    PropertiesService.getUserProperties().setProperty('selectedEmpId', employeeId);
+    PropertiesService.getUserProperties().setProperty('isAuthenticated', 'true');
+    
+    // 最終ログイン日時を更新
+    saveAuthInfo(employeeId, authInfo.hashedPassword, true);
+    
+    console.log('ログイン成功: 従業員ID ' + employeeId);
+    return {success: true, message: 'ログインしました'};
+  } catch (error) {
+    console.error('ログインエラー:', error);
+    return {success: false, message: 'ログイン中にエラーが発生しました'};
+  }
+}
+
+/**
+ * 認証状態をチェックする
+ * @returns {boolean} 認証済みかどうか
+ */
+function isAuthenticated() {
+  var isAuth = PropertiesService.getUserProperties().getProperty('isAuthenticated');
+  var selectedEmpId = PropertiesService.getUserProperties().getProperty('selectedEmpId');
+  
+  return isAuth === 'true' && selectedEmpId !== null;
+}
+
+/**
+ * 認証コード管理シートを初期化する
+ */
+function initializeVerificationCodesSheet() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = spreadsheet.getSheetByName(VERIFICATION_CODES_SHEET_NAME);
+  
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(VERIFICATION_CODES_SHEET_NAME);
+    console.log('認証コード管理シートを新規作成しました');
+  }
+  
+  // ヘッダー行を設定
+  var headerRange = sheet.getRange(1, 1, 1, 4);
+  var existingHeaders = headerRange.getValues()[0];
+  
+  if (!existingHeaders[0] || existingHeaders[0] !== '従業員ID') {
+    var headers = ['従業員ID', '認証コード', '送信日時', '有効期限'];
+    headerRange.setValues([headers]);
+    
+    // ヘッダー行のスタイル設定
+    headerRange.setFontWeight('bold');
+    headerRange.setBackground('#f0f0f0');
+    
+    console.log('認証コード管理シートのヘッダーを設定しました');
+  }
+  
+  return sheet;
+}
+
+/**
+ * 認証コードを送信する
+ * @param {string} employeeId - 従業員ID
+ * @returns {object} 結果オブジェクト {success: boolean, message: string}
+ */
+function sendVerificationCode(employeeId) {
+  try {
+    // 従業員情報を取得
+    var employees = getEmployees();
+    var employee = findEmployeeById(employeeId, employees);
+    
+    if (!employee || !employee.email) {
+      return {success: false, message: '従業員のメールアドレスが見つかりません'};
+    }
+    
+    // 6桁の認証コードを生成
+    var verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // 認証コード管理シートを初期化
+    var sheet = initializeVerificationCodesSheet();
+    
+    // 既存の認証コードを削除
+    var data = sheet.getDataRange().getValues();
+    for (var i = data.length - 1; i >= 1; i--) {
+      if (data[i][0] == employeeId) { // 型を気にしない比較に変更
+        sheet.deleteRow(i + 1);
+        console.log('既存の認証コードを削除: 行' + (i + 1));
+      }
+    }
+    
+    // 新しい認証コードを保存
+    var currentTime = new Date();
+    var expirationTime = new Date(currentTime.getTime() + 10 * 60 * 1000); // 10分後
+    
+    var newRowData = [
+      employeeId.toString(), // 文字列に統一
+      verificationCode,
+      currentTime,
+      expirationTime
+    ];
+    sheet.appendRow(newRowData);
+    
+    console.log('認証コードを保存しました: 従業員ID=' + employeeId + ', コード=' + verificationCode);
+    
+    // メール送信
+    var subject = "【勤怠管理システム】初回パスワード設定の認証コード";
+    var body = employee.display_name + "様\n\n" +
+               "勤怠管理システムの初回パスワード設定の認証コードをお送りします。\n\n" +
+               "認証コード: " + verificationCode + "\n\n" +
+               "この認証コードは10分間有効です。\n" +
+               "認証コードを入力してパスワード設定を完了してください。\n\n" +
+               "※このメールに心当たりがない場合は、無視してください。";
+    
+    MailApp.sendEmail(employee.email, subject, body);
+    
+    console.log('認証コードを送信しました: 従業員ID ' + employeeId);
+    return {success: true, message: '認証コードを送信しました'};
+  } catch (error) {
+    console.error('認証コード送信エラー:', error);
+    return {success: false, message: '認証コードの送信に失敗しました'};
+  }
+}
+
+/**
+ * 認証コードを検証する
+ * @param {string} employeeId - 従業員ID
+ * @param {string} inputCode - 入力された認証コード
+ * @returns {object} 結果オブジェクト {success: boolean, message: string}
+ */
+function verifyCode(employeeId, inputCode) {
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(VERIFICATION_CODES_SHEET_NAME);
+    if (!sheet) {
+      console.log('認証コード管理シートが見つかりません');
+      return {success: false, message: '認証コードが見つかりません'};
+    }
+    
+    var data = sheet.getDataRange().getValues();
+    var currentTime = new Date();
+    
+    console.log('認証コード検証開始: 従業員ID=' + employeeId + ', 入力コード=' + inputCode);
+    console.log('シートデータ行数:', data.length);
+    
+    // 最新の認証コードを探す（最後に見つかった有効なもの）
+    var latestValidCode = null;
+    var latestValidIndex = -1;
+    
+    for (var i = 1; i < data.length; i++) {
+      var storedEmployeeId = data[i][0];
+      var storedCode = data[i][1];
+      var expirationTime = new Date(data[i][3]);
+      
+      console.log('行' + i + ': 従業員ID=' + storedEmployeeId + ', コード=' + storedCode + ', 期限=' + expirationTime);
+      
+      // 従業員IDの比較（文字列と数値の両方に対応）
+      if (storedEmployeeId == employeeId) {
+        console.log('従業員ID一致: ' + storedEmployeeId + ' == ' + employeeId);
+        
+        // 有効期限チェック
+        if (currentTime > expirationTime) {
+          console.log('期限切れの認証コードを削除: 行' + (i + 1));
+          sheet.deleteRow(i + 1);
+          continue;
+        }
+        
+        // 最新の有効な認証コードを記録
+        latestValidCode = storedCode;
+        latestValidIndex = i;
+      }
+    }
+    
+    if (latestValidCode === null) {
+      console.log('有効な認証コードが見つかりません');
+      return {success: false, message: '認証コードが見つかりません'};
+    }
+    
+    console.log('最新の有効な認証コード: ' + latestValidCode);
+    
+    // 認証コードチェック
+    if (latestValidCode == inputCode) {
+      // 認証成功 - 認証コードは削除せずに保持（パスワード設定完了まで）
+      console.log('認証コード検証成功: 従業員ID ' + employeeId);
+      return {success: true, message: '認証が完了しました'};
+    } else {
+      console.log('認証コード不一致: 期待値=' + latestValidCode + ', 入力値=' + inputCode);
+      return {success: false, message: '認証コードが正しくありません'};
+    }
+  } catch (error) {
+    console.error('認証コード検証エラー:', error);
+    return {success: false, message: '認証に失敗しました'};
+  }
+}
+
+/**
+ * 認証コードを削除する
+ * @param {string} employeeId - 従業員ID
+ */
+function deleteVerificationCode(employeeId) {
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(VERIFICATION_CODES_SHEET_NAME);
+    if (!sheet) {
+      console.log('認証コード管理シートが見つかりません');
+      return;
+    }
+    
+    var data = sheet.getDataRange().getValues();
+    
+    // 該当する認証コードを削除
+    for (var i = data.length - 1; i >= 1; i--) {
+      if (data[i][0] == employeeId) {
+        sheet.deleteRow(i + 1);
+        console.log('認証コードを削除しました: 従業員ID ' + employeeId + ', 行' + (i + 1));
+      }
+    }
+  } catch (error) {
+    console.error('認証コード削除エラー:', error);
+  }
+}
+
+/**
+ * 認証付きで初回パスワードを設定する
+ * @param {string} employeeId - 従業員ID
+ * @param {string} password - 設定するパスワード
+ * @param {string} verificationCode - 認証コード
+ * @returns {object} 結果オブジェクト {success: boolean, message: string}
+ */
+function setInitialPasswordWithVerification(employeeId, password, verificationCode) {
+  try {
+    // 認証コードを再検証
+    var verificationResult = verifyCode(employeeId, verificationCode);
+    if (!verificationResult.success) {
+      return verificationResult;
+    }
+    
+    // パスワードをハッシュ化して保存
+    var hashed = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, password, Utilities.Charset.UTF_8);
+    var hashedStr = Utilities.base64Encode(hashed);
+    
+    saveAuthInfo(employeeId, hashedStr, false);
+    
+    // パスワード設定成功後、認証コードを削除
+    deleteVerificationCode(employeeId);
+    
+    console.log('認証付き初回パスワード設定完了: 従業員ID ' + employeeId);
+    return {success: true, message: 'パスワードが正常に設定されました'};
+  } catch (error) {
+    console.error('認証付き初回パスワード設定エラー:', error);
+    return {success: false, message: 'パスワードの設定中にエラーが発生しました'};
+  }
+}
+
+/**
+ * ログアウト処理
+ * @returns {object} 結果オブジェクト {success: boolean, message: string}
+ */
+function logout() {
+  try {
+    // セッション情報をクリア
+    PropertiesService.getUserProperties().deleteProperty('selectedEmpId');
+    PropertiesService.getUserProperties().deleteProperty('isAuthenticated');
+    
+    console.log('ログアウト処理が完了しました');
+    return {success: true, message: 'ログアウトしました'};
+  } catch (error) {
+    console.error('ログアウトエラー:', error);
+    return {success: false, message: 'ログアウト中にエラーが発生しました'};
+  }
+}
+
+/**
+ * 指定された従業員がオーナー権限を持つかどうかを判定する
+ * @param {string} employeeId - 従業員ID
+ * @returns {boolean} オーナー権限を持つかどうか
+ */
+function isOwner(employeeId) {
+  try {
+    var employees = getEmployees();
+    if (!employees || employees.length === 0) {
+      console.log('isOwner: 従業員情報が取得できません');
+      return false;
+    }
+    
+    var employee = employees.find(function(emp) {
+      return emp.id == employeeId;
+    });
+    
+    if (!employee) {
+      console.log('isOwner: 従業員が見つかりません: ' + employeeId);
+      return false;
+    }
+    
+    var isOwnerResult = employee.display_name === '店長 太郎';
+    console.log('isOwner: 従業員ID=' + employeeId + ', 名前=' + employee.display_name + ', オーナー=' + isOwnerResult);
+    return isOwnerResult;
+  } catch (error) {
+    console.error('isOwner: エラーが発生しました:', error);
+    return false;
+  }
+}
+
+/**
+ * 現在ログインしているユーザーがオーナー権限を持つかどうかを判定する
+ * @returns {boolean} オーナー権限を持つかどうか
+ */
+function isCurrentUserOwner() {
+  try {
+    var selectedEmpId = PropertiesService.getUserProperties().getProperty('selectedEmpId');
+    if (!selectedEmpId) {
+      console.log('isCurrentUserOwner: ログインしていません');
+      return false;
+    }
+    
+    return isOwner(selectedEmpId);
+  } catch (error) {
+    console.error('isCurrentUserOwner: エラーが発生しました:', error);
+    return false;
+  }
+}
+
+/**
+ * 現在選択されている従業員IDを取得する
+ * @returns {string|null} 従業員ID
+ */
+function getSelectedEmployeeId() {
+  try {
+    var selectedEmpId = PropertiesService.getUserProperties().getProperty('selectedEmpId');
+    console.log('getSelectedEmployeeId: ' + selectedEmpId);
+    return selectedEmpId;
+  } catch (error) {
+    console.error('getSelectedEmployeeId: エラーが発生しました:', error);
+    return null;
+  }
+}
+
+/**
+ * 従業員の給与情報を取得する
+ * @param {string} employeeId - 従業員ID
+ * @returns {object} 給与情報 {wage: number, target: number, percentage: number}
+ */
+function getWageInfo(employeeId) {
+  try {
+    var now = new Date();
+    var currentMonth = now.getMonth() + 1;
+    var currentYear = now.getFullYear();
+    
+    console.log('getWageInfo: 従業員ID=' + employeeId + ', 月=' + currentMonth + ', 年=' + currentYear);
+    
+    // 既存のgetEmployeeWageInfo関数を使用
+    var wageDataJson = getEmployeeWageInfo(employeeId, currentMonth, currentYear);
+    var wageData = JSON.parse(wageDataJson);
+    
+    if (wageData.error) {
+      console.error('getWageInfo: エラー:', wageData.error);
+      return {wage: 0, target: 1030000, percentage: 0};
+    }
+    
+    console.log('getWageInfo: 給与データ取得成功:', wageData);
+    return {
+      wage: wageData.wage,
+      target: wageData.target,
+      percentage: wageData.percentage
+    };
+  } catch (error) {
+    console.error('getWageInfo: エラーが発生しました:', error);
+    return {wage: 0, target: 1030000, percentage: 0};
+  }
+}
+
+/**
+ * 出勤打刻を行う
+ * @param {string} employeeId - 従業員ID
+ * @returns {object} 結果 {success: boolean, message: string}
+ */
+function clockIn(employeeId) {
+  try {
+    console.log('clockIn: 従業員ID=' + employeeId);
+    
+    // 現在の日時を取得
+    var now = new Date();
+    var dateStr = now.getFullYear() + '-' + 
+                 String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                 String(now.getDate()).padStart(2, '0');
+    var timeStr = String(now.getHours()).padStart(2, '0') + ':' + 
+                 String(now.getMinutes()).padStart(2, '0');
+    
+    // フォームオブジェクトを作成
+    var form = {
+      target_date: dateStr,
+      target_time: timeStr,
+      target_type: 'clock_in'
+    };
+    
+    // 既存のpostWorkRecord関数を使用
+    var result = postWorkRecord(form);
+    
+    if (result === '登録しました') {
+      return {
+        success: true,
+        message: '出勤打刻が完了しました'
+      };
+    } else {
+      return {
+        success: false,
+        message: result || '出勤打刻に失敗しました'
+      };
+    }
+  } catch (error) {
+    console.error('clockIn: エラーが発生しました:', error);
+    return {
+      success: false,
+      message: '出勤打刻中にエラーが発生しました'
+    };
+  }
+}
+
+/**
+ * 退勤打刻を行う
+ * @param {string} employeeId - 従業員ID
+ * @returns {object} 結果 {success: boolean, message: string}
+ */
+function clockOut(employeeId) {
+  try {
+    console.log('clockOut: 従業員ID=' + employeeId);
+    
+    // 現在の日時を取得
+    var now = new Date();
+    var dateStr = now.getFullYear() + '-' + 
+                 String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                 String(now.getDate()).padStart(2, '0');
+    var timeStr = String(now.getHours()).padStart(2, '0') + ':' + 
+                 String(now.getMinutes()).padStart(2, '0');
+    
+    // フォームオブジェクトを作成
+    var form = {
+      target_date: dateStr,
+      target_time: timeStr,
+      target_type: 'clock_out'
+    };
+    
+    // 既存のpostWorkRecord関数を使用
+    var result = postWorkRecord(form);
+    
+    if (result === '登録しました') {
+      return {
+        success: true,
+        message: '退勤打刻が完了しました'
+      };
+    } else {
+      return {
+        success: false,
+        message: result || '退勤打刻に失敗しました'
+      };
+    }
+  } catch (error) {
+    console.error('clockOut: エラーが発生しました:', error);
+    return {
+      success: false,
+      message: '退勤打刻中にエラーが発生しました'
+    };
+  }
+}
+
+/**
+ * 従業員の打刻状態を取得する
+ * @param {string} employeeId - 従業員ID
+ * @returns {object} 打刻状態 {canClockIn: boolean, canClockOut: boolean, message: string}
+ */
+function getClockStatus(employeeId) {
+  try {
+    console.log('getClockStatus: 従業員ID=' + employeeId);
+    
+    // 今日の勤怠記録を取得
+    var today = new Date();
+    var timeClocks = getTimeClocksFor(employeeId, today);
+    
+    var hasClockIn = false;
+    var hasClockOut = false;
+    
+    // 今日の打刻記録をチェック
+    for (var i = 0; i < timeClocks.length; i++) {
+      var record = timeClocks[i];
+      if (record.type === 'clock_in') {
+        hasClockIn = true;
+      } else if (record.type === 'clock_out') {
+        hasClockOut = true;
+      }
+    }
+    
+    var canClockIn = !hasClockIn;
+    var canClockOut = hasClockIn && !hasClockOut;
+    
+    var message = '';
+    if (canClockIn) {
+      message = '出勤打刻が可能です';
+    } else if (canClockOut) {
+      message = '退勤打刻が可能です';
+    } else if (hasClockIn && hasClockOut) {
+      message = '本日の打刻は完了しています';
+    } else {
+      message = '打刻状態を確認中です';
+    }
+    
+    return {
+      canClockIn: canClockIn,
+      canClockOut: canClockOut,
+      message: message
+    };
+  } catch (error) {
+    console.error('getClockStatus: エラーが発生しました:', error);
+    return {
+      canClockIn: false,
+      canClockOut: false,
+      message: 'エラーが発生しました'
+    };
+  }
+}
+

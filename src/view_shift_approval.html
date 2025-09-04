@@ -7,49 +7,49 @@
   <body>
     <h1>自分へのシフトリクエスト一覧</h1>
 
-    <div class="form-group">
-      <label for="user-select">表示するユーザーを選択:</label>
-      <select id="user-select">
-        <option value="">読み込んでいます...</option>
-      </select>
-    </div>
-
     <ul id="request-list-container">
-      <p>ユーザーを選択すると、リクエストが表示されます。</p>
+      <p>リクエストを読み込んでいます...</p>
     </ul>
 
     <hr>
-    <a href="#" onclick="goBack(); return false;">ホーム画面に戻る</a>
+    <a href="#" onclick="goToMyPage(); return false;">マイページトップに戻る</a>
 
     <script>
+      var currentUserId = null;
+
       window.addEventListener('load', function() {
-        google.script.run.withSuccessHandler(populateUserDropdown).getEmployees();
+        loadCurrentUserRequests();
       });
 
-      function populateUserDropdown(employees) {
-        var userSelect = document.getElementById('user-select');
-        userSelect.innerHTML = '<option value="">選択してください</option>';
-        if (employees && employees.length > 0) {
-          employees.forEach(function(emp) {
-            var option = document.createElement('option');
-            option.value = emp.id;
-            option.textContent = emp.display_name;
-            userSelect.appendChild(option);
-          });
-        }
-        userSelect.addEventListener('change', handleUserSelectionChange);
+      function loadCurrentUserRequests() {
+        // 現在ログインしているユーザーのIDを取得
+        google.script.run
+          .withSuccessHandler(function(employeeId) {
+            if (employeeId) {
+              currentUserId = employeeId;
+              loadRequestsForUser(employeeId);
+            } else {
+              document.getElementById('request-list-container').innerHTML = '<p>ユーザー情報の取得に失敗しました。</p>';
+            }
+          })
+          .withFailureHandler(function(error) {
+            console.error('ユーザー情報取得エラー:', error);
+            document.getElementById('request-list-container').innerHTML = '<p>ユーザー情報の取得に失敗しました。</p>';
+          })
+          .getSelectedEmployeeId();
       }
 
-      function handleUserSelectionChange(event) {
-        var selectedUserId = event.target.value;
+      function loadRequestsForUser(userId) {
         var container = document.getElementById('request-list-container');
-        if (selectedUserId) {
-          container.innerHTML = '<p>リクエストを読み込んでいます...</p>';
-          // ★★★ 呼び出す関数を新しいものに変更 ★★★
-          google.script.run.withSuccessHandler(displayRequests).getPendingRequestsForUser(selectedUserId);
-        } else {
-          container.innerHTML = '<p>ユーザーを選択すると、リクエストが表示されます。</p>';
-        }
+        container.innerHTML = '<p>リクエストを読み込んでいます...</p>';
+        
+        google.script.run
+          .withSuccessHandler(displayRequests)
+          .withFailureHandler(function(error) {
+            console.error('リクエスト取得エラー:', error);
+            container.innerHTML = '<p>リクエストの取得に失敗しました。</p>';
+          })
+          .getPendingRequestsForUser(userId);
       }
 
       function displayRequests(requestsJson) {
@@ -58,11 +58,10 @@
         var requests = JSON.parse(requestsJson); // JSON文字列をオブジェクトに戻す
 
         if (!requests || requests.length === 0) {
-          container.innerHTML = '<p>このユーザー宛の申請中リクエストはありません。</p>';
+          container.innerHTML = '<p>あなた宛の申請中リクエストはありません。</p>';
           return;
         }
 
-        var selectedUserId = document.getElementById('user-select').value;
         requests.forEach(function(req) {
           var listItem = document.createElement('li');
           listItem.className = 'request-item';
@@ -88,12 +87,12 @@
           var approveBtn = document.createElement('button');
           approveBtn.className = 'button approve';
           approveBtn.textContent = '承認';
-          approveBtn.onclick = function() { handleApprove(req.type, req.requestId, selectedUserId); };
+          approveBtn.onclick = function() { handleApprove(req.type, req.requestId, currentUserId); };
 
           var denyBtn = document.createElement('button');
           denyBtn.className = 'button deny';
           denyBtn.textContent = '否認';
-          denyBtn.onclick = function() { handleDeny(req.type, req.requestId, selectedUserId); };
+          denyBtn.onclick = function() { handleDeny(req.type, req.requestId, currentUserId); };
           
           buttonDiv.appendChild(approveBtn);
           buttonDiv.appendChild(denyBtn);
@@ -113,6 +112,10 @@
         google.script.run
           .withSuccessHandler(function() {
             document.getElementById('req-' + requestId).innerHTML = '<strong>承認処理が完了しました。</strong>';
+            // 処理完了後にリクエスト一覧を再読み込み
+            setTimeout(function() {
+              loadRequestsForUser(currentUserId);
+            }, 1000);
           })
           .withFailureHandler(handleFailure)
           [functionToCall](requestId, approverId); // 動的に関数を呼び出す
@@ -127,6 +130,10 @@
         google.script.run
           .withSuccessHandler(function() {
             document.getElementById('req-' + requestId).innerHTML = '<strong>否認処理が完了しました。</strong>';
+            // 処理完了後にリクエスト一覧を再読み込み
+            setTimeout(function() {
+              loadRequestsForUser(currentUserId);
+            }, 1000);
           })
           .withFailureHandler(handleFailure)
           [functionToCall](requestId, denierId);
@@ -137,9 +144,8 @@
         location.reload();
       }
 
-      function goBack() {
-        var url = "<?= ScriptApp.getService().getUrl() ?>";
-        window.top.location.href = url;
+      function goToMyPage() {
+        window.top.location.href = '<?= getAppUrl() ?>?page=my_page';
       }
     </script>
   </body>

@@ -586,4 +586,16 @@ function resetSheetsToInitialState() {
   rangeToWrite.setValues(initialShiftData);
   shiftSheet.getRange("A1").setNumberFormat("YYYY\"年\"M\"月\"");
   console.log("  [INFO] 「シフト表」シートを実際の従業員IDで初期化しました。");
+  
+  // 認証設定シートのリセット
+  var authSheet = ss.getSheetByName(AUTH_SETTINGS_SHEET_NAME);
+  if (authSheet && authSheet.getLastRow() > 1) {
+    authSheet.getRange(2, 1, authSheet.getLastRow() - 1, authSheet.getLastColumn()).clearContent();
+  }
+  
+  // 認証コード管理シートのリセット
+  var verificationSheet = ss.getSheetByName(VERIFICATION_CODES_SHEET_NAME);
+  if (verificationSheet && verificationSheet.getLastRow() > 1) {
+    verificationSheet.getRange(2, 1, verificationSheet.getLastRow() - 1, verificationSheet.getLastColumn()).clearContent();
+  }
 }

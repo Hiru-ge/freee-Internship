@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= HtmlService.createHtmlOutputFromFile('css').getContent(); ?>
+  <title>ログイン - 勤怠管理システム</title>
+</head>
+<body>
+  <div class="container">
+    <div class="login-container">
+      <h1>勤怠管理システム</h1>
+      <h2>ログイン</h2>
+      
+      <form id="login-form">
+        <div class="form-group">
+          <label for="employee-select">従業員を選択してください:</label>
+          <select id="employee-select" name="employeeId" required>
+            <option value="">-- 従業員を選択 --</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="password">パスワード:</label>
+          <input type="password" id="password" name="password" required>
+        </div>
+        
+        <div class="form-actions">
+          <button type="submit" class="button">ログイン</button>
+        </div>
+      </form>
+      
+      <div class="login-links">
+        <a href="<?= getAppUrl() ?>?page=password_change&mode=reset" class="link">パスワードを忘れた場合</a>
+        <a href="<?= getAppUrl() ?>?page=initial_password" class="link">初回パスワード設定</a>
+      </div>
+      
+      <div id="login-message" class="message" style="display: none;"></div>
+      
+      <!-- ログイン成功後のリダイレクトボタン -->
+      <div id="redirect-section" style="display: none;">
+        <div class="form-actions">
+          <button type="button" class="button" id="redirect-button">移動</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ページ読み込み時の初期化
+    document.addEventListener('DOMContentLoaded', function() {
+      loadEmployees();
+      setupFormHandler();
+    });
+    
+    // 従業員一覧の読み込み
+    function loadEmployees() {
+      google.script.run
+        .withSuccessHandler(function(employees) {
+          var select = document.getElementById('employee-select');
+          select.innerHTML = '<option value="">-- 従業員を選択 --</option>';
+          
+          if (employees && employees.length > 0) {
+            employees.forEach(function(employee) {
+              var option = document.createElement('option');
+              option.value = employee.id;
+              option.textContent = employee.display_name;
+              select.appendChild(option);
+            });
+          } else {
+            showMessage('従業員情報の取得に失敗しました', 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('従業員情報の取得エラー:', error);
+          showMessage('従業員情報の取得に失敗しました', 'error');
+        })
+        .getEmployees();
+    }
+    
+    // フォームハンドラーの設定
+    function setupFormHandler() {
+      document.getElementById('login-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        performLogin();
+      });
+    }
+    
+    // ログイン処理
+    function performLogin() {
+      var employeeId = document.getElementById('employee-select').value;
+      var password = document.getElementById('password').value;
+      
+      if (!employeeId) {
+        showMessage('従業員を選択してください', 'error');
+        return;
+      }
+      
+      if (!password) {
+        showMessage('パスワードを入力してください', 'error');
+        return;
+      }
+      
+      // ログインボタンを無効化
+      var submitButton = document.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      submitButton.textContent = 'ログイン中...';
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            // ログイン成功の場合はマイページトップへ
+            showRedirectMessage('ログイン成功です。マイページに移動します。', '<?= getAppUrl() ?>?page=my_page');
+          } else {
+            if (result.needsPasswordSetup) {
+              // パスワードが設定されていない場合は初回パスワード設定画面へ
+              showRedirectMessage('パスワードが設定されていません。初回パスワード設定画面に移動します。', '<?= getAppUrl() ?>?page=initial_password');
+            } else {
+              showMessage(result.message || 'ログインに失敗しました', 'error');
+            }
+          }
+          
+          // ボタンを元に戻す
+          submitButton.disabled = false;
+          submitButton.textContent = 'ログイン';
+        })
+        .withFailureHandler(function(error) {
+          console.error('ログインエラー:', error);
+          showMessage('ログイン中にエラーが発生しました', 'error');
+          // ボタンを元に戻す
+          submitButton.disabled = false;
+          submitButton.textContent = 'ログイン';
+        })
+        .login(employeeId, password);
+    }
+    
+    
+    // メッセージ表示
+    function showMessage(message, type) {
+      var messageDiv = document.getElementById('login-message');
+      messageDiv.textContent = message;
+      messageDiv.className = 'message ' + type;
+      messageDiv.style.display = 'block';
+    }
+    
+    // リダイレクトメッセージとボタンを表示
+    function showRedirectMessage(message, redirectUrl) {
+      showMessage(message, 'success');
+      var redirectButton = document.getElementById('redirect-button');
+      redirectButton.onclick = function() {
+        window.top.location.href = redirectUrl;
+      };
+      document.getElementById('redirect-section').style.display = 'block';
+    }
+  </script>
+
+  <style>
+    .login-container {
+      max-width: 400px;
+      margin: 50px auto;
+      padding: 30px;
+      background-color: #3a3a3a;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    
+    .login-container h1 {
+      text-align: center;
+      color: #ffca28;
+      margin-bottom: 10px;
+      font-size: 2em;
+    }
+    
+    .login-container h2 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #f0f0f0;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      color: #f0f0f0;
+      font-weight: bold;
+    }
+    
+    .form-actions {
+      text-align: center;
+      margin-top: 30px;
+    }
+    
+    .message {
+      padding: 10px;
+      margin: 15px 0;
+      border-radius: 5px;
+      font-weight: bold;
+      text-align: center;
+    }
+    
+    .message.error {
+      background-color: #f44336;
+      color: white;
+    }
+    
+    .message.success {
+      background-color: #4caf50;
+      color: white;
+    }
+    
+    select, input[type="password"] {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #777;
+      border-radius: 5px;
+      background-color: #555;
+      color: #f0f0f0;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    
+    select:focus, input[type="password"]:focus {
+      outline: none;
+      border-color: #ffca28;
+      box-shadow: 0 0 5px rgba(255, 202, 40, 0.3);
+    }
+    
+    .button {
+      width: 100%;
+      padding: 15px;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    
+    .button:disabled {
+      background-color: #666;
+      cursor: not-allowed;
+    }
+    
+    .login-links {
+      text-align: center;
+      margin-top: 20px;
+    }
+    
+    .link {
+      color: #ffca28;
+      text-decoration: none;
+      font-size: 14px;
+      margin: 0 10px;
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 3px;
+      transition: background-color 0.3s ease;
+    }
+    
+    .link:hover {
+      background-color: rgba(255, 202, 40, 0.1);
+      text-decoration: underline;
+    }
+  </style>
+</body>
+</html>
