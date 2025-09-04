@@ -12,7 +12,7 @@
  * またApps Scriptから外部のAPIをcallするために以下の設定をしておいてください
  *   - https://script.google.com/home/usersettings
  */
-var accessToken = 'T5rtCwC7-alVD7xvSD3QRmwQ5ZHijRSHDsvrnyhCEp0'
+var accessToken = 'AM2rZxxNwflsyOzr2B1Tj5d9XRh2NAIQMuX9AuZFMsI'
 var companyId =  12127317
 var SHIFT_SHEET_NAME = "シフト表";
 var SHIFT_MANAGEMENT_SHEET_NAME = "シフト交代管理";
@@ -1054,9 +1054,33 @@ var TIME_ZONE_WAGE_RATES = {
  * @returns {number} 基本時給（円）
  */
 function getHourlyWage(employeeId) {
-  // 現在は固定値で実装。将来的にfreee APIから取得可能
-  // TODO: freee APIから従業員の時給情報を取得する実装
-  return 1000; // デフォルト時給1000円
+  try {
+    // freee APIから基本時給を取得
+    var requestUrl = 'https://api.freee.co.jp/hr/api/v1/employees/' 
+      + employeeId.toString() 
+      + '/basic_pay_rule?company_id=' + companyId.toString()
+      + '&year=' + new Date().getFullYear() 
+      + '&month=' + (new Date().getMonth() + 1);
+    
+    var response = UrlFetchApp.fetch(requestUrl, getRequestOptions());
+    var responseJson = JSON.parse(response.getContentText());
+    
+    if (response.getResponseCode() === 200 && responseJson.employee_basic_pay_rule) {
+      var payAmount = responseJson.employee_basic_pay_rule.pay_amount;
+      if (payAmount && payAmount > 0) {
+        return payAmount;
+      }
+    }
+    
+    // API取得に失敗した場合はデフォルト値を返す
+    console.error('基本時給の取得に失敗しました。従業員ID:', employeeId, 'レスポンス:', responseJson);
+    return 1000; // デフォルト時給1000円
+    
+  } catch (error) {
+    // エラー時はデフォルト値を返す
+    console.error('基本時給取得中にエラーが発生しました:', error.message);
+    return 1000; // デフォルト時給1000円
+  }
 }
 
 /**
