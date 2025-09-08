@@ -1178,6 +1178,87 @@ function checkForgottenClockIns() {
 }
 
 /**
+ * 全従業員の退勤打刻忘れをチェックし、該当者にリマインダーメールを送信する。
+ * 退勤予定時刻から15分間隔でリマインダーを送信する。
+ * この関数をトリガーで定期的に実行する。
+ */
+function checkForgottenClockOuts() {
+  console.log("退勤打刻忘れチェック処理を開始します。");
+  
+  // --- 1. 必要な情報を取得 ---
+  var now = new Date();
+  var allShiftsJson = getShifts();
+  if (!allShiftsJson) {
+    console.error("シフト情報が取得できなかったため、退勤打刻忘れチェックを中止します。");
+    return;
+  }
+  var allShifts = JSON.parse(allShiftsJson);
+  var allEmployees = getEmployees();
+  if (!allEmployees) {
+    console.error("従業員情報が取得できなかったため、退勤打刻忘れチェックを中止します。");
+    return;
+  }
+
+  var today = now.getDate(); // 今日の日付 (例: 5)
+  var currentHour = now.getHours(); // 現在の時 (例: 23)
+  var currentMinute = now.getMinutes(); // 現在の分 (例: 30)
+
+  // --- 2. 全従業員をループしてチェック ---
+  allEmployees.forEach(function(employee) {
+    var employeeId = employee.id;
+    var employeeShiftData = allShifts.shifts[employeeId];
+
+    // 今日のシフト情報を取得
+    if (!employeeShiftData || !employeeShiftData.shifts || !employeeShiftData.shifts[today]) {
+      return; // 今日のシフトがなければ、この従業員はチェック対象外
+    }
+    
+    var shiftTime = employeeShiftData.shifts[today]; // 例: "18-23"
+    var parsedShift = parseShiftTime(shiftTime);
+    if (!parsedShift) {
+      return; // シフト時間の形式が不正な場合はスキップ
+    }
+    var shiftEndHour = parsedShift.endHour;
+
+    // --- 3. 退勤打刻忘れの条件判定 ---
+    // (条件1) 退勤予定時刻を過ぎているか？
+    // (条件2) 退勤予定時刻から2時間以内か？（過剰な重複送信を防ぐ）
+    // (条件3) 15分間隔でリマインダーを送信するか？（現在時刻が15分の倍数かチェック）
+    if ((currentHour > shiftEndHour || (currentHour === shiftEndHour && currentMinute >= 0)) && 
+        currentHour < shiftEndHour + 2) {
+      
+      // 15分間隔でリマインダーを送信するかチェック
+      var shouldSendReminder = (currentMinute % 15 === 0);
+      
+      if (shouldSendReminder) {
+        // freee APIから今日の退勤打刻記録を取得
+        var timeClocks = getTimeClocksFor(employeeId, now);
+        var hasClockOutToday = timeClocks.some(function(record) {
+          return record.type === 'clock_out';
+        });
+
+        // (条件3) 今日の退勤打刻がまだない場合
+        if (!hasClockOutToday) {
+          // --- 4. リマインダーメールの送信 ---
+          if (employee.email) {
+            var subject = "【勤怠リマインダー】退勤打刻がされていません";
+            var body = employee.display_name + "様\n\n" +
+                       "本日のシフトの退勤打刻がまだ記録されていません。\n" +
+                       "退勤打刻をお忘れなく！\n\n" +
+                       "対象シフト: " + shiftTime + "\n" +
+                       "退勤予定時刻: " + shiftEndHour + ":00";
+            MailApp.sendEmail(employee.email, subject, body);
+            console.log(employee.display_name + "さんに退勤打刻リマインダーを送信しました。");
+          }
+        }
+      }
+    }
+  });
+  
+  console.log("退勤打刻忘れチェック処理を終了します。");
+}
+
+/**
  * オーナーからの新しいシフト追加リクエストを作成し、「シフト追加」シートに記録する。
  * @param {string} approverId - シフト追加を依頼された従業員のID。
  * @param {string} targetStartStr - 対象シフトの開始日時 (文字列)。

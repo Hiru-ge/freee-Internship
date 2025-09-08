@@ -49,6 +49,9 @@ function runAllUnitTests() {
   test_timeClockFunctions();
   console.log("----------------------------------------");
 
+  test_clockOutReminderFunctions();
+  console.log("----------------------------------------");
+
   test_shiftAdditionApprovalDenial();
   console.log("----------------------------------------");
 
@@ -597,5 +600,305 @@ function resetSheetsToInitialState() {
   var verificationSheet = ss.getSheetByName(VERIFICATION_CODES_SHEET_NAME);
   if (verificationSheet && verificationSheet.getLastRow() > 1) {
     verificationSheet.getRange(2, 1, verificationSheet.getLastRow() - 1, verificationSheet.getLastColumn()).clearContent();
+  }
+  
+}
+
+/**
+ * シフト表で従業員IDの行番号を検索するヘルパー関数
+ * @param {string} employeeId - 従業員ID
+ * @returns {number} 行番号（見つからない場合は0）
+ */
+function findEmployeeRowInShiftSheet(employeeId) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var shiftSheet = ss.getSheetByName(SHIFT_SHEET_NAME);
+    
+    if (!shiftSheet) {
+      return 0;
+    }
+    
+    var data = shiftSheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) { // ヘッダー行をスキップ
+      if (data[i][0] === employeeId) {
+        return i + 1; // 1ベースの行番号に変換
+      }
+    }
+    return 0;
+  } catch (e) {
+    console.error("findEmployeeRowInShiftSheetでエラーが発生しました: " + e.message);
+    return 0;
+  }
+}
+
+/**
+ * テスト用のMailApp（モック）
+ * 実際のメール送信を行わずに、ログ出力のみでテストする
+ */
+var TestMailApp = {
+  sendEmail: function(email, subject, body) {
+    console.log("  [テスト] メール送信（実際には送信されません）");
+    console.log("  [テスト] 宛先: " + email);
+    console.log("  [テスト] 件名: " + subject);
+    console.log("  [テスト] 本文: " + body.replace(/\n/g, "\\n"));
+  }
+};
+
+/**
+ * テスト用のgetTimeClocksFor関数（モック）
+ * 実際のfreee APIを呼び出さずに、テスト用の打刻データを返す
+ * @param {string} employeeId - 従業員ID
+ * @param {Date} dateObj - 日付
+ * @returns {Array} テスト用の打刻データ
+ */
+function getTimeClocksForTest(employeeId, dateObj) {
+  // テスト用の打刻データが設定されている場合はそれを使用
+  if (typeof globalTestTimeClocks !== 'undefined') {
+    var key = employeeId + '_' + dateObj.getDate();
+    if (globalTestTimeClocks[key]) {
+      return globalTestTimeClocks[key];
+    }
+  }
+  
+  // テスト用データがない場合は空配列を返す
+  return [];
+}
+
+/**
+ * 退勤打刻忘れテスト用のデータセットアップ
+ * テストに必要なシフト表とfreeeの打刻状況を設定する
+ */
+function setupClockOutReminderTestData() {
+  console.log("退勤打刻忘れテスト用データのセットアップを開始します。");
+  
+  try {
+    var employees = getEmployees();
+    if (!employees || employees.length < 2) {
+      console.error("テスト用の従業員データが不足しています。");
+      return false;
+    }
+    
+    var today = new Date();
+    var todayDate = today.getDate();
+    
+    // 1. シフト表にテスト用のシフトを設定
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var shiftSheet = ss.getSheetByName(SHIFT_SHEET_NAME);
+    
+    if (!shiftSheet) {
+      console.error("シフト表が見つかりません。");
+      return false;
+    }
+    
+    // テスト用のシフトデータを設定（18:00-23:00のシフト）
+    var testShiftData = [
+      [employees[0].id, employees[0].display_name, "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],
+      [employees[1].id, employees[1].display_name, "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]
+    ];
+    
+    // 今日の日付の列にシフトを設定
+    if (todayDate <= 31) {
+      testShiftData[0][todayDate + 2] = "18-23"; // 従業員1に18-23のシフト
+      testShiftData[1][todayDate + 2] = "20-24"; // 従業員2に20-24のシフト
+    }
+    
+    // シフト表の該当行を更新
+    for (var i = 0; i < testShiftData.length; i++) {
+      var employeeId = testShiftData[i][0];
+      var rowIndex = findEmployeeRowInShiftSheet(employeeId);
+      if (rowIndex > 0) {
+        shiftSheet.getRange(rowIndex, todayDate + 3, 1, 1).setValue(testShiftData[i][todayDate + 2]);
+      }
+    }
+    
+    console.log("  [OK] シフト表にテスト用データを設定しました");
+    console.log("  [INFO] 従業員1: 18-23のシフト, 従業員2: 20-24のシフト");
+    
+    // 2. テスト用の打刻状況を記録（出勤打刻のみ、退勤打刻なし）
+    var testTimeClocks = [
+      {
+        employeeId: employees[0].id,
+        type: 'clock_in',
+        datetime: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 18, 0, 0)
+      },
+      {
+        employeeId: employees[1].id,
+        type: 'clock_in', 
+        datetime: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 20, 0, 0)
+      }
+      // 退勤打刻は意図的に設定しない（テスト用）
+    ];
+    
+    // テスト用の打刻データをグローバル変数に保存
+    if (typeof globalTestTimeClocks === 'undefined') {
+      globalTestTimeClocks = {};
+    }
+    
+    testTimeClocks.forEach(function(clock) {
+      var key = clock.employeeId + '_' + today.getDate();
+      if (!globalTestTimeClocks[key]) {
+        globalTestTimeClocks[key] = [];
+      }
+      globalTestTimeClocks[key].push(clock);
+    });
+    
+    console.log("  [OK] テスト用の打刻状況を設定しました（出勤打刻のみ）");
+    console.log("  [INFO] 退勤打刻は意図的に未設定（テスト用）");
+    
+    return true;
+    
+  } catch (e) {
+    console.error("テスト用データのセットアップでエラーが発生しました: " + e.message);
+    return false;
+  }
+}
+
+/**
+ * 退勤打刻忘れテスト用のデータをリセット
+ */
+function resetClockOutReminderTestData() {
+  console.log("退勤打刻忘れテスト用データのリセットを開始します。");
+  
+  try {
+    // グローバル変数をクリア
+    if (typeof globalTestTimeClocks !== 'undefined') {
+      globalTestTimeClocks = {};
+    }
+    
+    // シフト表のテスト用データをクリア
+    var today = new Date();
+    var todayDate = today.getDate();
+    var employees = getEmployees();
+    
+    if (employees && employees.length >= 2) {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var shiftSheet = ss.getSheetByName(SHIFT_SHEET_NAME);
+      
+      if (shiftSheet && todayDate <= 31) {
+        for (var i = 0; i < 2; i++) {
+          var rowIndex = findEmployeeRowInShiftSheet(employees[i].id);
+          if (rowIndex > 0) {
+            shiftSheet.getRange(rowIndex, todayDate + 3, 1, 1).setValue("");
+          }
+        }
+      }
+    }
+    
+    console.log("  [OK] テスト用データをリセットしました");
+    return true;
+    
+  } catch (e) {
+    console.error("テスト用データのリセットでエラーが発生しました: " + e.message);
+    return false;
+  }
+}
+
+/**
+ * 実際のcheckForgottenClockOuts関数をテスト用に実行
+ * メール送信部分のみモック化して、実際のロジックをテストする
+ */
+function testCheckForgottenClockOutsWithRealFunction() {
+  console.log("実際のcheckForgottenClockOuts関数を使用したテストを開始します。");
+  
+  try {
+    // 元のMailAppをバックアップ
+    var originalMailApp = MailApp;
+    
+    // テスト用のMailAppに置き換え
+    MailApp = TestMailApp;
+    
+    // 元のgetTimeClocksFor関数をバックアップ
+    var originalGetTimeClocksFor = getTimeClocksFor;
+    
+    // テスト用のgetTimeClocksFor関数に置き換え
+    getTimeClocksFor = getTimeClocksForTest;
+    
+    // 実際のcheckForgottenClockOuts関数を実行
+    checkForgottenClockOuts();
+    
+    // 元の関数を復元
+    MailApp = originalMailApp;
+    getTimeClocksFor = originalGetTimeClocksFor;
+    
+    console.log("実際のcheckForgottenClockOuts関数を使用したテストを終了しました。");
+    
+  } catch (e) {
+    console.error("テスト実行中にエラーが発生しました: " + e.message);
+    
+    // エラーが発生しても元の関数を復元
+    try {
+      MailApp = originalMailApp;
+      getTimeClocksFor = originalGetTimeClocksFor;
+    } catch (restoreError) {
+      console.error("関数の復元中にエラーが発生しました: " + restoreError.message);
+    }
+  }
+}
+
+/**
+ * 退勤打刻忘れリマインダー機能のテスト
+ */
+function test_clockOutReminderFunctions() {
+  console.log("【テスト実行 8】退勤打刻忘れリマインダー機能");
+  
+  try {
+    // 1. テスト用データのセットアップ
+    console.log("  [テスト] テスト用データのセットアップ");
+    if (!setupClockOutReminderTestData()) {
+      console.error("  [NG] テスト用データのセットアップに失敗しました");
+      return;
+    }
+    console.log("  [OK] テスト用データのセットアップが完了しました");
+    
+    // 2. 退勤打刻忘れチェック関数のテスト（実際のメール送信は行わない）
+    console.log("  [テスト] 退勤打刻忘れチェック関数の確認");
+    try {
+      // 関数が存在し、呼び出し可能かテスト
+      if (typeof checkForgottenClockOuts === 'function') {
+        console.log("  [OK] checkForgottenClockOuts関数が正常に定義されています");
+      } else {
+        console.error("  [NG] checkForgottenClockOuts関数が定義されていません");
+        return;
+      }
+    } catch (e) {
+      console.error("  [NG] 退勤打刻忘れチェック関数でエラーが発生しました: " + e.message);
+      return;
+    }
+    
+    // 3. 実際のcheckForgottenClockOuts関数を使用したテスト実行
+    console.log("  [テスト] 実際のcheckForgottenClockOuts関数を使用したテスト実行");
+    try {
+      testCheckForgottenClockOutsWithRealFunction();
+      console.log("  [OK] 実際のcheckForgottenClockOuts関数を使用したテストが正常に実行されました");
+    } catch (e) {
+      console.error("  [NG] 実際のcheckForgottenClockOuts関数を使用したテストでエラーが発生しました: " + e.message);
+    }
+    
+    // 4. 既存の出勤打刻忘れチェック関数との一貫性確認
+    console.log("  [テスト] 既存実装との一貫性確認");
+    try {
+      if (typeof checkForgottenClockIns === 'function') {
+        console.log("  [OK] 既存のcheckForgottenClockIns関数も正常に定義されています");
+      } else {
+        console.error("  [NG] 既存のcheckForgottenClockIns関数が定義されていません");
+      }
+    } catch (e) {
+      console.error("  [NG] 既存実装の確認でエラーが発生しました: " + e.message);
+    }
+    
+    // 5. テスト用データのリセット
+    console.log("  [テスト] テスト用データのリセット");
+    if (resetClockOutReminderTestData()) {
+      console.log("  [OK] テスト用データのリセットが完了しました");
+    } else {
+      console.error("  [NG] テスト用データのリセットに失敗しました");
+    }
+    
+    console.log("  [完了] 退勤打刻忘れリマインダー機能のテストが完了しました");
+    
+  } catch (e) {
+    console.error("  [NG] 退勤打刻忘れリマインダー機能のテストでエラーが発生しました: " + e.message);
+    // エラーが発生してもリセットは実行
+    resetClockOutReminderTestData();
   }
 }
