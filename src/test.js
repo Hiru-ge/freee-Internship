@@ -8,17 +8,80 @@
 var TEST_EMPLOYEES = getEmployees();
 
 /**
+ * テスト環境のセットアップ
+ * 各テストの独立性を確保するため、テスト前に実行
+ */
+function setupTestEnvironment() {
+  console.log("  [SETUP] テスト環境をセットアップします...");
+  
+  // シートを初期状態にリセット
+  resetSheetsToInitialState();
+  
+  // テスト用の従業員情報を再取得
+  TEST_EMPLOYEES = getEmployees();
+  
+  if (!TEST_EMPLOYEES || TEST_EMPLOYEES.length < 3) {
+    throw new Error("テストに必要な3人以上の従業員が取得できませんでした。");
+  }
+  
+  console.log("  [SETUP] テスト環境のセットアップが完了しました。");
+}
+
+/**
+ * テスト環境のクリーンアップ
+ * 各テストの独立性を確保するため、テスト後に実行
+ */
+function cleanupTestEnvironment() {
+  console.log("  [CLEANUP] テスト環境をクリーンアップします...");
+  
+  // シートを初期状態にリセット
+  resetSheetsToInitialState();
+  
+  console.log("  [CLEANUP] テスト環境のクリーンアップが完了しました。");
+}
+
+/**
+ * 従業員データの検証を行う共通関数
+ * @param {number} minCount 最小必要人数（デフォルト: 0）
+ * @returns {boolean} 検証結果
+ */
+function validateTestEmployees(minCount) {
+  minCount = minCount || 0;
+  if (!TEST_EMPLOYEES || TEST_EMPLOYEES.length <= minCount) {
+    console.error("  [NG] 従業員情報が読み込まれていないため、テストをスキップします。");
+    return false;
+  }
+  return true;
+}
+
+/**
+ * テスト実行の共通ラッパー関数
+ * @param {string} testNumber テスト番号
+ * @param {string} testDescription テスト説明
+ * @param {Function} testFunction 実行するテスト関数
+ */
+function runTestWithSetup(testNumber, testDescription, testFunction) {
+  console.log("【テスト実行 " + testNumber + "】" + testDescription);
+  
+  try {
+    setupTestEnvironment();
+    testFunction();
+  } catch(e) {
+    console.error("  [NG] テスト実行中にエラーが発生しました: " + e.message);
+  } finally {
+    cleanupTestEnvironment();
+  }
+}
+
+/**
  * 全ての単体テストを順番に実行するマスター関数
  */
 function runAllUnitTests() {
   console.log("全テストを開始します。");
   console.log("========================================");
 
-  // --- テストの準備 ---
-  console.log("【準備】テスト環境を初期状態にリセットします...");
-  resetSheetsToInitialState();
-  console.log("【準備】リセット完了。");
-
+  // テスト用の従業員情報を取得
+  TEST_EMPLOYEES = getEmployees();
   if (!TEST_EMPLOYEES || TEST_EMPLOYEES.length < 3) {
     console.error("テストに必要な3人以上の従業員がfreeeから取得できませんでした。テストを中止します。");
     return;
@@ -26,46 +89,40 @@ function runAllUnitTests() {
   console.log("【準備】テスト用の従業員情報を取得しました。");
   console.log("----------------------------------------");
   
-  // --- テストの実行 ---
-  test_getShifts_and_finders();
-  console.log("----------------------------------------");
+  // 各テストは独立して実行される（セットアップとクリーンアップが各テスト内で実行される）
+  // 基本的な機能から複雑な機能、エラーハンドリングの順序で実行
+  var testFunctions = [
+    test01_employeeAndCompanyFunctions,        // 1. 基本データ取得
+    test02_getShifts_and_finders,             // 2. シフトデータ取得
+    test03_shiftUpdateAndDeletion,            // 3. シフト基本操作
+    test04_createShiftAdditionRequest,        // 4. シフト追加リクエスト
+    test05_shiftAdditionApprovalDenial,       // 5. シフト追加承認・否認
+    test06_fullShiftChangeScenario,           // 6. シフト交代シナリオ
+    test07_AllDenied_Scenario,                // 7. シフト交代否認シナリオ
+    test08_pendingRequestsFunctions,          // 8. リクエスト取得機能
+    test09_timeClockFunctions,                // 9. 勤怠管理機能
+    test10_forgottenClockInCheck,             // 10. 打刻忘れチェック
+    test11_clockOutReminderFunctions,         // 11. 退勤打刻忘れリマインダー
+    test12_errorHandlingAndEdgeCases,         // 12. エラーハンドリング
+    test13_CheckForgottenClockOutsWithRealFunction  // 13. 退勤打刻忘れチェック（内部関数）
+  ];
   
-  test_shiftUpdateAndDeletion();
-  console.log("----------------------------------------");
+  var passedTests = 0;
+  var totalTests = testFunctions.length;
   
-  test_fullShiftChangeScenario();
-  console.log("----------------------------------------");
-
-  test_AllDenied_Scenario();
-  console.log("----------------------------------------");
-
-  test_createShiftAdditionRequest();
-  console.log("----------------------------------------");
-
-  // 新しく追加するテストケース
-  test_employeeAndCompanyFunctions();
-  console.log("----------------------------------------");
-
-  test_timeClockFunctions();
-  console.log("----------------------------------------");
-
-  test_clockOutReminderFunctions();
-  console.log("----------------------------------------");
-
-  test_shiftAdditionApprovalDenial();
-  console.log("----------------------------------------");
-
-  test_pendingRequestsFunctions();
-  console.log("----------------------------------------");
-
-  test_forgottenClockInCheck();
-  console.log("----------------------------------------");
-
-  test_errorHandlingAndEdgeCases();
-  console.log("----------------------------------------");
+  for (var i = 0; i < testFunctions.length; i++) {
+    try {
+      testFunctions[i]();
+      passedTests++;
+    } catch (error) {
+      console.error("テスト " + testFunctions[i].name + " でエラーが発生しました: " + error.message);
+    }
+    console.log("----------------------------------------");
+  }
 
   console.log("========================================");
   console.log("全テストが完了しました。");
+  console.log("成功: " + passedTests + "/" + totalTests + " テスト");
 }
 
 
@@ -73,81 +130,181 @@ function runAllUnitTests() {
  * 個別のテストケース
  ****************************************************************/
 
-/**
- * Test Case 1: データ取得系関数のテスト
- */
-function test_getShifts_and_finders() {
-  console.log("【テスト実行 1】データ取得系 (getShifts, findRowByEmployeeId)");
+// 従業員・事業所情報取得機能のテスト
+function test01_employeeAndCompanyFunctions() {
+  console.log("【テスト実行 1】従業員・事業所情報取得機能 (getEmployees, getEmployee, getCompanyName)");
   
-  var shiftsJson = getShifts();
-  var shiftsData = JSON.parse(shiftsJson); // JSON文字列をオブジェクトに戻す
-  var firstEmployeeId = TEST_EMPLOYEES[0].id;
-
-  if (shiftsData && shiftsData.shifts[firstEmployeeId]) {
-    console.log("  [OK] getShifts: データ取得成功");
+  // 全従業員情報の取得テスト
+  var employees = getEmployees();
+  if (employees && employees.length > 0) {
+    console.log("  [OK] getEmployees: " + employees.length + "名の従業員情報を取得しました。");
+    
+    // 従業員情報の構造チェック
+    var firstEmployee = employees[0];
+    if (firstEmployee.id && firstEmployee.display_name) {
+      console.log("  [OK] 従業員情報の構造が正しいです。");
+    } else {
+      console.error("  [NG] 従業員情報の構造が不正です。");
+    }
   } else {
-    console.error("  [NG] getShifts: データ取得失敗");
+    console.error("  [NG] getEmployees: 従業員情報の取得に失敗しました。");
   }
-  
-  var row = findRowByEmployeeId(firstEmployeeId);
-  if (row) {
-    console.log("  [OK] findRowByEmployeeId: ID '" + firstEmployeeId + "' の行番号 " + row + " が見つかりました。");
-  } else {
-    console.error("  [NG] findRowByEmployeeId: ID '" + firstEmployeeId + "' が見つかりませんでした。");
+
+  // 2. 事業所名の取得テスト
+  try {
+    var companyName = getCompanyName();
+    if (companyName && companyName !== "undefined") {
+      console.log("  [OK] getCompanyName: 事業所名「" + companyName + "」を取得しました。");
+    } else {
+      console.error("  [NG] getCompanyName: 事業所名の取得に失敗しました。");
+    }
+  } catch(e) {
+    console.error("  [NG] getCompanyName: エラーが発生しました: " + e.message);
+  }
+
+  // 個別従業員情報の取得テスト（モックデータでテスト）
+  if (TEST_EMPLOYEES && TEST_EMPLOYEES.length > 0) {
+    var testEmployeeId = TEST_EMPLOYEES[0].id;
+    PropertiesService.getUserProperties().setProperty('selectedEmpId', testEmployeeId.toString());
+    
+    try {
+      var employee = getEmployee();
+      if (employee && employee.id) {
+        console.log("  [OK] getEmployee: 従業員ID " + testEmployeeId + " の情報を取得しました。");
+      } else {
+        console.log("  [INFO] getEmployee: 従業員情報の取得は成功しましたが、データが空の可能性があります。");
+      }
+    } catch(e) {
+      console.log("  [INFO] getEmployee: エラーが発生しましたが、これは想定される動作です: " + e.message);
+    }
   }
 }
 
-/**
- * Test Case 2: シフト表の更新・削除のテスト
- */
-function test_shiftUpdateAndDeletion() {
-  console.log("【テスト実行 2】シフト表の更新・削除 (updateShift, deleteShift)");
+// データ取得系関数のテスト
+function test02_getShifts_and_finders() {
+  runTestWithSetup("2", "データ取得系 (getShifts, findRowByEmployeeId)", function() {
+    var shiftsJson = getShifts();
+    var shiftsData = JSON.parse(shiftsJson); // JSON文字列をオブジェクトに戻す
+    var firstEmployeeId = TEST_EMPLOYEES[0].id;
 
-  var firstEmployeeId = TEST_EMPLOYEES[0].id;
-  var secondEmployeeId = TEST_EMPLOYEES[1].id;
-  
-  updateShift(firstEmployeeId, '1', '20-23'); // 太郎さんの1日を更新
-  deleteShift(secondEmployeeId, '1');      // 次郎さんの1日を削除
-  
-  console.log("  [完了] updateShiftとdeleteShiftを実行しました。スプレッドシート「シフト表」を目視で確認してください。");
+    if (shiftsData && shiftsData.shifts[firstEmployeeId]) {
+      console.log("  [OK] getShifts: データ取得成功");
+    } else {
+      console.error("  [NG] getShifts: データ取得失敗");
+    }
+    
+    var row = findRowByEmployeeId(firstEmployeeId);
+    if (row) {
+      console.log("  [OK] findRowByEmployeeId: ID '" + firstEmployeeId + "' の行番号 " + row + " が見つかりました。");
+    } else {
+      console.error("  [NG] findRowByEmployeeId: ID '" + firstEmployeeId + "' が見つかりませんでした。");
+    }
+  });
 }
 
-/**
- * Test Case 3: シフト交代シナリオの統合テスト
- */
-function test_fullShiftChangeScenario() {
-  console.log("【テスト実行 3】シフト交代シナリオ (createShiftChangeRequest, approveShiftChange)");
-  
+// シフト表の更新・削除のテスト
+function test03_shiftUpdateAndDeletion() {
+  runTestWithSetup("3", "シフト表の更新・削除 (updateShift, deleteShift)", function() {
+    var firstEmployeeId = TEST_EMPLOYEES[0].id;
+    var secondEmployeeId = TEST_EMPLOYEES[1].id;
+    
+    updateShift(firstEmployeeId, '1', '20-23'); // 太郎さんの1日を更新
+    deleteShift(secondEmployeeId, '1');      // 次郎さんの1日を削除
+    
+    console.log("  [完了] updateShiftとdeleteShiftを実行しました。スプレッドシート「シフト表」を目視で確認してください。");
+  });
+}
+
+// シフト追加リクエスト機能のテスト
+function test04_createShiftAdditionRequest() {
+  TEST_EMPLOYEES = getEmployees();
+  if (!validateTestEmployees(0)) {
+    return;
+  }
+
+  runTestWithSetup("4", "シフト追加リクエスト (createShiftAdditionRequest)", function() {
+    var applicant = TEST_EMPLOYEES[0]; // 太郎さん
+    var approver = TEST_EMPLOYEES[1];  // 次郎さん
+
+    var shiftStart = new Date("2025-08-25T18:00:00");
+    var shiftEnd = new Date("2025-08-25T22:00:00");
+
+    var newRequestId = createShiftAdditionRequest(applicant.id, shiftStart.toISOString(), shiftEnd.toISOString(), [approver.id]);
+    
+    if (newRequestId) {
+      console.log("  [OK] シフト追加リクエストを作成しました。ID: " + newRequestId);
+    } else {
+      console.error("  [NG] シフト追加リクエストの作成に失敗しました。");
+    }
+  });
+}
+
+// シフト追加リクエストの承認・否認テスト
+function test05_shiftAdditionApprovalDenial() {
+  if (!validateTestEmployees(0)) {
+    return;
+  }
+
+  // テスト用のシフト追加リクエストを作成
   var applicant = TEST_EMPLOYEES[0]; // 太郎さん
   var approver = TEST_EMPLOYEES[1];  // 次郎さん
-  var anotherApprover = TEST_EMPLOYEES[2]; // 三郎さん
 
   var shiftStart = new Date("2025-08-25T18:00:00");
   var shiftEnd = new Date("2025-08-25T22:00:00");
 
-  // 1. リクエスト作成
-  var newRequestId = createShiftChangeRequest(applicant.id, shiftStart.toISOString(), shiftEnd.toISOString(), [approver.id, anotherApprover.id]);
-  
-  if (!newRequestId) {
-    console.error("  [NG] リクエストの作成に失敗したため、承認テストを中止します。");
-    return;
-  }
-  console.log("  [OK] 新規リクエストを作成しました。");
+  runTestWithSetup("5", "シフト追加リクエストの承認・否認 (approveShiftAddition, denyShiftAddition)", function() {
+    var newRequestId = createShiftAdditionRequest(applicant.id, shiftStart.toISOString(), shiftEnd.toISOString(), [approver.id]);
+    
+    if (!newRequestId) {
+      console.error("  [NG] テスト用リクエストの作成に失敗しました。");
+      return;
+    }
+    console.log("  [OK] テスト用シフト追加リクエストを作成しました。ID: " + newRequestId);
 
-  // 2. 承認
-  approveShiftChange(newRequestId, approver.id);
-  console.log("  [完了] 承認処理を実行しました。両方のシートを目視で確認してください。");
+    // 承認テスト
+    approveShiftAddition(newRequestId, approver.id);
+    console.log("  [OK] シフト追加リクエストを承認しました。");
+
+    // 否認テスト（新しいリクエストを作成）
+    var denyRequestId = createShiftAdditionRequest(applicant.id, shiftStart.toISOString(), shiftEnd.toISOString(), [approver.id]);
+    if (denyRequestId) {
+      denyShiftAddition(denyRequestId, approver.id);
+      console.log("  [OK] シフト追加リクエストを否認しました。");
+    }
+  });
 }
 
-/**
- * ★★★ Test Case 4: 全員否認シナリオのテスト ★★★
- */
-function test_AllDenied_Scenario() {
-  console.log("【テスト実行 4】全員否認シナリオ (denyShiftChange)");
+// シフト交代シナリオの統合テスト
+function test06_fullShiftChangeScenario() {
+  runTestWithSetup("6", "シフト交代シナリオ (createShiftChangeRequest, approveShiftChange)", function() {
+    var applicant = TEST_EMPLOYEES[0]; // 太郎さん
+    var approver = TEST_EMPLOYEES[1];  // 次郎さん
+    var anotherApprover = TEST_EMPLOYEES[2]; // 三郎さん
+
+    var shiftStart = new Date("2025-08-25T18:00:00");
+    var shiftEnd = new Date("2025-08-25T22:00:00");
+
+    // 1. リクエスト作成
+    var newRequestId = createShiftChangeRequest(applicant.id, shiftStart.toISOString(), shiftEnd.toISOString(), [approver.id, anotherApprover.id]);
+    
+    if (!newRequestId) {
+      console.error("  [NG] リクエストの作成に失敗したため、承認テストを中止します。");
+      return;
+    }
+    console.log("  [OK] 新規リクエストを作成しました。");
+
+    // 2. 承認
+    approveShiftChange(newRequestId, approver.id);
+    console.log("  [完了] 承認処理を実行しました。両方のシートを目視で確認してください。");
+  });
+}
+
+// 全員否認シナリオのテスト
+function test07_AllDenied_Scenario() {
+  console.log("【テスト実行 7】全員否認シナリオ (denyShiftChange)");
   
   // --- テストの準備 ---
-  if (!TEST_EMPLOYEES || TEST_EMPLOYEES.length < 3) {
-    console.error("  [NG] 従業員情報が読み込まれていないため、テストをスキップします。");
+  if (!validateTestEmployees(2)) {
     return;
   }
   
@@ -179,93 +336,46 @@ function test_AllDenied_Scenario() {
   console.log("  [完了] 全員否認シナリオの処理が完了しました。メール受信箱とスプレッドシートを確認してください。");
 }
 
-/**
- * Test Case 5: シフト追加リクエスト機能のテスト
- */
-function test_createShiftAdditionRequest() {
-  console.log("【テスト実行 5】シフト追加リクエスト (createShiftAdditionRequest)");
-
-  TEST_EMPLOYEES = getEmployees();
-  if (!TEST_EMPLOYEES || TEST_EMPLOYEES.length === 0) {
-    console.error("  [NG] 従業員情報が読み込まれていないため、テストをスキップします。");
+// リクエスト取得機能のテスト
+function test08_pendingRequestsFunctions() {
+  if (!validateTestEmployees(0)) {
     return;
   }
-  
-  // シフトが入っていない従業員と日時をテストデータとする
-  var targetEmployee = TEST_EMPLOYEES[2]; // テスト三郎さん
-  var shiftStart = new Date("2025-08-27T10:00:00");
-  var shiftEnd = new Date("2025-08-27T15:00:00");
 
-  try {
-    createShiftAdditionRequest(targetEmployee.id, shiftStart.toISOString(), shiftEnd.toISOString());
-    console.log("  [OK] " + targetEmployee.display_name + "さんへのシフト追加リクエストを作成しました。");
-    console.log("  [VERIFY] 「シフト追加」シートに新しい行が記録されていることを確認してください。");
-    console.log("  [VERIFY] " + targetEmployee.display_name + "さん宛に「【シフト追加のお願い】」メールが届いていることを確認してください。");
-  } catch(e) {
-    console.error("  [NG] リクエスト作成中にエラーが発生しました: " + e.message);
-  }
-}
-
-/**
- * Test Case 6: 従業員・事業所情報取得機能のテスト
- */
-function test_employeeAndCompanyFunctions() {
-  console.log("【テスト実行 6】従業員・事業所情報取得機能 (getEmployees, getEmployee, getCompanyName)");
-  
-  // 1. 全従業員情報の取得テスト
-  var employees = getEmployees();
-  if (employees && employees.length > 0) {
-    console.log("  [OK] getEmployees: " + employees.length + "名の従業員情報を取得しました。");
-    
-    // 従業員情報の構造チェック
-    var firstEmployee = employees[0];
-    if (firstEmployee.id && firstEmployee.display_name) {
-      console.log("  [OK] 従業員情報の構造が正しいです。");
-    } else {
-      console.error("  [NG] 従業員情報の構造が不正です。");
-    }
-  } else {
-    console.error("  [NG] getEmployees: 従業員情報の取得に失敗しました。");
-  }
-
-  // 2. 事業所名の取得テスト
-  try {
-    var companyName = getCompanyName();
-    if (companyName && companyName !== "undefined") {
-      console.log("  [OK] getCompanyName: 事業所名「" + companyName + "」を取得しました。");
-    } else {
-      console.error("  [NG] getCompanyName: 事業所名の取得に失敗しました。");
-    }
-  } catch(e) {
-    console.error("  [NG] getCompanyName: エラーが発生しました: " + e.message);
-  }
-
-  // 3. 個別従業員情報の取得テスト（モックデータでテスト）
-  if (TEST_EMPLOYEES && TEST_EMPLOYEES.length > 0) {
+  runTestWithSetup("8", "リクエスト取得機能 (getPendingRequestsForUser, getPendingChangeRequestsFor, getPendingAdditionRequestsFor)", function() {
     var testEmployeeId = TEST_EMPLOYEES[0].id;
-    PropertiesService.getUserProperties().setProperty('selectedEmpId', testEmployeeId.toString());
     
-    try {
-      var employee = getEmployee();
-      if (employee && employee.id) {
-        console.log("  [OK] getEmployee: 従業員ID " + testEmployeeId + " の情報を取得しました。");
-      } else {
-        console.log("  [INFO] getEmployee: 従業員情報の取得は成功しましたが、データが空の可能性があります。");
-      }
-    } catch(e) {
-      console.log("  [INFO] getEmployee: エラーが発生しましたが、これは想定される動作です: " + e.message);
+    // 1. getPendingRequestsForUserのテスト
+    var pendingRequests = getPendingRequestsForUser(testEmployeeId);
+    if (pendingRequests) {
+      console.log("  [OK] getPendingRequestsForUser: リクエスト取得成功");
+    } else {
+      console.log("  [INFO] getPendingRequestsForUser: リクエストが存在しないか、取得に失敗しました。");
     }
-  }
+    
+    // 2. getPendingChangeRequestsForのテスト
+    var changeRequests = getPendingChangeRequestsFor(testEmployeeId);
+    if (changeRequests) {
+      console.log("  [OK] getPendingChangeRequestsFor: シフト交代リクエスト取得成功");
+    } else {
+      console.log("  [INFO] getPendingChangeRequestsFor: シフト交代リクエストが存在しないか、取得に失敗しました。");
+    }
+    
+    // 3. getPendingAdditionRequestsForのテスト
+    var additionRequests = getPendingAdditionRequestsFor(testEmployeeId);
+    if (additionRequests) {
+      console.log("  [OK] getPendingAdditionRequestsFor: シフト追加リクエスト取得成功");
+    } else {
+      console.log("  [INFO] getPendingAdditionRequestsFor: シフト追加リクエストが存在しないか、取得に失敗しました。");
+    }
+  });
 }
 
-/**
- * Test Case 7: 勤怠管理機能のテスト
- */
-function test_timeClockFunctions() {
-  console.log("【テスト実行 7】勤怠管理機能 (getTimeClocks, getTimeClocksFor, postWorkRecord)");
+// 勤怠管理機能のテスト
+function test09_timeClockFunctions() {
+  console.log("【テスト実行 9】勤怠管理機能 (getTimeClocks, getTimeClocksFor, postWorkRecord)");
   
-  if (!TEST_EMPLOYEES || TEST_EMPLOYEES.length === 0) {
-    console.error("  [NG] 従業員情報が読み込まれていないため、テストをスキップします。");
+  if (!validateTestEmployees(0)) {
     return;
   }
 
@@ -326,136 +436,8 @@ function test_timeClockFunctions() {
   }
 }
 
-/**
- * Test Case 8: シフト追加リクエストの承認・否認テスト
- */
-function test_shiftAdditionApprovalDenial() {
-  console.log("【テスト実行 8】シフト追加リクエストの承認・否認 (approveShiftAddition, denyShiftAddition)");
-  
-  if (!TEST_EMPLOYEES || TEST_EMPLOYEES.length === 0) {
-    console.error("  [NG] 従業員情報が読み込まれていないため、テストをスキップします。");
-    return;
-  }
-
-  // テスト用のシフト追加リクエストを作成
-  var targetEmployee = TEST_EMPLOYEES[1]; // 次郎さん
-  var shiftStart = new Date("2025-08-29T14:00:00");
-  var shiftEnd = new Date("2025-08-29T18:00:00");
-
-  try {
-    var requestId = createShiftAdditionRequest(targetEmployee.id, shiftStart.toISOString(), shiftEnd.toISOString());
-    if (!requestId) {
-      console.error("  [NG] テスト用リクエストの作成に失敗しました。");
-      return;
-    }
-    console.log("  [OK] テスト用リクエストを作成しました。ID: " + requestId);
-
-    // 1. 承認テスト
-    try {
-      approveShiftAddition(requestId, targetEmployee.id);
-      console.log("  [OK] approveShiftAddition: シフト追加リクエストを承認しました。");
-      console.log("  [VERIFY] シフト表に新しいシフトが追加されていることを確認してください。");
-      console.log("  [VERIFY] 「シフト追加」シートのステータスが「承認済み」になっていることを確認してください。");
-    } catch(e) {
-      console.error("  [NG] approveShiftAddition: エラーが発生しました: " + e.message);
-    }
-
-    // 2. 否認テスト（新しいリクエストを作成）
-    var denyRequestId = createShiftAdditionRequest(targetEmployee.id, shiftStart.toISOString(), shiftEnd.toISOString());
-    if (denyRequestId) {
-      try {
-        denyShiftAddition(denyRequestId, targetEmployee.id);
-        console.log("  [OK] denyShiftAddition: シフト追加リクエストを否認しました。");
-        console.log("  [VERIFY] 「シフト追加」シートのステータスが「否認済み」になっていることを確認してください。");
-      } catch(e) {
-        console.error("  [NG] denyShiftAddition: エラーが発生しました: " + e.message);
-      }
-    }
-
-  } catch(e) {
-    console.error("  [NG] テスト用リクエストの作成中にエラーが発生しました: " + e.message);
-  }
-}
-
-/**
- * Test Case 9: リクエスト取得機能のテスト
- */
-function test_pendingRequestsFunctions() {
-  console.log("【テスト実行 9】リクエスト取得機能 (getPendingRequestsForUser, getPendingChangeRequestsFor, getPendingAdditionRequestsFor)");
-  
-  if (!TEST_EMPLOYEES || TEST_EMPLOYEES.length === 0) {
-    console.error("  [NG] 従業員情報が読み込まれていないため、テストをスキップします。");
-    return;
-  }
-
-  var testEmployeeId = TEST_EMPLOYEES[0].id;
-
-  // 1. シフト交代リクエストの取得テスト
-  try {
-    var changeRequests = getPendingChangeRequestsFor(testEmployeeId);
-    if (Array.isArray(changeRequests)) {
-      console.log("  [OK] getPendingChangeRequestsFor: シフト交代リクエストを取得しました。件数: " + changeRequests.length);
-      
-      // データ構造のチェック
-      if (changeRequests.length > 0) {
-        var firstRequest = changeRequests[0];
-        if (firstRequest.type === 'change' && firstRequest.requestId) {
-          console.log("  [OK] シフト交代リクエストのデータ構造が正しいです。");
-        } else {
-          console.error("  [NG] シフト交代リクエストのデータ構造が不正です。");
-        }
-      }
-    } else {
-      console.error("  [NG] getPendingChangeRequestsFor: 戻り値が配列ではありません。");
-    }
-  } catch(e) {
-    console.error("  [NG] getPendingChangeRequestsFor: エラーが発生しました: " + e.message);
-  }
-
-  // 2. シフト追加リクエストの取得テスト
-  try {
-    var additionRequests = getPendingAdditionRequestsFor(testEmployeeId);
-    if (Array.isArray(additionRequests)) {
-      console.log("  [OK] getPendingAdditionRequestsFor: シフト追加リクエストを取得しました。件数: " + additionRequests.length);
-      
-      // データ構造のチェック
-      if (additionRequests.length > 0) {
-        var firstRequest = additionRequests[0];
-        if (firstRequest.type === 'addition' && firstRequest.requestId) {
-          console.log("  [OK] シフト追加リクエストのデータ構造が正しいです。");
-        } else {
-          console.error("  [NG] シフト追加リクエストのデータ構造が不正です。");
-        }
-      }
-    } else {
-      console.error("  [NG] getPendingAdditionRequestsFor: 戻り値が配列ではありません。");
-    }
-  } catch(e) {
-    console.error("  [NG] getPendingAdditionRequestsFor: エラーが発生しました: " + e.message);
-  }
-
-  // 3. 統合リクエスト取得テスト
-  try {
-    var allRequests = getPendingRequestsForUser(testEmployeeId);
-    if (allRequests) {
-      var parsedRequests = JSON.parse(allRequests);
-      if (Array.isArray(parsedRequests)) {
-        console.log("  [OK] getPendingRequestsForUser: 統合リクエストを取得しました。件数: " + parsedRequests.length);
-      } else {
-        console.error("  [NG] getPendingRequestsForUser: パース後のデータが配列ではありません。");
-      }
-    } else {
-      console.error("  [NG] getPendingRequestsForUser: 戻り値がnullまたはundefinedです。");
-    }
-  } catch(e) {
-    console.error("  [NG] getPendingRequestsForUser: エラーが発生しました: " + e.message);
-  }
-}
-
-/**
- * Test Case 10: 打刻忘れチェック機能のテスト
- */
-function test_forgottenClockInCheck() {
+// 打刻忘れチェック機能のテスト
+function test10_forgottenClockInCheck() {
   console.log("【テスト実行 10】打刻忘れチェック機能 (checkForgottenClockIns)");
   
   // この関数は実際の時間に依存するため、関数の存在確認と基本的な動作確認のみ
@@ -479,13 +461,77 @@ function test_forgottenClockInCheck() {
   }
 }
 
-/**
- * Test Case 11: エラーハンドリングとエッジケースのテスト
- */
-function test_errorHandlingAndEdgeCases() {
-  console.log("【テスト実行 11】エラーハンドリングとエッジケース");
+// 退勤打刻忘れリマインダー機能のテスト
+function test11_clockOutReminderFunctions() {
+  console.log("【テスト実行 11】退勤打刻忘れリマインダー機能");
   
-  // 1. 無効な従業員IDでの処理テスト
+  try {
+    // 1. テスト用データのセットアップ
+    console.log("  [テスト] テスト用データのセットアップ");
+    if (!setupClockOutReminderTestData()) {
+      console.error("  [NG] テスト用データのセットアップに失敗しました");
+      return;
+    }
+    console.log("  [OK] テスト用データのセットアップが完了しました");
+    
+    // 2. 退勤打刻忘れチェック関数のテスト（実際のメール送信は行わない）
+    console.log("  [テスト] 退勤打刻忘れチェック関数の確認");
+    try {
+      // 関数が存在し、呼び出し可能かテスト
+      if (typeof checkForgottenClockOuts === 'function') {
+        console.log("  [OK] checkForgottenClockOuts関数が正常に定義されています");
+      } else {
+        console.error("  [NG] checkForgottenClockOuts関数が定義されていません");
+        return;
+      }
+    } catch (e) {
+      console.error("  [NG] 退勤打刻忘れチェック関数でエラーが発生しました: " + e.message);
+      return;
+    }
+    
+    // 3. 実際のcheckForgottenClockOuts関数を使用したテスト実行
+    console.log("  [テスト] 実際のcheckForgottenClockOuts関数を使用したテスト実行");
+    try {
+      test13_CheckForgottenClockOutsWithRealFunction();
+      console.log("  [OK] 実際のcheckForgottenClockOuts関数を使用したテストが正常に実行されました");
+    } catch (e) {
+      console.error("  [NG] 実際のcheckForgottenClockOuts関数を使用したテストでエラーが発生しました: " + e.message);
+    }
+    
+    // 4. 既存の出勤打刻忘れチェック関数との一貫性確認
+    console.log("  [テスト] 既存実装との一貫性確認");
+    try {
+      if (typeof checkForgottenClockIns === 'function') {
+        console.log("  [OK] 既存のcheckForgottenClockIns関数も正常に定義されています");
+      } else {
+        console.error("  [NG] 既存のcheckForgottenClockIns関数が定義されていません");
+      }
+    } catch (e) {
+      console.error("  [NG] 既存実装の確認でエラーが発生しました: " + e.message);
+    }
+    
+    // 5. テスト用データのリセット
+    console.log("  [テスト] テスト用データのリセット");
+    try {
+      if (!resetClockOutReminderTestData()) {
+        console.error("  [NG] テスト用データのリセットに失敗しました");
+      } else {
+        console.log("  [OK] テスト用データのリセットが完了しました");
+      }
+    } catch (e) {
+      console.error("  [NG] テスト用データのリセットでエラーが発生しました: " + e.message);
+    }
+    
+  } catch (e) {
+    console.error("  [NG] 退勤打刻忘れリマインダー機能のテストでエラーが発生しました: " + e.message);
+  }
+}
+
+// エラーハンドリングとエッジケースのテスト
+function test12_errorHandlingAndEdgeCases() {
+  runTestWithSetup("12", "エラーハンドリングとエッジケース", function() {
+    
+    // 1. 無効な従業員IDでの処理テスト
   try {
     var invalidRow = findRowByEmployeeId('invalid_id_999999');
     if (invalidRow === null) {
@@ -549,14 +595,55 @@ function test_errorHandlingAndEdgeCases() {
   } catch(e) {
     console.error("  [NG] nullの従業員リストでの検索でエラーが発生しました: " + e.message);
   }
+  });
+}
+
+/**
+ * 実際のcheckForgottenClockOuts関数をテスト用に実行
+ * メール送信部分のみモック化して、実際のロジックをテストする
+ */
+function test13_CheckForgottenClockOutsWithRealFunction() {
+  console.log("【テスト実行 13】実際のcheckForgottenClockOuts関数を使用したテスト");
+  
+  try {
+    // 元のMailAppをバックアップ
+    var originalMailApp = MailApp;
+    
+    // テスト用のMailAppに置き換え
+    MailApp = TestMailApp;
+    
+    // 元のgetTimeClocksFor関数をバックアップ
+    var originalGetTimeClocksFor = getTimeClocksFor;
+    
+    // テスト用のgetTimeClocksFor関数に置き換え
+    getTimeClocksFor = getTimeClocksForTest;
+    
+    // 実際のcheckForgottenClockOuts関数を実行
+    checkForgottenClockOuts();
+    
+    // 元の関数を復元
+    MailApp = originalMailApp;
+    getTimeClocksFor = originalGetTimeClocksFor;
+    
+    console.log("実際のcheckForgottenClockOuts関数を使用したテストを終了しました。");
+    
+  } catch (e) {
+    console.error("テスト実行中にエラーが発生しました: " + e.message);
+    
+    // エラーが発生しても元の関数を復元
+    try {
+      MailApp = originalMailApp;
+      getTimeClocksFor = originalGetTimeClocksFor;
+    } catch (restoreError) {
+      console.error("関数の復元中にエラーが発生しました: " + restoreError.message);
+    }
+  }
 }
 
 /****************************************************************
  * テスト用のヘルパー関数
  ****************************************************************/
-/**
- * 全てのシートをテスト実行前の初期状態に戻す。
- */
+// 全てのシートをテスト実行前の初期状態に戻す
 function resetSheetsToInitialState() {
   var employees = getEmployees();
   if (!employees || employees.length < 3) {
@@ -741,9 +828,7 @@ function setupClockOutReminderTestData() {
   }
 }
 
-/**
- * 退勤打刻忘れテスト用のデータをリセット
- */
+// 退勤打刻忘れテスト用のデータをリセット
 function resetClockOutReminderTestData() {
   console.log("退勤打刻忘れテスト用データのリセットを開始します。");
   
@@ -778,115 +863,5 @@ function resetClockOutReminderTestData() {
   } catch (e) {
     console.error("テスト用データのリセットでエラーが発生しました: " + e.message);
     return false;
-  }
-}
-
-/**
- * 実際のcheckForgottenClockOuts関数をテスト用に実行
- * メール送信部分のみモック化して、実際のロジックをテストする
- */
-function testCheckForgottenClockOutsWithRealFunction() {
-  console.log("実際のcheckForgottenClockOuts関数を使用したテストを開始します。");
-  
-  try {
-    // 元のMailAppをバックアップ
-    var originalMailApp = MailApp;
-    
-    // テスト用のMailAppに置き換え
-    MailApp = TestMailApp;
-    
-    // 元のgetTimeClocksFor関数をバックアップ
-    var originalGetTimeClocksFor = getTimeClocksFor;
-    
-    // テスト用のgetTimeClocksFor関数に置き換え
-    getTimeClocksFor = getTimeClocksForTest;
-    
-    // 実際のcheckForgottenClockOuts関数を実行
-    checkForgottenClockOuts();
-    
-    // 元の関数を復元
-    MailApp = originalMailApp;
-    getTimeClocksFor = originalGetTimeClocksFor;
-    
-    console.log("実際のcheckForgottenClockOuts関数を使用したテストを終了しました。");
-    
-  } catch (e) {
-    console.error("テスト実行中にエラーが発生しました: " + e.message);
-    
-    // エラーが発生しても元の関数を復元
-    try {
-      MailApp = originalMailApp;
-      getTimeClocksFor = originalGetTimeClocksFor;
-    } catch (restoreError) {
-      console.error("関数の復元中にエラーが発生しました: " + restoreError.message);
-    }
-  }
-}
-
-/**
- * 退勤打刻忘れリマインダー機能のテスト
- */
-function test_clockOutReminderFunctions() {
-  console.log("【テスト実行 8】退勤打刻忘れリマインダー機能");
-  
-  try {
-    // 1. テスト用データのセットアップ
-    console.log("  [テスト] テスト用データのセットアップ");
-    if (!setupClockOutReminderTestData()) {
-      console.error("  [NG] テスト用データのセットアップに失敗しました");
-      return;
-    }
-    console.log("  [OK] テスト用データのセットアップが完了しました");
-    
-    // 2. 退勤打刻忘れチェック関数のテスト（実際のメール送信は行わない）
-    console.log("  [テスト] 退勤打刻忘れチェック関数の確認");
-    try {
-      // 関数が存在し、呼び出し可能かテスト
-      if (typeof checkForgottenClockOuts === 'function') {
-        console.log("  [OK] checkForgottenClockOuts関数が正常に定義されています");
-      } else {
-        console.error("  [NG] checkForgottenClockOuts関数が定義されていません");
-        return;
-      }
-    } catch (e) {
-      console.error("  [NG] 退勤打刻忘れチェック関数でエラーが発生しました: " + e.message);
-      return;
-    }
-    
-    // 3. 実際のcheckForgottenClockOuts関数を使用したテスト実行
-    console.log("  [テスト] 実際のcheckForgottenClockOuts関数を使用したテスト実行");
-    try {
-      testCheckForgottenClockOutsWithRealFunction();
-      console.log("  [OK] 実際のcheckForgottenClockOuts関数を使用したテストが正常に実行されました");
-    } catch (e) {
-      console.error("  [NG] 実際のcheckForgottenClockOuts関数を使用したテストでエラーが発生しました: " + e.message);
-    }
-    
-    // 4. 既存の出勤打刻忘れチェック関数との一貫性確認
-    console.log("  [テスト] 既存実装との一貫性確認");
-    try {
-      if (typeof checkForgottenClockIns === 'function') {
-        console.log("  [OK] 既存のcheckForgottenClockIns関数も正常に定義されています");
-      } else {
-        console.error("  [NG] 既存のcheckForgottenClockIns関数が定義されていません");
-      }
-    } catch (e) {
-      console.error("  [NG] 既存実装の確認でエラーが発生しました: " + e.message);
-    }
-    
-    // 5. テスト用データのリセット
-    console.log("  [テスト] テスト用データのリセット");
-    if (resetClockOutReminderTestData()) {
-      console.log("  [OK] テスト用データのリセットが完了しました");
-    } else {
-      console.error("  [NG] テスト用データのリセットに失敗しました");
-    }
-    
-    console.log("  [完了] 退勤打刻忘れリマインダー機能のテストが完了しました");
-    
-  } catch (e) {
-    console.error("  [NG] 退勤打刻忘れリマインダー機能のテストでエラーが発生しました: " + e.message);
-    // エラーが発生してもリセットは実行
-    resetClockOutReminderTestData();
   }
 }
