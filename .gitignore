@@ -19,3 +19,6 @@ Thumbs.db
 
 # ログファイル
 *.log
+
+# cursor関連
+.cursor
