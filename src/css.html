@@ -1,5 +1,5 @@
 <style>
-  /* 基本設定 */
+  /* ===== 基本設定 ===== */
   body {
     font-family: 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     line-height: 1.6;
@@ -9,7 +9,7 @@
     padding: 20px;
   }
 
-  /* 見出し */
+  /* ===== 見出し ===== */
   h1, h2, h3 {
     color: #f0f0f0;
     margin-top: 15px;
@@ -19,9 +19,9 @@
   h2 { font-size: 1.3em; }
   h3 { font-size: 1.1em; }
 
-  /* フォーム要素 */
+  /* ===== フォーム要素 ===== */
   input[type="text"], input[type="date"], input[type="time"], input[type="password"], select, textarea {
-    padding: 8px;
+    padding: 12px;
     margin-top: 4px;
     margin-bottom: 12px;
     border-radius: 8px;
@@ -29,7 +29,8 @@
     background-color: #555;
     color: #f0f0f0;
     border: 1px solid #777;
-    font-size: 0.9em;
+    font-size: 16px;
+    width: 100%;
   }
 
   input:focus, select:focus, textarea:focus {
@@ -38,7 +39,11 @@
     box-shadow: 0 0 5px rgba(255, 202, 40, 0.3);
   }
 
-  /* ボタン */
+  input::placeholder {
+    color: #999;
+  }
+
+  /* ===== ボタン ===== */
   .button, input[type="submit"] {
     background-color: #ffca28;
     color: #212121;
@@ -103,7 +108,7 @@
     background-color: #da190b;
   }
 
-  /* テーブル */
+  /* ===== テーブル ===== */
   table {
     border: none;
     border-collapse: separate;
@@ -197,7 +202,7 @@
     border-bottom-right-radius: 6px;
   }
 
-  /* リンク */
+  /* ===== リンク ===== */
   a {
     color: #ffca28;
     text-decoration: none;
@@ -207,7 +212,7 @@
     text-decoration: underline;
   }
 
-  /* メッセージ */
+  /* ===== メッセージ ===== */
   .message {
     padding: 10px;
     margin-bottom: 15px;
@@ -226,7 +231,7 @@
     border: 1px solid #e53935;
   }
 
-  /* リクエストリスト */
+  /* ===== リクエストリスト ===== */
   #request-list-container {
     list-style-type: none;
     padding: 0;
@@ -252,7 +257,7 @@
     margin-right: 10px;
   }
 
-  /* 月ナビゲーション */
+  /* ===== 月ナビゲーション ===== */
   .month-navigation {
     display: flex;
     align-items: center;
@@ -272,9 +277,9 @@
 
   .small-button {
     padding: 6px 10px;
-    font-size: 1.1em;
+    font-size: 12px;
     font-weight: bold;
-    line-height: 1.3em;
+    min-width: 35px;
   }
 
   .owner-controls {
@@ -289,7 +294,7 @@
     margin: 0;
   }
 
-  /* 承認者カード */
+  /* ===== 承認者カード ===== */
   .approver-card-container {
     display: flex;
     flex-wrap: wrap;
@@ -323,7 +328,7 @@
     margin: 0;
   }
 
-  /* 給与ゲージ */
+  /* ===== 給与ゲージ ===== */
   .wage-gauge {
     padding: 6px;
     background-color: #4a4a4a;
@@ -417,7 +422,7 @@
     width: 65%;
   }
 
-  /* 勤怠履歴 */
+  /* ===== 勤怠履歴 ===== */
   #attendance-container {
     margin-top: 15px;
     min-height: 280px;
@@ -461,7 +466,7 @@
     border-bottom: none;
   }
 
-  /* ローディング */
+  /* ===== ローディング ===== */
   .loading-spinner {
     display: inline-block;
     width: 20px;
@@ -489,7 +494,7 @@
     flex: 1;
   }
 
-  /* ログイン・フォーム */
+  /* ===== ログイン・フォーム ===== */
   .login-container {
     max-width: 500px;
     margin: 50px auto;
@@ -524,8 +529,21 @@
   }
 
   .form-actions {
-    text-align: center;
+    display: flex;
+    gap: 12px;
     margin-top: 30px;
+    text-align: center;
+  }
+
+  .form-actions .button {
+    flex: 1;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
   }
 
   .form-actions button {
@@ -553,35 +571,33 @@
     text-decoration: underline;
   }
 
-  select, input[type="text"], input[type="password"] {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #777;
-    border-radius: 5px;
-    background-color: #555;
-    color: #f0f0f0;
-    font-size: 16px;
-    box-sizing: border-box;
-  }
-
-  select:focus, input[type="text"]:focus, input[type="password"]:focus {
-    outline: none;
-    border-color: #ffca28;
-    box-shadow: 0 0 5px rgba(255, 202, 40, 0.3);
-  }
-
   .password-requirements {
-    margin-top: 5px;
-    font-size: 12px;
-    color: #ccc;
+    margin-top: 8px;
+    padding: 12px;
+    background-color: #3a3a3a;
+    border-radius: 6px;
+    border-left: 4px solid #ffca28;
+    font-size: 13px;
+  }
+
+  .password-requirements small {
+    color: #ffca28;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 6px;
   }
 
   .password-requirements ul {
-    margin: 5px 0;
+    margin: 0;
     padding-left: 20px;
+    color: #e0e0e0;
   }
 
-  /* パスワード変更フォーム */
+  .password-requirements li {
+    margin-bottom: 4px;
+  }
+
+  /* ===== パスワード変更フォーム ===== */
   .password-change-section {
     max-width: 500px;
     margin: 20px auto;
@@ -605,77 +621,12 @@
     font-size: 14px;
   }
 
-  .form-group input, .form-group select {
-    width: 100%;
-    padding: 12px 16px;
-    border: 2px solid #666;
-    border-radius: 8px;
-    background-color: #555;
-    color: #fff;
-    font-size: 16px;
-    transition: border-color 0.3s ease;
-    box-sizing: border-box;
-  }
-
-  .form-group input:focus, .form-group select:focus {
-    outline: none;
-    border-color: #ffca28;
-    box-shadow: 0 0 0 3px rgba(255, 202, 40, 0.1);
-  }
-
-  .form-group input::placeholder {
-    color: #999;
-  }
-
-  .password-requirements {
-    margin-top: 8px;
-    padding: 12px;
-    background-color: #3a3a3a;
-    border-radius: 6px;
-    border-left: 4px solid #ffca28;
-  }
-
-  .password-requirements small {
-    color: #ffca28;
-    font-weight: 600;
-    display: block;
-    margin-bottom: 6px;
-  }
-
-  .password-requirements ul {
-    margin: 0;
-    padding-left: 20px;
-    color: #e0e0e0;
-    font-size: 13px;
-  }
-
-  .password-requirements li {
-    margin-bottom: 4px;
-  }
-
-  .form-actions {
-    display: flex;
-    gap: 12px;
-    margin-top: 30px;
-  }
-
-  .form-actions .button {
-    flex: 1;
-    padding: 12px 20px;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-  }
-
   .logout-section {
     text-align: center;
     margin-top: 30px;
   }
 
-  /* マイページ */
+  /* ===== マイページ ===== */
   .my-page-container {
     margin: 10px;
     padding: 10px;
@@ -750,32 +701,6 @@
     margin-left: 10px;
   }
 
-  .month-navigation-buttons .button {
-    padding: 6px 12px;
-    font-size: 12px;
-    height: auto;
-    width: auto;
-  }
-
-  .attendance-history-section table {
-    width: 100%;
-    border-collapse: collapse;
-    background-color: #555;
-  }
-
-  .attendance-history-section th, .attendance-history-section td {
-    border: 1px solid #777;
-    padding: 4px;
-    text-align: left;
-    color: #f0f0f0;
-    font-size: 12px;
-  }
-
-  .attendance-history-section th {
-    background-color: #666;
-    font-weight: bold;
-  }
-
   .navigation {
     display: flex;
     gap: 8px;
@@ -795,7 +720,7 @@
     background-color: #777;
   }
 
-  /* シフトページ */
+  /* ===== シフトページ ===== */
   .shift-page-container {
     margin: 10px;
     padding: 10px;
@@ -854,11 +779,6 @@
     gap: 5px;
   }
 
-  .small-button {
-    padding: 6px 10px;
-    font-size: 12px;
-    min-width: 35px;
-  }
 
   .shift-calendar {
     width: 100%;
@@ -882,20 +802,6 @@
     color: #f0f0f0;
   }
 
-  .shift-cell {
-    background-color: #4caf50;
-    cursor: pointer;
-    transition: background-color 0.3s;
-  }
-
-  .shift-cell:hover {
-    background-color: #45a049;
-  }
-
-  .empty-cell {
-    background-color: #555;
-  }
-
   .shift-management {
     display: flex;
     gap: 8px;
@@ -911,7 +817,7 @@
     background-color: #f57c00;
   }
 
-  /* レスポンシブ */
+  /* ===== レスポンシブ ===== */
   @media (max-width: 768px) {
     #attendance-container table {
       font-size: 0.9em;
