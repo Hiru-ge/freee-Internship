@@ -604,11 +604,6 @@ function resetSheetsToInitialState() {
   
 }
 
-/**
- * シフト表で従業員IDの行番号を検索するヘルパー関数
- * @param {string} employeeId - 従業員ID
- * @returns {number} 行番号（見つからない場合は0）
- */
 function findEmployeeRowInShiftSheet(employeeId) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -644,13 +639,6 @@ var TestMailApp = {
   }
 };
 
-/**
- * テスト用のgetTimeClocksFor関数（モック）
- * 実際のfreee APIを呼び出さずに、テスト用の打刻データを返す
- * @param {string} employeeId - 従業員ID
- * @param {Date} dateObj - 日付
- * @returns {Array} テスト用の打刻データ
- */
 function getTimeClocksForTest(employeeId, dateObj) {
   // テスト用の打刻データが設定されている場合はそれを使用
   if (typeof globalTestTimeClocks !== 'undefined') {
