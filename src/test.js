@@ -8,6 +8,32 @@
 var TEST_EMPLOYEES = getEmployees();
 
 /**
+ * 現在の月を取得する関数
+ * テスト用の日付を動的に生成するために使用
+ */
+function getCurrentMonthForTest() {
+  var now = new Date();
+  return {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1, // JavaScriptの月は0ベースなので+1
+    day: now.getDate()
+  };
+}
+
+/**
+ * 指定した月の指定した日付を生成する関数
+ * @param {number} day - 日（デフォルト: 25）
+ * @param {number} hour - 時間（デフォルト: 18）
+ * @param {number} minute - 分（デフォルト: 0）
+ * @returns {Date} テスト用の日付オブジェクト
+ */
+function createTestDateForMonth(day = 25, hour = 18, minute = 0) {
+  var current = getCurrentMonthForTest();
+  var testDate = new Date(current.year, current.month - 1, day, hour, minute, 0);
+  return testDate;
+}
+
+/**
  * テスト環境のセットアップ
  * 各テストの独立性を確保するため、テスト前に実行
  */
@@ -226,8 +252,9 @@ function test04_createShiftAdditionRequest() {
     var applicant = TEST_EMPLOYEES[0]; // 太郎さん
     var approver = TEST_EMPLOYEES[1];  // 次郎さん
 
-    var shiftStart = new Date("2025-08-25T18:00:00");
-    var shiftEnd = new Date("2025-08-25T22:00:00");
+    // 3日は店長 太郎が空いているので、この日付を使用
+    var shiftStart = createTestDateForMonth(3, 18, 0); // 3日 18:00
+    var shiftEnd = createTestDateForMonth(3, 20, 0);   // 3日 20:00
 
     var newRequestId = createShiftAdditionRequest(applicant.id, shiftStart.toISOString(), shiftEnd.toISOString(), [approver.id]);
     
@@ -249,8 +276,9 @@ function test05_shiftAdditionApprovalDenial() {
   var applicant = TEST_EMPLOYEES[0]; // 太郎さん
   var approver = TEST_EMPLOYEES[1];  // 次郎さん
 
-  var shiftStart = new Date("2025-08-25T18:00:00");
-  var shiftEnd = new Date("2025-08-25T22:00:00");
+  // 3日は店長 太郎が空いているので、この日付を使用
+  var shiftStart = createTestDateForMonth(3, 18, 0); // 3日 18:00
+  var shiftEnd = createTestDateForMonth(3, 20, 0);   // 3日 20:00
 
   runTestWithSetup("5", "シフト追加リクエストの承認・否認 (approveShiftAddition, denyShiftAddition)", function() {
     var newRequestId = createShiftAdditionRequest(applicant.id, shiftStart.toISOString(), shiftEnd.toISOString(), [approver.id]);
@@ -281,8 +309,9 @@ function test06_fullShiftChangeScenario() {
     var approver = TEST_EMPLOYEES[1];  // 次郎さん
     var anotherApprover = TEST_EMPLOYEES[2]; // 三郎さん
 
-    var shiftStart = new Date("2025-08-25T18:00:00");
-    var shiftEnd = new Date("2025-08-25T22:00:00");
+    // 26日は太郎（20-23）、次郎（18-20）、三郎（20-23）がシフトに入っている
+    var shiftStart = createTestDateForMonth(26, 20, 0); // 26日 20:00
+    var shiftEnd = createTestDateForMonth(26, 23, 0);   // 26日 23:00
 
     // 1. リクエスト作成
     var newRequestId = createShiftChangeRequest(applicant.id, shiftStart.toISOString(), shiftEnd.toISOString(), [approver.id, anotherApprover.id]);
@@ -312,8 +341,9 @@ function test07_AllDenied_Scenario() {
   var approver1 = TEST_EMPLOYEES[1];  // 次郎さん
   var approver2 = TEST_EMPLOYEES[2]; // 三郎さん
 
-  var shiftStart = new Date("2025-08-26T18:00:00");
-  var shiftEnd = new Date("2025-08-26T22:00:00");
+  // 27日は太郎（18-20）、次郎（20-23）、花子（18-23）がシフトに入っている
+  var shiftStart = createTestDateForMonth(27, 18, 0); // 27日 18:00
+  var shiftEnd = createTestDateForMonth(27, 20, 0);   // 27日 20:00
 
   // 1. 新しいリクエストを作成
   var newRequestId = createShiftChangeRequest(applicant.id, shiftStart.toISOString(), shiftEnd.toISOString(), [approver1.id, approver2.id]);
@@ -419,8 +449,9 @@ function test09_timeClockFunctions() {
 
   // 3. 勤怠記録の登録テスト（モックデータ）
   try {
+    var testDate = createTestDateForMonth(28, 9, 0); // 28日 9:00
     var mockForm = {
-      target_date: "2025-08-28",
+      target_date: testDate.toISOString().split('T')[0], // YYYY-MM-DD形式
       target_time: "09:00",
       target_type: "clock_in"
     };
@@ -653,23 +684,27 @@ function resetSheetsToInitialState() {
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   
-  var mgmtSheet = ss.getSheetByName(SHIFT_MANAGEMENT_SHEET_NAME);
-  if (mgmtSheet && mgmtSheet.getLastRow() > 1) {
-    mgmtSheet.getRange(2, 1, mgmtSheet.getLastRow() - 1, mgmtSheet.getLastColumn()).clearContent();
-  }
-  
+  // 1. シフト表の初期化
   var shiftSheet = ss.getSheetByName(SHIFT_SHEET_NAME);
   if (!shiftSheet) { return; }
   shiftSheet.clearContents();
   
+  // 現在の月の1日を動的に生成
+  var currentMonth = getCurrentMonthForTest();
+  var monthTitle = currentMonth.year + "年" + currentMonth.month + "月1日";
+  
   var initialShiftData = [
     // ▼▼▼ 1行目の列数が33になるように、空の要素を追加 ▼▼▼
-    ["2025年8月1日", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],
+    [monthTitle, "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],
     ["従業員ID", "従業員名", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31],
-    [employees[3].id, employees[3].display_name, "18-23", "", "18-23", "18-23", "18-23", "", "18-23", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],
-    [employees[0].id, employees[0].display_name, "18-23", "18-20", "", "20-23", "20-23", "20-23", "18-20", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],
-    [employees[1].id, employees[1].display_name, "20-23", "", "18-20", "18-20", "", "18-20", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],
-    [employees[2].id, employees[2].display_name, "", "20-23", "20-23", "", "18-20", "", "20-23", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]
+    // 従業員0（店長 太郎）: 週3回程度、18-20と20-23中心
+    [employees[0].id, employees[0].display_name, "18-20", "18-20", "", "20-23", "20-23", "20-23", "18-20", "", "18-20", "18-20", "", "20-23", "18-20", "", "20-23", "18-20", "", "20-23", "18-20", "", "20-23", "18-20", "", "20-23", "18-20", "20-23", "", "18-20", "20-23", "18-20", ""],
+    // 従業員1（テスト 太郎）: 週3回程度、20-23と18-20中心
+    [employees[1].id, employees[1].display_name, "20-23", "", "18-20", "18-20", "", "18-20", "", "20-23", "18-20", "", "18-20", "20-23", "18-20", "", "18-20", "", "20-23", "", "18-20", "20-23", "18-20", "", "18-20", "", "20-23", "18-20", "20-23", "", "18-20", "", ""],
+    // 従業員2（テスト 次郎）: 週3回程度、20-23と18-20中心
+    [employees[2].id, employees[2].display_name, "", "20-23", "20-23", "", "18-20", "", "20-23", "", "20-23", "18-20", "", "18-20", "", "20-23", "18-20", "20-23", "", "18-20", "20-23", "", "18-20", "20-23", "18-20", "", "20-23", "", "18-20", "20-23", "18-20", "", ""],
+    // 従業員3（テスト 三郎）: 週3回程度、18-23中心
+    [employees[3].id, employees[3].display_name, "18-23", "", "18-23", "18-23", "18-23", "", "18-23", "18-23", "", "20-23", "18-23", "", "18-23", "18-23", "", "20-23", "18-23", "18-23", "", "18-23", "", "18-23", "20-23", "18-23", "", "18-23", "18-23", "", "20-23", "18-23", ""],
   ];
   
   var rangeToWrite = shiftSheet.getRange(1, 1, initialShiftData.length, initialShiftData[0].length);
@@ -677,13 +712,19 @@ function resetSheetsToInitialState() {
   shiftSheet.getRange("A1").setNumberFormat("YYYY\"年\"M\"月\"");
   console.log("  [INFO] 「シフト表」シートを実際の従業員IDで初期化しました。");
   
-  // 認証設定シートのリセット
-  var authSheet = ss.getSheetByName(AUTH_SETTINGS_SHEET_NAME);
-  if (authSheet && authSheet.getLastRow() > 1) {
-    authSheet.getRange(2, 1, authSheet.getLastRow() - 1, authSheet.getLastColumn()).clearContent();
+  // 2. シフト交代管理シートのリセット
+  var shiftManagementSheet = ss.getSheetByName(SHIFT_MANAGEMENT_SHEET_NAME);
+  if (shiftManagementSheet && shiftManagementSheet.getLastRow() > 1) {
+    shiftManagementSheet.getRange(2, 1, shiftManagementSheet.getLastRow() - 1, shiftManagementSheet.getLastColumn()).clearContent();
   }
   
-  // 認証コード管理シートのリセット
+  // 3. シフト追加シートのリセット
+  var shiftAddSheet = ss.getSheetByName("シフト追加");
+  if (shiftAddSheet && shiftAddSheet.getLastRow() > 1) {
+    shiftAddSheet.getRange(2, 1, shiftAddSheet.getLastRow() - 1, shiftAddSheet.getLastColumn()).clearContent();
+  }
+  
+  // 4. 認証コード管理シートのリセット
   var verificationSheet = ss.getSheetByName(VERIFICATION_CODES_SHEET_NAME);
   if (verificationSheet && verificationSheet.getLastRow() > 1) {
     verificationSheet.getRange(2, 1, verificationSheet.getLastRow() - 1, verificationSheet.getLastColumn()).clearContent();

@@ -184,11 +184,6 @@ function initializeVerificationCodesSheet() {
   if (!existingHeaders[0] || existingHeaders[0] !== '従業員ID') {
     var headers = ['従業員ID', '認証コード', '送信日時', '有効期限'];
     headerRange.setValues([headers]);
-    
-    // ヘッダー行のスタイル設定
-    headerRange.setFontWeight('bold');
-    headerRange.setBackground('#f0f0f0');
-    
   }
   
   return sheet;
