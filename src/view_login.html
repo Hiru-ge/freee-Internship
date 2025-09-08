@@ -34,12 +34,10 @@
         <a href="<?= getAppUrl() ?>?page=initial_password" class="link">初回パスワード設定</a>
       </div>
       
-      <div id="login-message" class="message" style="display: none;"></div>
-      
-      <!-- ログイン成功後のリダイレクトボタン -->
-      <div id="redirect-section" style="display: none;">
-        <div class="form-actions">
-          <button type="button" class="button" id="redirect-button">移動</button>
+      <div id="login-message" class="message" style="display: none;">
+        <div id="message-text"></div>
+        <div id="message-button" style="display: none; margin-top: 15px; text-align: center;">
+          <button type="button" class="button" id="redirect-button" style="width: 120px;">移動</button>
         </div>
       </div>
     </div>
@@ -109,11 +107,11 @@
         .withSuccessHandler(function(result) {
           if (result.success) {
             // ログイン成功の場合はマイページトップへ
-            showRedirectMessage('ログイン成功です。マイページに移動します。', '<?= getAppUrl() ?>?page=my_page');
+            showRedirectMessage('ログイン成功です。以下のボタンからマイページに移動してください。', '<?= getAppUrl() ?>?page=my_page');
           } else {
             if (result.needsPasswordSetup) {
               // パスワードが設定されていない場合は初回パスワード設定画面へ
-              showRedirectMessage('パスワードが設定されていません。初回パスワード設定画面に移動します。', '<?= getAppUrl() ?>?page=initial_password');
+              showRedirectMessage('パスワードが設定されていません。以下のボタンから初回パスワード設定画面に移動してください。', '<?= getAppUrl() ?>?page=initial_password');
             } else {
               showMessage(result.message || 'ログインに失敗しました', 'error');
             }
@@ -137,7 +135,8 @@
     // メッセージ表示
     function showMessage(message, type) {
       var messageDiv = document.getElementById('login-message');
-      messageDiv.textContent = message;
+      var messageText = document.getElementById('message-text');
+      messageText.textContent = message;
       messageDiv.className = 'message ' + type;
       messageDiv.style.display = 'block';
     }
@@ -145,11 +144,14 @@
     // リダイレクトメッセージとボタンを表示
     function showRedirectMessage(message, redirectUrl) {
       showMessage(message, 'success');
+      var messageButton = document.getElementById('message-button');
       var redirectButton = document.getElementById('redirect-button');
+      
       redirectButton.onclick = function() {
         window.top.location.href = redirectUrl;
       };
-      document.getElementById('redirect-section').style.display = 'block';
+      
+      messageButton.style.display = 'block';
     }
   </script>
 

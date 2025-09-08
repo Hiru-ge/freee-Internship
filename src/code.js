@@ -12,7 +12,7 @@
  * またApps Scriptから外部のAPIをcallするために以下の設定をしておいてください
  *   - https://script.google.com/home/usersettings
  */
-var accessToken = 'MpeflNrNGLTHEunHirdgeg6CCn6tIC4d5WTa0gj3sK8'
+var accessToken = 'MBXGNz_xeAFs6JLiTm2Yg1sgnIlRoYeagG9IxMRVCuw'
 var companyId =  12127317
 var SHIFT_SHEET_NAME = "シフト表";
 var SHIFT_MANAGEMENT_SHEET_NAME = "シフト交代管理";
