@@ -26,7 +26,9 @@ Rails.application.routes.draw do
   get "dashboard/attendance_history", to: "dashboard#attendance_history", as: :dashboard_attendance_history
   
   # シフト管理
-  get "shifts", to: "shifts#index", as: :shifts
+  get "shifts", to: "shifts#index"
+  get "shifts/data", to: "shifts#data", as: :shifts_data
+  get "shifts/employees", to: "shifts#employees", as: :shifts_employees
   
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

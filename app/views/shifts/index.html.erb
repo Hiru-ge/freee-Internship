@@ -1,131 +1,355 @@
 <div class="shift-page-container <%= @is_owner ? 'owner-mode' : 'employee-mode' %>">
   <h1>シフトページ</h1>
   
+  <!-- ナビゲーション -->
   <div class="page-navigation">
     <%= link_to "マイページに戻る", dashboard_path, class: "button nav-button" %>
+    <%= link_to "パスワード変更", password_change_auth_path, class: "button nav-button" %>
     <%= form_with url: logout_auth_path, method: :post, local: true, class: "logout-form" do |form| %>
       <%= form.submit "ログアウト", class: "button nav-button logout" %>
     <% end %>
   </div>
-  
-  <!-- オーナー向け表示 -->
-  <div id="employee-list-section" class="employee-list-section">
-    <h2>従業員一覧と103万の壁ゲージ</h2>
-    <div class="loading-container">
-      <div class="loading-spinner"></div>
-      従業員情報を読み込み中...
-    </div>
-  </div>
-  
-  <!-- 従業員向け表示 -->
-  <div id="personal-gauge-section" class="personal-gauge-section">
-    <h2>あなたの103万の壁ゲージ</h2>
-    <div class="loading-container">
-      <div class="loading-spinner"></div>
-      給与情報を読み込み中...
-    </div>
-  </div>
-  
+
+  <!-- シフト表 -->
   <div class="shift-calendar-section">
     <h2>シフト表</h2>
+    <p>交代を依頼したいシフトをクリックすると、依頼フォームへ遷移します。</p>
+    
     <div class="month-navigation">
-      <h3 id="calendar-title">2024年1月</h3>
+      <h3 id="calendar-title"></h3>
       <div class="month-navigation-buttons">
-        <button class="button small-button" onclick="previousMonth()">←</button>
-        <button class="button small-button" onclick="nextMonth()">→</button>
+        <button class="button small-button" onclick="prevWeek()"><</button>
+        <button class="button small-button" onclick="nextWeek()">></button>
       </div>
     </div>
-    <div class="loading-container">
-      <div class="loading-spinner"></div>
-      シフト表を読み込み中...
+    
+    <div id="shift-calendar-container">
+      <p>シフト情報を読み込んでいます...</p>
     </div>
   </div>
-  
-  <div class="shift-management">
-    <button class="button" onclick="showRequestList()">自分へのリクエスト一覧</button>
-    <% if @is_owner %>
-      <button class="button owner-only" onclick="showAddShiftForm()">シフト追加依頼</button>
-    <% end %>
+
+  <!-- 従業員一覧と103万の壁ゲージ（オーナーのみ） -->
+  <div id="employee-list-section" class="employee-list-section">
+    <h2>従業員一覧</h2>
+    <table border="1" class="employee-list">
+      <thead>
+        <tr>
+          <th>従業員名</th>
+          <th>給与状況（103万の壁ゲージ）</th>
+        </tr>
+      </thead>
+      <tbody id="employee-list-body">
+        <tr><td colspan="2">読み込み中...</td></tr>
+      </tbody>
+    </table>
   </div>
+
+  <!-- 個人の103万の壁ゲージ（従業員のみ） -->
+  <div id="personal-gauge-section" class="personal-gauge-section">
+    <h2>103万の壁ゲージ</h2>
+    <div class="wage-gauge" id="personal-wage-gauge">
+      <div class="gauge-container">
+        <div class="gauge-bar">
+          <div class="gauge-fill" style="width: 0%"></div>
+        </div>
+        <div class="gauge-text">読み込み中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- シフト管理ボタン -->
+  <div class="shift-management">
+    <button class="button" onclick="goToRequestList()">自分へのリクエスト一覧</button>
+    <button id="shift-add-btn" class="button owner-only" onclick="goToShiftAddForm()" style="display: none;">シフト追加依頼</button>
+  </div>
+
+  <!-- メッセージ表示 -->
+  <div id="message" class="message" style="display: none;"></div>
 </div>
 
 <script>
+  var currentEmployeeId = '<%= @employee_id %>';
+  var isOwner = <%= @is_owner %>;
+  var calendarYear;
+  var calendarMonth;
+  var allShiftsData;
+  var currentStartDate;
+  var daysInMonth;
+
   // ページ読み込み時の初期化
   document.addEventListener('DOMContentLoaded', function() {
-    loadEmployeeList();
-    loadPersonalGauge();
-    loadShiftCalendar();
+    checkOwnerPermissions();
+    loadShifts();
   });
-  
+
+  // オーナー権限チェック
+  function checkOwnerPermissions() {
+    console.log('オーナー権限チェック開始...');
+    console.log('オーナー権限チェック結果:', isOwner);
+    
+    // コンテナに権限モードのクラスを追加
+    var container = document.querySelector('.shift-page-container');
+    container.classList.remove('owner-mode', 'employee-mode');
+    
+    if (isOwner) {
+      // オーナーの場合：従業員一覧と給与ゲージを表示
+      console.log('オーナー権限確認 - 従業員一覧と給与ゲージを表示');
+      container.classList.add('owner-mode');
+      document.getElementById('shift-add-btn').style.display = 'inline-block';
+      loadEmployeeList();
+      loadWageGauge();
+    } else {
+      // 従業員の場合：個人の給与ゲージを表示
+      console.log('従業員権限確認 - 個人の給与ゲージを表示');
+      container.classList.add('employee-mode');
+      document.getElementById('shift-add-btn').style.display = 'none';
+      loadPersonalGauge();
+    }
+  }
+
   // 従業員一覧の読み込み（オーナーのみ）
   function loadEmployeeList() {
-    if (!<%= @is_owner %>) return;
-    
-    // TODO: 従業員一覧の読み込み機能を実装
-    setTimeout(function() {
-      var container = document.querySelector('#employee-list-section .loading-container');
-      container.innerHTML = '<p>従業員一覧機能は実装中です</p>';
-    }, 1000);
+    // 重複実行を防ぐ
+    if (window.employeeListLoading) return;
+    window.employeeListLoading = true;
+
+    // 従業員一覧の取得
+    fetch('<%= shifts_employees_path %>')
+      .then(response => response.json())
+      .then(employees => {
+        var tbody = document.getElementById('employee-list-body');
+        tbody.innerHTML = '';
+
+        if (employees && employees.length > 0) {
+          employees.forEach(function(employee) {
+            var row = document.createElement('tr');
+            row.innerHTML = 
+              '<td>' + employee.display_name + '</td>' +
+              '<td><div class="wage-gauge" data-employee-id="' + employee.id + '">' +
+              '<div class="gauge-container">' +
+              '<div class="gauge-bar"><div class="gauge-fill" style="width: 0%"></div></div>' +
+              '<div class="gauge-text">読み込み中...</div>' +
+              '</div></div></td>';
+            tbody.appendChild(row);
+          });
+        } else {
+          tbody.innerHTML = '<tr><td colspan="2">従業員情報がありません</td></tr>';
+        }
+      })
+      .catch(error => {
+        console.error('従業員一覧取得エラー:', error);
+        document.getElementById('employee-list-body').innerHTML = '<tr><td colspan="2">エラーが発生しました</td></tr>';
+      });
   }
-  
-  // 個人ゲージの読み込み（従業員のみ）
+
+  // 給与ゲージの読み込み（オーナーのみ）
+  function loadWageGauge() {
+    // 従業員一覧の各行に給与ゲージが表示されるので、ここでは何もしない
+    // 実際の給与データ取得は別途実装予定
+    var gauges = document.querySelectorAll('.wage-gauge[data-employee-id]');
+    gauges.forEach(function(gauge) {
+      var gaugeText = gauge.querySelector('.gauge-text');
+      if (gaugeText) {
+        gaugeText.textContent = '103万の壁ゲージ機能は実装予定です';
+      }
+    });
+  }
+
+  // 個人の給与ゲージの読み込み（従業員のみ）
   function loadPersonalGauge() {
-    if (<%= @is_owner %>) return;
+    var gaugeText = document.querySelector('#personal-wage-gauge .gauge-text');
+    if (gaugeText) {
+      gaugeText.textContent = '103万の壁ゲージ機能は実装予定です';
+    }
+  }
+
+  // シフト情報の読み込み
+  function loadShifts() {
+    var container = document.getElementById('shift-calendar-container');
+    container.innerHTML = '<p>シフト情報を読み込んでいます...</p>';
     
-    // TODO: 個人ゲージの読み込み機能を実装
-    setTimeout(function() {
-      var container = document.querySelector('#personal-gauge-section .loading-container');
-      container.innerHTML = '<p>103万の壁ゲージ機能は実装中です</p>';
-    }, 1000);
+    fetch('<%= shifts_data_path %>')
+      .then(response => response.json())
+      .then(data => {
+        initializeShifts(data);
+      })
+      .catch(error => {
+        console.error('シフト情報取得エラー:', error);
+        container.innerHTML = '<p>シフト情報の取得に失敗しました</p>';
+      });
+  }
+
+  function initializeShifts(dataFromServer) {
+    allShiftsData = dataFromServer;
+    console.log("サーバーから取得した全データ:", allShiftsData);
+    
+    calendarYear = allShiftsData.year;
+    calendarMonth = allShiftsData.month;
+    daysInMonth = new Date(calendarYear, calendarMonth, 0).getDate();
+
+    // 最初の表示範囲を設定
+    var now = new Date();
+    currentStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    updateCalendarTitle();
+    displayShifts();
+  }
+
+  function updateCalendarTitle() {
+    var title = document.getElementById('calendar-title');
+    title.textContent = calendarYear + '年' + calendarMonth + '月';
+  }
+
+  function displayShifts() {
+    var titleEl = document.getElementById('calendar-title');
+    titleEl.textContent = calendarYear + '年' + calendarMonth + '月';
+    
+    var container = document.getElementById('shift-calendar-container');
+    container.innerHTML = "";
+
+    var table = document.createElement('table');
+    table.className = 'shift-calendar';
+    var thead = document.createElement('thead');
+    var tbody = document.createElement('tbody');
+
+    // ヘッダー行の生成
+    var headerRow = document.createElement('tr');
+    var nameHeader = document.createElement('th');
+    nameHeader.textContent = '従業員名';
+    headerRow.appendChild(nameHeader);
+    
+    var datesToShow = []; // 表示する日付の配列
+    var currentDate = new Date(currentStartDate);
+    for(var i = 0; i < 7; i++) {
+        var day = currentDate.getDate();
+        if (currentDate.getMonth() === currentStartDate.getMonth() && day <= daysInMonth) {
+            datesToShow.push(day);
+            var dayHeader = document.createElement('th');
+            dayHeader.textContent = day + '日';
+            headerRow.appendChild(dayHeader);
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+    thead.appendChild(headerRow);
+
+    // ボディ行の生成
+    for (var employeeId in allShiftsData.shifts) {
+      var employeeData = allShiftsData.shifts[employeeId];
+      var employeeRow = document.createElement('tr');
+      var nameCell = document.createElement('td');
+      nameCell.textContent = employeeData.name;
+      employeeRow.appendChild(nameCell);
+
+      datesToShow.forEach(function(day) {
+        var shiftCell = document.createElement('td');
+        var shiftTime = employeeData.shifts[day] || "";
+        if (shiftTime) {
+          shiftCell.style.cursor = 'pointer';
+          shiftCell.style.textDecoration = 'underline';
+          shiftCell.onclick = function(id, d, time) {
+            return function() {
+              startRequestForShift(id, d, time);
+            };
+          }(employeeId, day, shiftTime);
+        }
+        shiftCell.textContent = shiftTime;
+        employeeRow.appendChild(shiftCell);
+      });
+      tbody.appendChild(employeeRow);
+    }
+
+    table.appendChild(thead);
+    table.appendChild(tbody);
+    container.appendChild(table);
+    
+    updatePaginationButtons();
   }
   
-  // シフト表の読み込み
-  function loadShiftCalendar() {
-    // TODO: シフト表の読み込み機能を実装
-    setTimeout(function() {
-      var container = document.querySelector('.shift-calendar-section .loading-container');
-      container.innerHTML = '<p>シフト表機能は実装中です</p>';
-    }, 1000);
+  function updatePaginationButtons() {
+    var prevBtn = document.querySelector('.month-navigation .button:first-of-type');
+    var nextBtn = document.querySelector('.month-navigation .button:last-of-type');
+
+    // 1日が開始日なら「前へ」を無効化
+    if (currentStartDate.getDate() === 1) {
+        prevBtn.disabled = true;
+        prevBtn.style.opacity = '0.5';
+    } else {
+        prevBtn.disabled = false;
+        prevBtn.style.opacity = '1.0';
+    }
+
+    // 最終日が表示範囲に含まれるかチェック
+    var lastDayOfDisplayedPeriod = currentStartDate.getDate() + 6;
+    
+    if (lastDayOfDisplayedPeriod >= daysInMonth) {
+        nextBtn.disabled = true;
+        nextBtn.style.opacity = '0.5';
+    } else {
+        nextBtn.disabled = false;
+        nextBtn.style.opacity = '1.0';
+    }
   }
-  
-  // 月ナビゲーション
-  function previousMonth() {
-    // TODO: 前月のシフト表を表示
-    showMessage('前月のシフト表機能は実装中です', 'info');
+
+  function prevWeek() {
+    if (currentStartDate.getDate() > 1) {
+        currentStartDate.setDate(currentStartDate.getDate() - 7);
+        displayShifts();
+    }
   }
-  
-  function nextMonth() {
-    // TODO: 次月のシフト表を表示
-    showMessage('次月のシフト表機能は実装中です', 'info');
+
+  function nextWeek() {
+    var nextWeekStart = new Date(currentStartDate);
+    nextWeekStart.setDate(currentStartDate.getDate() + 7);
+    
+    // 次の週の開始日が月の最終日を超えていないかチェック
+    if (nextWeekStart.getMonth() === currentStartDate.getMonth()) {
+      currentStartDate = nextWeekStart;
+      displayShifts();
+    } else {
+      // 最終日を含む週に移動
+      var lastDayOfCurrentMonth = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth() + 1, 0);
+      currentStartDate = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth(), lastDayOfCurrentMonth.getDate() - (lastDayOfCurrentMonth.getDate() % 7) + 1);
+      if (currentStartDate.getDate() > lastDayOfCurrentMonth.getDate()) {
+        currentStartDate.setDate(lastDayOfCurrentMonth.getDate() - 6);
+      }
+      displayShifts();
+    }
   }
-  
-  // リクエスト一覧の表示
-  function showRequestList() {
-    // TODO: リクエスト一覧の表示機能を実装
+
+  function startRequestForShift(employeeId, day, timeString) {
+    var times = timeString.split('-');
+    var startTime = times[0].padStart(2, '0') + ':00';
+    var endTime = times[1].padStart(2, '0') + ':00';
+    
+    var monthStr = String(calendarMonth).padStart(2, '0');
+    var dayStr = String(day).padStart(2, '0');
+    var dateStr = calendarYear + '-' + monthStr + '-' + dayStr;
+
+    // TODO: シフト交代リクエストフォームへの遷移を実装
+    showMessage('シフト交代リクエスト機能は実装中です', 'info');
+  }
+
+  // ナビゲーション関数
+  function goToRequestList() {
+    // TODO: リクエスト一覧ページへの遷移を実装
     showMessage('リクエスト一覧機能は実装中です', 'info');
   }
-  
-  // シフト追加依頼フォームの表示（オーナーのみ）
-  function showAddShiftForm() {
-    // TODO: シフト追加依頼フォームの表示機能を実装
+
+  function goToShiftAddForm() {
+    // TODO: シフト追加依頼フォームへの遷移を実装
     showMessage('シフト追加依頼機能は実装中です', 'info');
   }
-  
+
   // メッセージ表示
   function showMessage(message, type) {
-    // 既存のメッセージを削除
-    var existingMessage = document.querySelector('.message');
-    if (existingMessage) {
-      existingMessage.remove();
-    }
-    
-    // 新しいメッセージを作成
-    var messageDiv = document.createElement('div');
-    messageDiv.className = 'message ' + type;
+    var messageDiv = document.getElementById('message');
     messageDiv.textContent = message;
+    messageDiv.className = 'message ' + type;
+    messageDiv.style.display = 'block';
     
-    // ページの上部に挿入
-    var container = document.querySelector('.shift-page-container');
-    container.insertBefore(messageDiv, container.firstChild);
+    // 3秒後にメッセージを非表示
+    setTimeout(function() {
+      messageDiv.style.display = 'none';
+    }, 3000);
   }
 </script>

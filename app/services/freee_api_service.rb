@@ -14,6 +14,37 @@ class FreeeApiService
     }
   end
 
+  # 従業員一覧取得（シフト管理用）
+  def get_employees
+    begin
+      url = "/hr/api/v1/companies/#{@company_id}/employees?limit=100&with_no_payroll_calculation=true"
+      response = self.class.get(url, @options)
+      
+      unless response.success?
+        Rails.logger.error "freee API Error: #{response.code} - #{response.message}"
+        Rails.logger.error "Response body: #{response.body}"
+        return []
+      end
+      
+      body = response.parsed_response
+      employees = body.is_a?(Array) ? body : body['employees']
+      employees ||= []
+      
+      # シフト管理に必要な情報のみを返す
+      employees.map do |emp|
+        {
+          id: emp['id'].to_s,
+          display_name: emp['display_name']
+        }
+      end
+    rescue => e
+      Rails.logger.error "freee API接続エラー: #{e.message}"
+      Rails.logger.error "Error class: #{e.class}"
+      Rails.logger.error "Error backtrace: #{e.backtrace.join('\n')}"
+      []
+    end
+  end
+
   # 全従業員情報取得
   def get_all_employees
     begin
