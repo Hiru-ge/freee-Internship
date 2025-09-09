@@ -1,30 +1,36 @@
 <div class="my-page-container">
   <h1>マイページ</h1>
   
+  <!-- ユーザー情報 -->
   <div class="user-info">
-    <span>従業員ID: <%= @employee_id %></span>
+    <span id="user-name"><%= @employee_name %></span>
     <span id="user-role"><%= @is_owner ? 'オーナー' : '従業員' %></span>
   </div>
-  
+
+  <!-- 打刻機能 -->
   <div class="time-clock-section">
-    <h3>打刻</h3>
+    <h3>勤怠打刻</h3>
     <div class="time-clock-buttons">
-      <button class="button clock-in" onclick="clockIn()">出勤</button>
-      <button class="button clock-out" onclick="clockOut()">退勤</button>
+      <button id="clock-in-btn" class="button clock-in" onclick="clockIn()">出勤打刻</button>
+      <button id="clock-out-btn" class="button clock-out" onclick="clockOut()">退勤打刻</button>
     </div>
-    <div class="clock-status" id="clock-status">現在の勤務状況: 未出勤</div>
+    <div id="clock-status" class="clock-status"><%= @clock_status[:message] %></div>
   </div>
-  
+
+  <!-- 勤怠履歴 -->
   <div class="attendance-history-section">
-    <h3>勤怠履歴</h3>
+    <h3 id="attendance-title">勤怠履歴
+      <span class="month-navigation-buttons">
+        <button class="button" onclick="prevMonth()">前月</button>
+        <button class="button" onclick="nextMonth()">次月</button>
+      </span>
+    </h3>
     <div id="attendance-container">
-      <div class="loading-container">
-        <div class="loading-spinner"></div>
-        勤怠履歴を読み込み中...
-      </div>
+      <p>勤怠履歴を読み込んでいます...</p>
     </div>
   </div>
-  
+
+  <!-- ナビゲーション -->
   <div class="navigation">
     <%= link_to "シフトページ", shifts_path, class: "button nav-button" %>
     <%= link_to "パスワード変更", password_change_auth_path, class: "button nav-button" %>
@@ -32,50 +38,220 @@
       <%= form.submit "ログアウト", class: "button nav-button logout" %>
     <% end %>
   </div>
+
+  <!-- メッセージ表示 -->
+  <div id="message" class="message" style="display: none;"></div>
 </div>
 
 <script>
+  var currentEmployeeId = '<%= @employee_id %>';
+  var currentEmployeeName = '<%= @employee_name %>';
+  
+  // 勤怠履歴の変数
+  var attendanceYear = <%= Date.current.year %>;
+  var attendanceMonth = <%= Date.current.month %>;
+  var allAttendanceData;
+
   // ページ読み込み時の初期化
   document.addEventListener('DOMContentLoaded', function() {
-    loadAttendanceHistory();
+    updateClockButtons();
+    initializeAttendanceHistory();
   });
-  
+
+  // 勤怠履歴の初期化
+  function initializeAttendanceHistory() {
+    if (!currentEmployeeId) {
+      showAttendanceError('従業員IDが取得できません');
+      return;
+    }
+
+    // 勤怠履歴を読み込み
+    loadAttendanceData();
+  }
+
+  // 勤怠データを読み込み
+  function loadAttendanceData() {
+    var yearMonth = attendanceYear + '-' + String(attendanceMonth).padStart(2, '0');
+    console.log('勤怠データ読み込み開始...');
+    console.log('従業員ID:', currentEmployeeId);
+    console.log('年月:', yearMonth);
+    
+    fetch('<%= dashboard_attendance_history_path %>?year=' + attendanceYear + '&month=' + attendanceMonth)
+      .then(response => response.json())
+      .then(data => {
+        console.log('勤怠データ取得成功:', data);
+        displayAttendanceData(data);
+      })
+      .catch(error => {
+        console.log('勤怠データ取得失敗:', error);
+        showAttendanceError('勤怠データの取得に失敗しました: ' + error.message);
+      });
+  }
+
+  // 勤怠データを表示
+  function displayAttendanceData(records) {
+    try {
+      var container = document.getElementById('attendance-container');
+      var title = document.getElementById('attendance-title');
+      
+      // タイトルを更新（ページネーションボタンを保持）
+      title.innerHTML = attendanceYear + '年' + attendanceMonth + '月の勤怠履歴' +
+        '<span class="month-navigation-buttons">' +
+        '<button class="button" onclick="prevMonth()">前月</button>' +
+        '<button class="button" onclick="nextMonth()">次月</button>' +
+        '</span>';
+      
+      // テーブルを生成
+      var html = '<table border="1">';
+      html += '<thead><tr><th>種別</th><th>日時</th></tr></thead>';
+      html += '<tbody>';
+      
+      if (!records || records.length === 0) {
+        // データがない場合は空の行を表示
+        html += '<tr><td colspan="2" style="text-align: center; padding: 40px; color: #999;">この月の勤怠記録がありません</td></tr>';
+      } else {
+        for (var i = 0; i < records.length; i++) {
+          var record = records[i];
+          html += '<tr>';
+          html += '<td>' + record.type + '</td>';
+          html += '<td>' + record.date + '</td>';
+          html += '</tr>';
+        }
+      }
+      
+      html += '</tbody></table>';
+      container.innerHTML = html;
+      
+    } catch (error) {
+      showAttendanceError('勤怠データの表示に失敗しました: ' + error.message);
+    }
+  }
+
+  // 前の月に移動
+  function prevMonth() {
+    attendanceMonth--;
+    if (attendanceMonth < 1) {
+      attendanceMonth = 12;
+      attendanceYear--;
+    }
+    loadAttendanceData();
+  }
+
+  // 次の月に移動
+  function nextMonth() {
+    attendanceMonth++;
+    if (attendanceMonth > 12) {
+      attendanceMonth = 1;
+      attendanceYear++;
+    }
+    loadAttendanceData();
+  }
+
+  // 勤怠エラー表示
+  function showAttendanceError(message) {
+    var container = document.getElementById('attendance-container');
+    container.innerHTML = '<p style="color: red; text-align: center; padding: 20px;">' + message + '</p>';
+  }
+
+  // 打刻ボタンの状態更新
+  function updateClockButtons() {
+    if (!currentEmployeeId) return;
+    
+    fetch('<%= dashboard_clock_status_path %>')
+      .then(response => response.json())
+      .then(clockStatus => {
+        var clockInBtn = document.getElementById('clock-in-btn');
+        var clockOutBtn = document.getElementById('clock-out-btn');
+        var statusDiv = document.getElementById('clock-status');
+        
+        if (clockStatus.can_clock_in) {
+          clockInBtn.disabled = false;
+          clockInBtn.textContent = '出勤打刻';
+        } else {
+          clockInBtn.disabled = true;
+          clockInBtn.textContent = '出勤済み';
+        }
+        
+        if (clockStatus.can_clock_out) {
+          clockOutBtn.disabled = false;
+          clockOutBtn.textContent = '退勤打刻';
+        } else {
+          clockOutBtn.disabled = true;
+          clockOutBtn.textContent = '退勤済み';
+        }
+        
+        if (clockStatus.message) {
+          statusDiv.textContent = clockStatus.message;
+          statusDiv.style.display = 'block';
+        } else {
+          statusDiv.style.display = 'none';
+        }
+      })
+      .catch(error => {
+        console.error('打刻状態取得エラー:', error);
+      });
+  }
+
   // 出勤打刻
   function clockIn() {
-    // TODO: 出勤打刻機能を実装
-    showMessage('出勤打刻機能は実装中です', 'info');
+    if (!currentEmployeeId) return;
+    
+    fetch('<%= dashboard_clock_in_path %>', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      }
+    })
+    .then(response => response.json())
+    .then(result => {
+      showMessage(result.message, result.success ? 'success' : 'error');
+      if (result.success) {
+        updateClockButtons();
+        loadAttendanceData();
+      }
+    })
+    .catch(error => {
+      console.error('出勤打刻エラー:', error);
+      showMessage('出勤打刻中にエラーが発生しました', 'error');
+    });
   }
-  
+
   // 退勤打刻
   function clockOut() {
-    // TODO: 退勤打刻機能を実装
-    showMessage('退勤打刻機能は実装中です', 'info');
+    if (!currentEmployeeId) return;
+    
+    fetch('<%= dashboard_clock_out_path %>', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      }
+    })
+    .then(response => response.json())
+    .then(result => {
+      showMessage(result.message, result.success ? 'success' : 'error');
+      if (result.success) {
+        updateClockButtons();
+        loadAttendanceData();
+      }
+    })
+    .catch(error => {
+      console.error('退勤打刻エラー:', error);
+      showMessage('退勤打刻中にエラーが発生しました', 'error');
+    });
   }
-  
-  // 勤怠履歴の読み込み
-  function loadAttendanceHistory() {
-    // TODO: 勤怠履歴の読み込み機能を実装
-    setTimeout(function() {
-      var container = document.getElementById('attendance-container');
-      container.innerHTML = '<p>勤怠履歴機能は実装中です</p>';
-    }, 1000);
-  }
-  
+
   // メッセージ表示
   function showMessage(message, type) {
-    // 既存のメッセージを削除
-    var existingMessage = document.querySelector('.message');
-    if (existingMessage) {
-      existingMessage.remove();
-    }
-    
-    // 新しいメッセージを作成
-    var messageDiv = document.createElement('div');
-    messageDiv.className = 'message ' + type;
+    var messageDiv = document.getElementById('message');
     messageDiv.textContent = message;
+    messageDiv.className = 'message ' + type;
+    messageDiv.style.display = 'block';
     
-    // ページの上部に挿入
-    var container = document.querySelector('.my-page-container');
-    container.insertBefore(messageDiv, container.firstChild);
+    // 3秒後にメッセージを非表示
+    setTimeout(function() {
+      messageDiv.style.display = 'none';
+    }, 3000);
   }
 </script>

@@ -20,6 +20,10 @@ Rails.application.routes.draw do
   
   # ダッシュボード
   get "dashboard", to: "dashboard#index", as: :dashboard
+  post "dashboard/clock_in", to: "dashboard#clock_in", as: :dashboard_clock_in
+  post "dashboard/clock_out", to: "dashboard#clock_out", as: :dashboard_clock_out
+  get "dashboard/clock_status", to: "dashboard#clock_status", as: :dashboard_clock_status
+  get "dashboard/attendance_history", to: "dashboard#attendance_history", as: :dashboard_attendance_history
   
   # シフト管理
   get "shifts", to: "shifts#index", as: :shifts
