@@ -46,8 +46,22 @@ bundle install
 
 3. 環境変数の設定
 ```bash
-cp config/env.example .env
-# .envファイルを編集して必要な値を設定
+# .envファイルを作成
+touch .env
+```
+
+以下の内容を`.env`ファイルに記述してください：
+```bash
+# freee API設定
+FREEE_ACCESS_TOKEN=your_freee_access_token_here
+FREEE_COMPANY_ID=your_freee_company_id_here
+
+# Gmail SMTP設定
+GMAIL_USERNAME=your_gmail_address@gmail.com
+GMAIL_APP_PASSWORD=your_gmail_app_password_here
+
+# アプリケーション設定
+RAILS_ENV=development
 ```
 
 4. データベースの作成とマイグレーション
@@ -63,12 +77,19 @@ rails server
 
 ## 環境変数
 
-以下の環境変数を設定してください：
+以下の環境変数を`.env`ファイルに設定してください：
 
+### 認証システム用
+- `FREEE_ACCESS_TOKEN`: freee API アクセストークン
+- `FREEE_COMPANY_ID`: freee API 会社ID
+- `GMAIL_USERNAME`: Gmail送信用のメールアドレス
+- `GMAIL_APP_PASSWORD`: Gmail送信用のアプリパスワード
+
+### LINE Bot用（将来実装予定）
 - `LINE_CHANNEL_SECRET`: LINE Bot チャンネルシークレット
 - `LINE_CHANNEL_TOKEN`: LINE Bot チャンネルトークン
-- `FREEE_CLIENT_ID`: freee API クライアントID
-- `FREEE_CLIENT_SECRET`: freee API クライアントシークレット
+
+### Google Sheets用（将来実装予定）
 - `GOOGLE_SHEETS_CREDENTIALS_PATH`: Google Sheets API認証情報のパス
 - `GOOGLE_SHEETS_SPREADSHEET_ID`: Google Sheets スプレッドシートID
 

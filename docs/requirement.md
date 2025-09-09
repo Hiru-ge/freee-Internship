@@ -8,9 +8,10 @@
 - **フロントエンド**: HTML/CSS/JavaScript（既存UI維持）
 - **バックエンド**: Ruby on Rails 8.0.2
 - **データベース**: PostgreSQL（Heroku）
-- **認証**: LINE認証 + カスタム認証システム
+- **認証**: カスタム認証システム + freee API連携 ✅ **実装完了**
+- **メール送信**: Gmail SMTP ✅ **実装完了**
 - **デプロイ**: Heroku
-- **外部API**: Google Sheets API（既存データ連携）、freee API
+- **外部API**: freee API ✅ **実装完了**、Google Sheets API（将来実装予定）
 
 ### 1.2. ターゲットユーザー
 

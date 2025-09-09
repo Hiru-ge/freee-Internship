@@ -1,4 +1,29 @@
 Rails.application.routes.draw do
+  # 認証関連ルート
+  get "auth/login", to: "auth#login", as: :login_auth
+  post "auth/login", to: "auth#login"
+  get "auth/initial_password", to: "auth#initial_password", as: :initial_password_auth
+  post "auth/initial_password", to: "auth#initial_password"
+  get "auth/password_change", to: "auth#password_change", as: :password_change_auth
+  post "auth/password_change", to: "auth#password_change"
+  get "auth/forgot_password", to: "auth#forgot_password", as: :forgot_password_auth
+  post "auth/forgot_password", to: "auth#forgot_password"
+  get "auth/verify_password_reset", to: "auth#verify_password_reset", as: :verify_password_reset_auth
+  post "auth/verify_password_reset", to: "auth#verify_password_reset"
+  get "auth/reset_password", to: "auth#reset_password", as: :reset_password_auth
+  post "auth/reset_password", to: "auth#reset_password"
+  post "auth/logout", to: "auth#logout", as: :logout_auth
+  
+  # 認証API
+  post "auth/send_verification_code", to: "auth#send_verification_code", as: :send_verification_code_auth
+  post "auth/verify_code", to: "auth#verify_code", as: :verify_code_auth
+  
+  # ダッシュボード
+  get "dashboard", to: "dashboard#index", as: :dashboard
+  
+  # シフト管理
+  get "shifts", to: "shifts#index", as: :shifts
+  
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.

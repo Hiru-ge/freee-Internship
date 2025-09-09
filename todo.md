@@ -27,28 +27,39 @@
 
 ### Rails移行 Phase 2: 既存機能完全移行（最重要）
 
-#### Phase 2-1: 認証システム移行（最優先）
-- [ ] データベース設計・実装
+#### Phase 2-1: 認証システム移行（✅ 完了）
+- [x] データベース設計・実装
   - employeesテーブル（認証情報のみ）
-  - employee_cacheテーブル（freee API情報キャッシュ）
+  - verification_codesテーブル（認証コード管理）
   - マイグレーション実行
   - 見積時間: 30分
 
-- [ ] 認証システムの完全移行
+- [x] 認証システムの完全移行
   - ログイン画面（view_login.html → app/views/auth/login.html.erb）
   - 初回パスワード設定（view_initial_password.html → app/views/auth/initial_password.html.erb）
   - パスワード変更（view_password_change.html → app/views/auth/password_change.html.erb）
   - パスワード忘れ（view_forgot_password.html → app/views/auth/forgot_password.html.erb）
   - 見積時間: 2時間
 
-- [ ] freee API連携の実装
+- [x] freee API連携の実装
   - FreeeApiService（code-api.js → app/services/freee_api_service.rb）
   - 認証サービス（code-auth.js → app/services/auth_service.rb）
   - 従業員情報の動的取得
-  - キャッシュ機能の実装
+  - 実データでのDB再構築
   - 見積時間: 1.5時間
 
-- [ ] 認証機能のテスト・コミット
+- [x] メール送信機能の実装
+  - AuthMailer（Gmail SMTP連携）
+  - 認証コード送信機能
+  - パスワードリセット機能
+  - 見積時間: 1時間
+
+- [x] 環境変数への移行
+  - 機密情報の.envファイル分離
+  - セキュリティ向上
+  - 見積時間: 30分
+
+- [x] 認証機能のテスト・コミット
   - ログイン機能の動作確認
   - パスワード変更機能の動作確認
   - freee API連携の動作確認

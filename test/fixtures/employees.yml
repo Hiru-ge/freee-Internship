@@ -1,0 +1,15 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  employee_id: MyString
+  password_hash: MyString
+  role: MyString
+  last_login_at: 2025-09-09 17:56:50
+  password_updated_at: 2025-09-09 17:56:50
+
+two:
+  employee_id: MyString
+  password_hash: MyString
+  role: MyString
+  last_login_at: 2025-09-09 17:56:50
+  password_updated_at: 2025-09-09 17:56:50

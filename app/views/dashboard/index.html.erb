@@ -1,0 +1,81 @@
+<div class="my-page-container">
+  <h1>マイページ</h1>
+  
+  <div class="user-info">
+    <span>従業員ID: <%= @employee_id %></span>
+    <span id="user-role"><%= @is_owner ? 'オーナー' : '従業員' %></span>
+  </div>
+  
+  <div class="time-clock-section">
+    <h3>打刻</h3>
+    <div class="time-clock-buttons">
+      <button class="button clock-in" onclick="clockIn()">出勤</button>
+      <button class="button clock-out" onclick="clockOut()">退勤</button>
+    </div>
+    <div class="clock-status" id="clock-status">現在の勤務状況: 未出勤</div>
+  </div>
+  
+  <div class="attendance-history-section">
+    <h3>勤怠履歴</h3>
+    <div id="attendance-container">
+      <div class="loading-container">
+        <div class="loading-spinner"></div>
+        勤怠履歴を読み込み中...
+      </div>
+    </div>
+  </div>
+  
+  <div class="navigation">
+    <%= link_to "シフトページ", shifts_path, class: "button nav-button" %>
+    <%= link_to "パスワード変更", password_change_auth_path, class: "button nav-button" %>
+    <%= form_with url: logout_auth_path, method: :post, local: true, class: "logout-form" do |form| %>
+      <%= form.submit "ログアウト", class: "button nav-button logout" %>
+    <% end %>
+  </div>
+</div>
+
+<script>
+  // ページ読み込み時の初期化
+  document.addEventListener('DOMContentLoaded', function() {
+    loadAttendanceHistory();
+  });
+  
+  // 出勤打刻
+  function clockIn() {
+    // TODO: 出勤打刻機能を実装
+    showMessage('出勤打刻機能は実装中です', 'info');
+  }
+  
+  // 退勤打刻
+  function clockOut() {
+    // TODO: 退勤打刻機能を実装
+    showMessage('退勤打刻機能は実装中です', 'info');
+  }
+  
+  // 勤怠履歴の読み込み
+  function loadAttendanceHistory() {
+    // TODO: 勤怠履歴の読み込み機能を実装
+    setTimeout(function() {
+      var container = document.getElementById('attendance-container');
+      container.innerHTML = '<p>勤怠履歴機能は実装中です</p>';
+    }, 1000);
+  }
+  
+  // メッセージ表示
+  function showMessage(message, type) {
+    // 既存のメッセージを削除
+    var existingMessage = document.querySelector('.message');
+    if (existingMessage) {
+      existingMessage.remove();
+    }
+    
+    // 新しいメッセージを作成
+    var messageDiv = document.createElement('div');
+    messageDiv.className = 'message ' + type;
+    messageDiv.textContent = message;
+    
+    // ページの上部に挿入
+    var container = document.querySelector('.my-page-container');
+    container.insertBefore(messageDiv, container.firstChild);
+  }
+</script>

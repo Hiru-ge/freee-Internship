@@ -1,0 +1,11 @@
+development:
+  access_token: <%= ENV['FREEE_ACCESS_TOKEN'] %>
+  company_id: <%= ENV['FREEE_COMPANY_ID'] %>
+
+test:
+  access_token: <%= ENV['FREEE_ACCESS_TOKEN'] %>
+  company_id: <%= ENV['FREEE_COMPANY_ID'] %>
+
+production:
+  access_token: <%= ENV['FREEE_ACCESS_TOKEN'] %>
+  company_id: <%= ENV['FREEE_COMPANY_ID'] %>

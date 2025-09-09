@@ -1,0 +1,131 @@
+<div class="shift-page-container <%= @is_owner ? 'owner-mode' : 'employee-mode' %>">
+  <h1>シフトページ</h1>
+  
+  <div class="page-navigation">
+    <%= link_to "マイページに戻る", dashboard_path, class: "button nav-button" %>
+    <%= form_with url: logout_auth_path, method: :post, local: true, class: "logout-form" do |form| %>
+      <%= form.submit "ログアウト", class: "button nav-button logout" %>
+    <% end %>
+  </div>
+  
+  <!-- オーナー向け表示 -->
+  <div id="employee-list-section" class="employee-list-section">
+    <h2>従業員一覧と103万の壁ゲージ</h2>
+    <div class="loading-container">
+      <div class="loading-spinner"></div>
+      従業員情報を読み込み中...
+    </div>
+  </div>
+  
+  <!-- 従業員向け表示 -->
+  <div id="personal-gauge-section" class="personal-gauge-section">
+    <h2>あなたの103万の壁ゲージ</h2>
+    <div class="loading-container">
+      <div class="loading-spinner"></div>
+      給与情報を読み込み中...
+    </div>
+  </div>
+  
+  <div class="shift-calendar-section">
+    <h2>シフト表</h2>
+    <div class="month-navigation">
+      <h3 id="calendar-title">2024年1月</h3>
+      <div class="month-navigation-buttons">
+        <button class="button small-button" onclick="previousMonth()">←</button>
+        <button class="button small-button" onclick="nextMonth()">→</button>
+      </div>
+    </div>
+    <div class="loading-container">
+      <div class="loading-spinner"></div>
+      シフト表を読み込み中...
+    </div>
+  </div>
+  
+  <div class="shift-management">
+    <button class="button" onclick="showRequestList()">自分へのリクエスト一覧</button>
+    <% if @is_owner %>
+      <button class="button owner-only" onclick="showAddShiftForm()">シフト追加依頼</button>
+    <% end %>
+  </div>
+</div>
+
+<script>
+  // ページ読み込み時の初期化
+  document.addEventListener('DOMContentLoaded', function() {
+    loadEmployeeList();
+    loadPersonalGauge();
+    loadShiftCalendar();
+  });
+  
+  // 従業員一覧の読み込み（オーナーのみ）
+  function loadEmployeeList() {
+    if (!<%= @is_owner %>) return;
+    
+    // TODO: 従業員一覧の読み込み機能を実装
+    setTimeout(function() {
+      var container = document.querySelector('#employee-list-section .loading-container');
+      container.innerHTML = '<p>従業員一覧機能は実装中です</p>';
+    }, 1000);
+  }
+  
+  // 個人ゲージの読み込み（従業員のみ）
+  function loadPersonalGauge() {
+    if (<%= @is_owner %>) return;
+    
+    // TODO: 個人ゲージの読み込み機能を実装
+    setTimeout(function() {
+      var container = document.querySelector('#personal-gauge-section .loading-container');
+      container.innerHTML = '<p>103万の壁ゲージ機能は実装中です</p>';
+    }, 1000);
+  }
+  
+  // シフト表の読み込み
+  function loadShiftCalendar() {
+    // TODO: シフト表の読み込み機能を実装
+    setTimeout(function() {
+      var container = document.querySelector('.shift-calendar-section .loading-container');
+      container.innerHTML = '<p>シフト表機能は実装中です</p>';
+    }, 1000);
+  }
+  
+  // 月ナビゲーション
+  function previousMonth() {
+    // TODO: 前月のシフト表を表示
+    showMessage('前月のシフト表機能は実装中です', 'info');
+  }
+  
+  function nextMonth() {
+    // TODO: 次月のシフト表を表示
+    showMessage('次月のシフト表機能は実装中です', 'info');
+  }
+  
+  // リクエスト一覧の表示
+  function showRequestList() {
+    // TODO: リクエスト一覧の表示機能を実装
+    showMessage('リクエスト一覧機能は実装中です', 'info');
+  }
+  
+  // シフト追加依頼フォームの表示（オーナーのみ）
+  function showAddShiftForm() {
+    // TODO: シフト追加依頼フォームの表示機能を実装
+    showMessage('シフト追加依頼機能は実装中です', 'info');
+  }
+  
+  // メッセージ表示
+  function showMessage(message, type) {
+    // 既存のメッセージを削除
+    var existingMessage = document.querySelector('.message');
+    if (existingMessage) {
+      existingMessage.remove();
+    }
+    
+    // 新しいメッセージを作成
+    var messageDiv = document.createElement('div');
+    messageDiv.className = 'message ' + type;
+    messageDiv.textContent = message;
+    
+    // ページの上部に挿入
+    var container = document.querySelector('.shift-page-container');
+    container.insertBefore(messageDiv, container.firstChild);
+  }
+</script>
