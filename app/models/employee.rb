@@ -29,6 +29,23 @@ class Employee < ApplicationRecord
   def update_password!(new_password_hash)
     update!(password_hash: new_password_hash, password_updated_at: Time.current)
   end
+
+  # freee APIから取得した従業員名を返す（将来の拡張用）
+  def display_name
+    # 現在は固定値を使用、将来はfreee APIから取得
+    case employee_id
+    when '3313254'
+      '店長 太郎'
+    when '3316120'
+      'テスト 次郎'
+    when '3317741'
+      'テスト 三郎'
+    when '3316116'
+      'テスト 四郎'
+    else
+      "ID: #{employee_id}"
+    end
+  end
   
   private
   

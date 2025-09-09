@@ -9,7 +9,7 @@
       <%= form.submit "ログアウト", class: "button nav-button logout" %>
     <% end %>
   </div>
-
+  
   <!-- シフト表 -->
   <div class="shift-calendar-section">
     <h2>シフト表</h2>
@@ -30,7 +30,7 @@
 
   <!-- 従業員一覧と103万の壁ゲージ（オーナーのみ） -->
   <div id="employee-list-section" class="employee-list-section">
-    <h2>従業員一覧</h2>
+    <h2>全従業員の給与状況</h2>
     <table border="1" class="employee-list">
       <thead>
         <tr>
@@ -46,7 +46,8 @@
 
   <!-- 個人の103万の壁ゲージ（従業員のみ） -->
   <div id="personal-gauge-section" class="personal-gauge-section">
-    <h2>103万の壁ゲージ</h2>
+    <h2>103万の壁ゲージ <span style="font-size: 0.7em; color: #999;">※</span></h2>
+    <p style="font-size: 0.8em; color: #999; margin: 5px 0;">※このゲージ状態は、すでに入っているシフトをもとに計算されています</p>
     <div class="wage-gauge" id="personal-wage-gauge">
       <div class="gauge-container">
         <div class="gauge-bar">
@@ -56,7 +57,7 @@
       </div>
     </div>
   </div>
-
+  
   <!-- シフト管理ボタン -->
   <div class="shift-management">
     <button class="button" onclick="goToRequestList()">自分へのリクエスト一覧</button>
@@ -97,7 +98,6 @@
       container.classList.add('owner-mode');
       document.getElementById('shift-add-btn').style.display = 'inline-block';
       loadEmployeeList();
-      loadWageGauge();
     } else {
       // 従業員の場合：個人の給与ゲージを表示
       console.log('従業員権限確認 - 個人の給与ゲージを表示');
@@ -106,7 +106,7 @@
       loadPersonalGauge();
     }
   }
-
+  
   // 従業員一覧の読み込み（オーナーのみ）
   function loadEmployeeList() {
     // 重複実行を防ぐ
@@ -122,6 +122,7 @@
 
         if (employees && employees.length > 0) {
           employees.forEach(function(employee) {
+            console.log('従業員データ処理:', employee.id, employee.display_name);
             var row = document.createElement('tr');
             row.innerHTML = 
               '<td>' + employee.display_name + '</td>' +
@@ -135,6 +136,9 @@
         } else {
           tbody.innerHTML = '<tr><td colspan="2">従業員情報がありません</td></tr>';
         }
+        
+        // 従業員一覧の読み込み完了後に給与ゲージを読み込み
+        loadWageGauge();
       })
       .catch(error => {
         console.error('従業員一覧取得エラー:', error);
@@ -144,23 +148,62 @@
 
   // 給与ゲージの読み込み（オーナーのみ）
   function loadWageGauge() {
-    // 従業員一覧の各行に給与ゲージが表示されるので、ここでは何もしない
-    // 実際の給与データ取得は別途実装予定
-    var gauges = document.querySelectorAll('.wage-gauge[data-employee-id]');
-    gauges.forEach(function(gauge) {
-      var gaugeText = gauge.querySelector('.gauge-text');
-      if (gaugeText) {
-        gaugeText.textContent = '103万の壁ゲージ機能は実装予定です';
-      }
-    });
+    // 全従業員の給与データを取得
+    fetch('/wages/api_all_wages')
+      .then(response => response.json())
+      .then(wages => {
+        console.log('全従業員給与データ:', wages);
+        
+        if (wages && wages.length > 0) {
+          wages.forEach(function(wage) {
+            console.log('給与データ処理:', wage.employee_id, wage);
+            updateWageGaugeForEmployee(wage.employee_id, wage);
+          });
+        } else {
+          // 空データ時の表示
+          var gauges = document.querySelectorAll('.wage-gauge[data-employee-id]');
+          gauges.forEach(function(gauge) {
+            var gaugeText = gauge.querySelector('.gauge-text');
+            if (gaugeText) {
+              gaugeText.innerHTML = 'シフトデータがありません';
+            }
+          });
+        }
+      })
+      .catch(error => {
+        console.error('全従業員給与データ取得失敗:', error);
+        // エラー時の表示
+        var gauges = document.querySelectorAll('.wage-gauge[data-employee-id]');
+        gauges.forEach(function(gauge) {
+          var gaugeText = gauge.querySelector('.gauge-text');
+          if (gaugeText) {
+            gaugeText.innerHTML = 'エラー: 給与データの取得に失敗しました<br>' + error.message;
+          }
+        });
+      });
   }
 
   // 個人の給与ゲージの読み込み（従業員のみ）
   function loadPersonalGauge() {
+    // 読み込み状態を設定
     var gaugeText = document.querySelector('#personal-wage-gauge .gauge-text');
     if (gaugeText) {
-      gaugeText.textContent = '103万の壁ゲージ機能は実装予定です';
+      gaugeText.textContent = '読み込み中...';
     }
+    
+    // 個人の給与情報を取得
+    fetch('/wages/api_wage_info?employee_id=' + currentEmployeeId)
+      .then(response => response.json())
+      .then(wageInfo => {
+        console.log('個人給与情報:', wageInfo);
+        updatePersonalWageGauge(wageInfo);
+      })
+      .catch(error => {
+        console.error('給与情報取得エラー:', error);
+        if (currentEmployeeId) { // 実際のIDが設定されている場合のみエラー表示
+          document.querySelector('#personal-wage-gauge .gauge-text').textContent = 'エラーが発生しました';
+        }
+      });
   }
 
   // シフト情報の読み込み
@@ -342,6 +385,72 @@
     window.location.href = '<%= new_shift_addition_path %>';
   }
 
+  // 個人の給与ゲージの更新
+  function updatePersonalWageGauge(wageInfo) {
+    var gaugeElement = document.getElementById('personal-wage-gauge');
+    if (!gaugeElement) return;
+    
+    var gaugeFill = gaugeElement.querySelector('.gauge-fill');
+    var gaugeText = gaugeElement.querySelector('.gauge-text');
+    
+    if (!wageInfo || wageInfo.wage === undefined || wageInfo.target === undefined) {
+      gaugeText.textContent = 'データがありません';
+      return;
+    }
+    
+    var percentage = Math.min(wageInfo.percentage, 100);
+    var wageFormatted = (wageInfo.wage / 10000).toFixed(1) + '万円';
+    var targetFormatted = (wageInfo.target / 10000).toFixed(0) + '万円';
+    
+    // ゲージの幅を更新
+    gaugeFill.style.width = percentage + '%';
+    
+    // 色を更新（GASと同じロジック）
+    if (percentage >= 100) {
+      gaugeFill.style.backgroundColor = '#ff4444'; // 赤
+      gaugeText.innerHTML = wageFormatted + ' / ' + targetFormatted + '<br>🎉 目標達成！';
+    } else if (percentage >= 80) {
+      gaugeFill.style.backgroundColor = '#ffaa44'; // オレンジ
+      gaugeText.innerHTML = wageFormatted + ' / ' + targetFormatted + '<br>あと' + ((wageInfo.target - wageInfo.wage) / 10000).toFixed(1) + '万円';
+    } else {
+      gaugeFill.style.backgroundColor = '#44ff44'; // 緑
+      gaugeText.innerHTML = wageFormatted + ' / ' + targetFormatted + '<br>あと' + ((wageInfo.target - wageInfo.wage) / 10000).toFixed(1) + '万円';
+    }
+  }
+
+  // 給与ゲージの更新（従業員指定）
+  function updateWageGaugeForEmployee(employeeId, wageInfo) {
+    console.log('給与ゲージ更新開始:', employeeId, wageInfo);
+    var gaugeElement = document.querySelector('.wage-gauge[data-employee-id="' + employeeId + '"]');
+    console.log('ゲージ要素:', gaugeElement);
+    if (!gaugeElement) {
+      console.log('ゲージ要素が見つかりません:', employeeId);
+      return;
+    }
+
+    var gaugeFill = gaugeElement.querySelector('.gauge-fill');
+    var gaugeText = gaugeElement.querySelector('.gauge-text');
+    
+    var percentage = Math.min(wageInfo.percentage, 100);
+    var wageFormatted = (wageInfo.wage / 10000).toFixed(1) + '万円';
+    var targetFormatted = (wageInfo.target / 10000).toFixed(0) + '万円';
+    
+    // ゲージの幅を更新
+    gaugeFill.style.width = percentage + '%';
+    
+    // 色を更新（GASと同じロジック）
+    if (percentage >= 100) {
+      gaugeFill.style.backgroundColor = '#ff4444'; // 赤
+      gaugeText.innerHTML = wageFormatted + ' / ' + targetFormatted + '<br>🎉 目標達成！';
+    } else if (percentage >= 80) {
+      gaugeFill.style.backgroundColor = '#ffaa44'; // オレンジ
+      gaugeText.innerHTML = wageFormatted + ' / ' + targetFormatted + '<br>あと' + ((wageInfo.target - wageInfo.wage) / 10000).toFixed(1) + '万円';
+    } else {
+      gaugeFill.style.backgroundColor = '#44ff44'; // 緑
+      gaugeText.innerHTML = wageFormatted + ' / ' + targetFormatted + '<br>あと' + ((wageInfo.target - wageInfo.wage) / 10000).toFixed(1) + '万円';
+    }
+  }
+  
   // メッセージ表示
   function showMessage(message, type) {
     var messageDiv = document.getElementById('message');
@@ -355,3 +464,82 @@
     }, 3000);
   }
 </script>
+
+<style>
+  /* ===== 給与ゲージ（GAS互換） ===== */
+  .wage-gauge {
+    padding: 6px;
+    background-color: #4a4a4a;
+    border-radius: 6px;
+    margin: 3px 0;
+  }
+
+  .gauge-container {
+    text-align: center;
+  }
+
+  .gauge-bar {
+    width: 100%;
+    height: 16px;
+    background-color: #333;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 6px;
+    border: 1px solid #777;
+  }
+
+  .gauge-fill {
+    height: 100%;
+    background-color: #44ff44;
+    transition: width 0.5s ease, background-color 0.3s ease;
+    border-radius: 8px;
+  }
+
+  .gauge-text {
+    font-size: 0.8em;
+    color: #f0f0f0;
+    line-height: 1.3;
+  }
+
+  /* オーナーモードと従業員モードの表示制御 */
+  .owner-mode #personal-gauge-section {
+    display: none;
+  }
+
+  .employee-mode #employee-list-section {
+    display: none;
+  }
+
+  /* 従業員一覧テーブル */
+  .employee-list {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    background-color: #2c2c2c;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .employee-list th,
+  .employee-list td {
+    padding: 12px;
+    text-align: left;
+    border: 1px solid #444;
+  }
+
+  .employee-list th {
+    background-color: #3c3c3c;
+    color: #f0f0f0;
+    font-weight: bold;
+    border-bottom: 2px solid #555;
+  }
+
+  .employee-list td {
+    background-color: #2c2c2c;
+    color: #f0f0f0;
+  }
+
+  .employee-list tr:nth-child(even) td {
+    background-color: #333;
+  }
+</style>

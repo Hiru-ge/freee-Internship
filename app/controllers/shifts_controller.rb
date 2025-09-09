@@ -5,6 +5,28 @@ class ShiftsController < ApplicationController
     @is_owner = owner?
   end
 
+  # 従業員一覧の取得（オーナーのみ）
+  def employees
+    if owner?
+      # freee APIから従業員一覧を取得
+      freee_service = FreeeApiService.new(ENV['FREEE_ACCESS_TOKEN'], ENV['FREEE_COMPANY_ID'])
+      employees = freee_service.get_employees
+      
+      # 従業員データを整形
+      formatted_employees = employees.map do |employee|
+        {
+          id: employee[:id],
+          employee_id: employee[:id], # 給与データとの整合性のため
+          display_name: employee[:display_name]
+        }
+      end
+      
+      render json: formatted_employees
+    else
+      render json: { error: '権限がありません' }, status: :forbidden
+    end
+  end
+
   # シフトデータの取得
   def data
     begin

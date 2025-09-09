@@ -1,4 +1,6 @@
 Rails.application.routes.draw do
+  get "wages/index"
+  get "wages/show"
   # 認証関連ルート
   get "auth/login", to: "auth#login", as: :login_auth
   post "auth/login", to: "auth#login"
@@ -40,6 +42,14 @@ Rails.application.routes.draw do
   get "shifts/approval", to: "shift_approvals#index", as: :shift_approvals
   post "shifts/approval/approve", to: "shift_approvals#approve", as: :approve_shift_request
   post "shifts/approval/reject", to: "shift_approvals#reject", as: :reject_shift_request
+
+  # 給与管理
+  resources :wages, only: [:index] do
+    collection do
+      get :api_wage_info
+      get :api_all_wages
+    end
+  end
 
   # API エンドポイント（GAS互換）
   namespace :api do

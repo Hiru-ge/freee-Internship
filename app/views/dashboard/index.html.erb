@@ -17,6 +17,45 @@
     <div id="clock-status" class="clock-status"><%= @clock_status[:message] %></div>
   </div>
 
+  <!-- 給与情報（103万の壁ゲージ） -->
+  <div class="wage-section">
+    <h3>103万の壁ゲージ <span style="font-size: 0.7em; color: #999;">※</span></h3>
+    <p style="font-size: 0.8em; color: #999; margin: 5px 0;">※このゲージ状態は、すでに入っているシフトをもとに計算されています</p>
+    <div class="wage-gauge">
+      <div class="wage-info">
+        <span class="wage-amount">¥<%= number_with_delimiter(@wage_info[:wage]) %></span>
+        <span class="wage-target">/ ¥<%= number_with_delimiter(@wage_info[:target]) %></span>
+      </div>
+      <div class="gauge-container">
+        <div class="gauge-bar">
+          <div class="gauge-fill" style="width: <%= [@wage_info[:percentage], 100].min %>%"></div>
+        </div>
+        <div class="gauge-percentage"><%= @wage_info[:percentage] %>%</div>
+      </div>
+      <% if @wage_info[:wage] >= @wage_info[:target] %>
+        <div class="wage-achievement">🎉 目標達成！</div>
+      <% else %>
+        <div class="wage-remaining">残り: ¥<%= number_with_delimiter(@wage_info[:target] - @wage_info[:wage]) %></div>
+      <% end %>
+      
+      <script>
+        // 給与ゲージの色を動的に変更
+        document.addEventListener('DOMContentLoaded', function() {
+          var percentage = <%= @wage_info[:percentage] %>;
+          var gaugeFill = document.querySelector('.gauge-fill');
+          
+          if (percentage >= 100) {
+            gaugeFill.style.backgroundColor = '#ff4444'; // 赤
+          } else if (percentage >= 80) {
+            gaugeFill.style.backgroundColor = '#ffaa44'; // オレンジ
+          } else {
+            gaugeFill.style.backgroundColor = '#44ff44'; // 緑
+          }
+        });
+      </script>
+    </div>
+  </div>
+
   <!-- 勤怠履歴 -->
   <div class="attendance-history-section">
     <h3 id="attendance-title">勤怠履歴
@@ -255,3 +294,80 @@
     }, 3000);
   }
 </script>
+
+<style>
+  /* 給与ゲージのスタイル */
+  .wage-section {
+    background-color: #4a4a4a;
+    border: 1px solid #777;
+    border-radius: 6px;
+    padding: 6px;
+    margin: 3px 0;
+  }
+
+  .wage-gauge {
+    text-align: center;
+  }
+
+  .wage-info {
+    margin-bottom: 6px;
+  }
+
+  .wage-amount {
+    font-size: 0.8em;
+    font-weight: bold;
+    color: #f0f0f0;
+  }
+
+  .wage-target {
+    font-size: 0.8em;
+    color: #f0f0f0;
+  }
+
+  .gauge-container {
+    position: relative;
+    margin: 6px 0;
+  }
+
+  .gauge-bar {
+    width: 100%;
+    height: 16px;
+    background-color: #333;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid #777;
+  }
+
+  .gauge-fill {
+    height: 100%;
+    background-color: #44ff44;
+    border-radius: 8px;
+    transition: width 0.5s ease, background-color 0.3s ease;
+    position: relative;
+  }
+
+  .gauge-percentage {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-weight: bold;
+    color: #f0f0f0;
+    font-size: 0.8em;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+  }
+
+  .wage-achievement {
+    color: #f0f0f0;
+    font-weight: bold;
+    font-size: 0.8em;
+    margin-top: 6px;
+  }
+
+  .wage-remaining {
+    color: #f0f0f0;
+    font-size: 0.8em;
+    margin-top: 6px;
+  }
+</style>

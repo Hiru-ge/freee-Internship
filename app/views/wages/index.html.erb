@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>給与管理 - <%= @year %>年<%= @month %>月</title>
+  <style>
+    body {
+      font-family: 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background-color: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    .header {
+      background-color: #2c2c2c;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    .navigation {
+      background-color: #f8f9fa;
+      padding: 15px;
+      text-align: center;
+      border-bottom: 1px solid #e9ecef;
+    }
+    .nav-button {
+      display: inline-block;
+      padding: 8px 16px;
+      margin: 0 10px;
+      background-color: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      transition: background-color 0.3s;
+    }
+    .nav-button:hover {
+      background-color: #0056b3;
+    }
+    .content {
+      padding: 30px;
+    }
+    .wage-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    .wage-table th,
+    .wage-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e9ecef;
+    }
+    .wage-table th {
+      background-color: #f8f9fa;
+      font-weight: bold;
+    }
+    .wage-table tr:hover {
+      background-color: #f8f9fa;
+    }
+    .wage-amount {
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .wage-over-limit {
+      color: #dc3545;
+    }
+    .wage-under-limit {
+      color: #28a745;
+    }
+    .percentage-bar {
+      width: 100%;
+      height: 20px;
+      background-color: #e9ecef;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 5px;
+    }
+    .percentage-fill {
+      height: 100%;
+      background-color: #007bff;
+      transition: width 0.3s;
+    }
+    .percentage-fill.over-limit {
+      background-color: #dc3545;
+    }
+    .breakdown {
+      font-size: 12px;
+      color: #6c757d;
+    }
+    .footer {
+      background-color: #f8f9fa;
+      padding: 20px;
+      text-align: center;
+      color: #6c757d;
+      font-size: 14px;
+    }
+    .summary {
+      background-color: #e3f2fd;
+      border: 1px solid #bbdefb;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .summary h3 {
+      margin-top: 0;
+      color: #1976d2;
+    }
+    
+    /* ===== 給与ゲージ（GAS互換） ===== */
+    .wage-gauge {
+      padding: 6px;
+      background-color: #4a4a4a;
+      border-radius: 6px;
+      margin: 3px 0;
+    }
+
+    .gauge-container {
+      text-align: center;
+    }
+
+    .gauge-bar {
+      width: 100%;
+      height: 16px;
+      background-color: #333;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 6px;
+      border: 1px solid #777;
+    }
+
+    .gauge-fill {
+      height: 100%;
+      background-color: #44ff44;
+      transition: width 0.5s ease, background-color 0.3s ease;
+      border-radius: 8px;
+    }
+
+    .gauge-text {
+      font-size: 0.8em;
+      color: #f0f0f0;
+      line-height: 1.3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>従業員一覧</h1>
+      <h2><%= @year %>年<%= @month %>月</h2>
+    </div>
+    
+    <div class="navigation">
+      <%= link_to "← #{@prev_month.month}月", wages_path(month: @prev_month.month, year: @prev_month.year), class: "nav-button" %>
+      <span style="font-weight: bold; margin: 0 20px;"><%= @year %>年<%= @month %>月</span>
+      <%= link_to "#{@next_month.month}月 →", wages_path(month: @next_month.month, year: @next_month.year), class: "nav-button" %>
+    </div>
+    
+    <div class="content">
+      <div class="summary">
+        <h3>従業員給与状況</h3>
+        <p>対象期間: <%= @year %>年<%= @month %>月</p>
+        <p>従業員数: <%= @wages.length %>名</p>
+        <p>目標給与: ¥<%= number_with_delimiter(WageService::MONTHLY_WAGE_TARGET) %></p>
+      </div>
+
+      <% if @wages.any? %>
+        <table class="wage-table">
+          <thead>
+            <tr>
+              <th>従業員名</th>
+              <th>給与状況（103万の壁ゲージ）</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @wages.each do |wage| %>
+              <tr>
+                <td><%= wage[:employee_name] %></td>
+                <td>
+                  <div class="wage-gauge" data-employee-id="<%= wage[:employee_id] %>">
+                    <div class="gauge-container">
+                      <div class="gauge-bar">
+                        <div class="gauge-fill" style="width: <%= [wage[:percentage], 100].min %>%"></div>
+                      </div>
+                      <div class="gauge-text">
+                        <% if wage[:wage] >= WageService::MONTHLY_WAGE_TARGET %>
+                          <%= (wage[:wage] / 10000).round(1) %>万円 / <%= (WageService::MONTHLY_WAGE_TARGET / 10000).round(0) %>万円<br>🎉 目標達成！
+                        <% else %>
+                          <%= (wage[:wage] / 10000).round(1) %>万円 / <%= (WageService::MONTHLY_WAGE_TARGET / 10000).round(0) %>万円<br>あと<%= ((WageService::MONTHLY_WAGE_TARGET - wage[:wage]) / 10000).round(1) %>万円
+                        <% end %>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% else %>
+        <p>給与データがありません。</p>
+      <% end %>
+    </div>
+    
+    <div class="footer">
+      <p><%= link_to "マイページトップに戻る", dashboard_path %></p>
+      <p>© 2024 勤怠管理システム</p>
+    </div>
+  </div>
+  
+  <script>
+    // 給与ゲージの色を動的に変更
+    document.addEventListener('DOMContentLoaded', function() {
+      var gauges = document.querySelectorAll('.wage-gauge');
+      gauges.forEach(function(gauge) {
+        var gaugeFill = gauge.querySelector('.gauge-fill');
+        var gaugeText = gauge.querySelector('.gauge-text');
+        
+        // テキストから達成率を取得
+        var text = gaugeText.textContent;
+        var percentageMatch = text.match(/(\d+\.?\d*)万円/);
+        var targetMatch = text.match(/(\d+)万円/);
+        
+        if (percentageMatch && targetMatch) {
+          var currentWage = parseFloat(percentageMatch[1]) * 10000;
+          var targetWage = parseFloat(targetMatch[1]) * 10000;
+          var percentage = (currentWage / targetWage) * 100;
+          
+          if (percentage >= 100) {
+            gaugeFill.style.backgroundColor = '#ff4444'; // 赤
+          } else if (percentage >= 80) {
+            gaugeFill.style.backgroundColor = '#ffaa44'; // オレンジ
+          } else {
+            gaugeFill.style.backgroundColor = '#44ff44'; // 緑
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>

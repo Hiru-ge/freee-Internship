@@ -6,6 +6,10 @@ class DashboardController < ApplicationController
     @employee_name = get_employee_name
     @clock_service = ClockService.new(@employee_id)
     @clock_status = @clock_service.get_clock_status
+    
+    # 給与情報を取得
+    wage_service = WageService.new
+    @wage_info = wage_service.get_wage_info(@employee_id)
   end
 
   # 出勤打刻

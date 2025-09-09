@@ -180,9 +180,6 @@ CREATE TABLE shift_additions (
 ## 完了日時
 **2025年9月9日**
 
-## 実装者
-**AI Assistant (Claude Sonnet 4)**
-
 ## 備考
 - GASの機能を完全に再現し、同等以上の機能を実現
 - メール通知と重複チェック機能も含めて完全実装
