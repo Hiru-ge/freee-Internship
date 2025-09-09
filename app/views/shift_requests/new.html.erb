@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      /* ===== 基本設定 ===== */
+      body {
+        font-family: 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.6;
+        color: #f0f0f0;
+        background-color: #2c2c2c;
+        margin: 0;
+        padding: 20px;
+      }
+
+      /* ===== 見出し ===== */
+      h1, h2, h3 {
+        color: #f0f0f0;
+        margin-top: 15px;
+        margin-bottom: 10px;
+      }
+      h1 { font-size: 1.8em; }
+      h2 { font-size: 1.3em; }
+      h3 { font-size: 1.1em; }
+
+      /* ===== フォーム要素 ===== */
+      input[type="text"], input[type="date"], input[type="time"], input[type="password"], select, textarea {
+        padding: 12px;
+        margin-top: 4px;
+        margin-bottom: 12px;
+        border-radius: 8px;
+        box-sizing: border-box;
+        background-color: #555;
+        color: #f0f0f0;
+        border: 1px solid #777;
+        font-size: 16px;
+        width: 300px;
+        max-width: 100%;
+      }
+
+      input:focus, select:focus, textarea:focus {
+        outline: none;
+        border-color: #ffca28;
+        box-shadow: 0 0 5px rgba(255, 202, 40, 0.3);
+      }
+
+      input::placeholder {
+        color: #999;
+      }
+
+      /* ===== ボタン ===== */
+      .button, input[type="submit"] {
+        background-color: #ffca28;
+        color: #212121;
+        padding: 10px 16px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.9em;
+        font-weight: bold;
+        transition: background-color 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      .button:hover, input[type="submit"]:hover {
+        background-color: #ffb300;
+      }
+
+      .button:disabled {
+        background-color: #666;
+        cursor: not-allowed;
+      }
+
+      .button.deny {
+        background-color: #ef5350;
+        color: #f0f0f0;
+      }
+
+      .button.deny:hover {
+        background-color: #e53935;
+      }
+
+      .button.primary {
+        background-color: #4caf50;
+        color: white;
+      }
+
+      .button.primary:hover {
+        background-color: #45a049;
+        transform: translateY(-2px);
+      }
+
+      .button.secondary {
+        background-color: #666;
+        color: white;
+      }
+
+      .button.secondary:hover {
+        background-color: #777;
+        transform: translateY(-2px);
+      }
+
+      .button.logout {
+        background-color: #f44336;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+
+      .button.logout:hover {
+        background-color: #da190b;
+      }
+
+      /* ===== フォームグループ ===== */
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        color: #f0f0f0;
+        font-weight: bold;
+      }
+
+      .form-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 30px;
+      }
+
+      /* ===== 承認者カード ===== */
+      .approver-card-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .approver-card {
+        background-color: #555;
+        color: #f0f0f0;
+        padding: 10px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      }
+
+      .approver-card.selected {
+        background-color: #ffca28;
+        color: #212121;
+        font-weight: bold;
+      }
+
+      .approver-wrapper input[type="checkbox"] {
+        display: none;
+      }
+
+      .approver-wrapper label {
+        display: block;
+        cursor: pointer;
+        padding: 0.4rem;
+        margin: 0;
+      }
+
+      /* ===== リンク ===== */
+      a {
+        color: #ffca28;
+        text-decoration: none;
+      }
+
+      a:hover {
+        color: #ffb300;
+        text-decoration: underline;
+      }
+
+      hr {
+        border: none;
+        border-top: 1px solid #555;
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>シフト交代リクエスト</h1>
+    
+    <form id="request-form" action="<%= shift_requests_path %>" method="post">
+      <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+      
+      <div class="form-group">
+        <label for="applicant-select">申請者 (あなたの名前):</label>
+        <select id="applicant-select" name="applicant_id" required>
+          <option value="">選択してください</option>
+          <% @employees.each do |employee| %>
+            <option value="<%= employee[:id] %>" <%= 'selected' if employee[:id] == @applicant_id %>>
+              <%= employee[:display_name] %>
+            </option>
+          <% end %>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="shift-date">交代したいシフトの日付:</label>
+        <input type="date" id="shift-date" name="shift_date" value="<%= @date %>" required>
+      </div>
+
+      <div class="form-group">
+        <label>交代したいシフトの時間:</label>
+        <input type="time" id="start-time" name="start_time" value="<%= @start %>" required> ～ 
+        <input type="time" id="end-time" name="end_time" value="<%= @end %>" required>
+      </div>
+      
+      <div class="form-group">
+        <label>交代を依頼する相手 (複数選択可)</label>
+        <div id="employee-list">
+          <p>従業員を読み込んでいます...</p>
+        </div>
+      </div>
+      
+      <button type="submit" class="button">この内容でリクエストを送信</button>
+    </form>
+
+    <hr>
+    <a href="#" onclick="goBack(); return false;">ホーム画面に戻る</a>
+
+    <script>
+      // サーバーから渡された変数を、JavaScriptの変数として受け取る
+      var applicantIdFromUrl = "<%= @applicant_id %>";
+      var dateFromUrl = "<%= @date %>";
+      var startFromUrl = "<%= @start %>";
+      var endFromUrl = "<%= @end %>";
+      var employees = <%= raw @employees.to_json %>;
+
+      /**
+       * ページが読み込まれたときに実行される
+       */
+      window.addEventListener('load', function() {
+        populateEmployees(employees);
+        document.getElementById('request-form').addEventListener('submit', handleFormSubmit);
+
+        // 【修正点】URLSearchParamsを使わず、受け取った変数でフォームの値をセットする
+        if (dateFromUrl && dateFromUrl !== 'undefined') {
+          document.getElementById('shift-date').value = dateFromUrl;
+        }
+        if (startFromUrl && startFromUrl !== 'undefined') {
+          document.getElementById('start-time').value = startFromUrl;
+        }
+        if (endFromUrl && endFromUrl !== 'undefined') {
+          document.getElementById('end-time').value = endFromUrl;
+        }
+      });
+
+      /**
+       * サーバーから受け取った従業員リストを基に、UIを生成する
+       */
+      function populateEmployees(employees) {
+        var applicantSelect = document.getElementById('applicant-select');
+        var approverContainer = document.getElementById('employee-list');
+        approverContainer.innerHTML = '';
+        approverContainer.className = 'approver-card-container';
+
+        if (!employees || employees.length === 0) {
+          approverContainer.textContent = '従業員が見つかりませんでした。';
+          return;
+        }
+
+        var applicantFoundInList = false;
+        employees.forEach(function(employee) {
+          var option = document.createElement('option');
+          option.value = employee.id;
+          option.textContent = employee.display_name;
+          applicantSelect.appendChild(option);
+          
+          if (String(employee.id) === String(applicantIdFromUrl)) {
+            applicantFoundInList = true;
+          }
+        });
+
+        applicantSelect.addEventListener('change', function(event) {
+          var selectedApplicantId = event.target.value;
+          approverContainer.innerHTML = '';
+
+          employees.forEach(function(employee) {
+              if (String(employee.id) !== String(selectedApplicantId)) {
+                  var wrapper = document.createElement('div');
+                  wrapper.className = 'approver-wrapper';
+                  
+                  var checkbox = document.createElement('input');
+                  checkbox.type = 'checkbox';
+                  checkbox.id = 'emp-' + employee.id;
+                  checkbox.name = 'approvers';
+                  checkbox.value = employee.id;
+                  
+                  var label = document.createElement('label');
+                  label.className = 'approver-card';
+                  label.htmlFor = 'emp-' + employee.id;
+                  label.textContent = employee.display_name;
+
+                  // ★修正: クリックイベントでカードの見た目とチェック状態を切り替える
+                  label.onclick = function(e) {
+                      e.preventDefault(); // デフォルトの動作を防止
+                      if (label.classList.contains('selected')) {
+                          label.classList.remove('selected');
+                          checkbox.checked = false;
+                      } else {
+                          label.classList.add('selected');
+                          checkbox.checked = true;
+                      }
+                  };
+                  
+                  wrapper.appendChild(checkbox);
+                  wrapper.appendChild(label);
+                  approverContainer.appendChild(wrapper);
+              }
+          });
+        });
+
+        if (applicantIdFromUrl && applicantIdFromUrl !== 'undefined' && applicantFoundInList) {
+          applicantSelect.value = applicantIdFromUrl;
+          applicantSelect.dispatchEvent(new Event('change'));
+        }
+      }
+
+      function handleFormSubmit(event) {
+        event.preventDefault();
+        var applicantId = document.getElementById('applicant-select').value;
+        var shiftDate = document.getElementById('shift-date').value;
+        var startTime = document.getElementById('start-time').value;
+        var endTime = document.getElementById('end-time').value;
+        var selectedApprovers = [];
+        
+        document.querySelectorAll('.approver-card.selected').forEach(function(card) {
+          selectedApprovers.push(card.htmlFor.replace('emp-', ''));
+        });
+        
+        if (!applicantId || !shiftDate || !startTime || !endTime || selectedApprovers.length === 0) {
+          alert("申請者を含め、すべての項目を入力・選択してください。");
+          return;
+        }
+        var startDateTimeStr = shiftDate + 'T' + startTime;
+        var endDateTimeStr = shiftDate + 'T' + endTime;
+        document.querySelector('button[type="submit"]').disabled = true;
+        document.querySelector('button[type="submit"]').textContent = "送信中...";
+        
+        // Rails用のフォーム送信処理
+        var form = document.getElementById('request-form');
+        var formData = new FormData(form);
+        
+        // 選択された承認者を追加
+        selectedApprovers.forEach(function(approverId) {
+          formData.append('approver_ids[]', approverId);
+        });
+
+        fetch(form.action, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(response => {
+          if (response.ok) {
+            onRequestSuccess();
+          } else {
+            throw new Error('送信に失敗しました');
+          }
+        })
+        .catch(error => {
+          onRequestFailure(error);
+        });
+      }
+      
+      function onRequestSuccess() {
+        alert("シフト交代リクエストを送信しました。");
+        goBack();
+      }
+      
+      function onRequestFailure(error) {
+        alert("エラーが発生しました: " + error.message);
+        document.querySelector('button[type="submit"]').disabled = false;
+        document.querySelector('button[type="submit"]').textContent = "この内容でリクエストを送信";
+      }
+      
+      function goBack() {
+        window.location.href = '<%= shifts_path %>';
+      }
+    </script>
+  </body>
+</html>

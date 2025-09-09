@@ -325,19 +325,21 @@
     var dayStr = String(day).padStart(2, '0');
     var dateStr = calendarYear + '-' + monthStr + '-' + dayStr;
 
-    // TODO: シフト交代リクエストフォームへの遷移を実装
-    showMessage('シフト交代リクエスト機能は実装中です', 'info');
+    var baseUrl = '<%= new_shift_request_path %>';
+    var params = '?applicant_id=' + encodeURIComponent(employeeId) +
+                '&date=' + encodeURIComponent(dateStr) +
+                '&start=' + encodeURIComponent(startTime) +
+                '&end=' + encodeURIComponent(endTime);
+    window.location.href = baseUrl + params;
   }
 
   // ナビゲーション関数
   function goToRequestList() {
-    // TODO: リクエスト一覧ページへの遷移を実装
-    showMessage('リクエスト一覧機能は実装中です', 'info');
+    window.location.href = '<%= shift_approvals_path %>';
   }
 
   function goToShiftAddForm() {
-    // TODO: シフト追加依頼フォームへの遷移を実装
-    showMessage('シフト追加依頼機能は実装中です', 'info');
+    window.location.href = '<%= new_shift_addition_path %>';
   }
 
   // メッセージ表示

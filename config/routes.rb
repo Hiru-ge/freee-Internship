@@ -30,6 +30,28 @@ Rails.application.routes.draw do
   get "shifts/data", to: "shifts#data", as: :shifts_data
   get "shifts/employees", to: "shifts#employees", as: :shifts_employees
   
+  # シフト交代・追加リクエスト
+  get "shifts/request", to: "shift_requests#new", as: :new_shift_request
+  post "shifts/request", to: "shift_requests#create", as: :shift_requests
+  get "shifts/add", to: "shift_requests#new_addition", as: :new_shift_addition
+  post "shifts/add", to: "shift_requests#create_addition", as: :shift_additions
+  
+  # シフト承認
+  get "shifts/approval", to: "shift_approvals#index", as: :shift_approvals
+  post "shifts/approval/approve", to: "shift_approvals#approve", as: :approve_shift_request
+  post "shifts/approval/reject", to: "shift_approvals#reject", as: :reject_shift_request
+
+  # API エンドポイント（GAS互換）
+  namespace :api do
+    resources :shift_requests, only: [] do
+      collection do
+        get :pending_requests_for_user
+        get :pending_change_requests
+        get :pending_addition_requests
+      end
+    end
+  end
+  
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.

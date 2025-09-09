@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      /* ===== 基本設定 ===== */
+      body {
+        font-family: 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.6;
+        color: #f0f0f0;
+        background-color: #2c2c2c;
+        margin: 0;
+        padding: 20px;
+      }
+
+      /* ===== 見出し ===== */
+      h1, h2, h3 {
+        color: #f0f0f0;
+        margin-top: 15px;
+        margin-bottom: 10px;
+      }
+      h1 { font-size: 1.8em; }
+      h2 { font-size: 1.3em; }
+      h3 { font-size: 1.1em; }
+
+      /* ===== フォーム要素 ===== */
+      input[type="text"], input[type="date"], input[type="time"], input[type="password"], select, textarea {
+        padding: 12px;
+        margin-top: 4px;
+        margin-bottom: 12px;
+        border-radius: 8px;
+        box-sizing: border-box;
+        background-color: #555;
+        color: #f0f0f0;
+        border: 1px solid #777;
+        font-size: 16px;
+        width: 300px;
+        max-width: 100%;
+      }
+
+      input:focus, select:focus, textarea:focus {
+        outline: none;
+        border-color: #ffca28;
+        box-shadow: 0 0 5px rgba(255, 202, 40, 0.3);
+      }
+
+      input::placeholder {
+        color: #999;
+      }
+
+      /* ===== ボタン ===== */
+      .button, input[type="submit"] {
+        background-color: #ffca28;
+        color: #212121;
+        padding: 10px 16px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.9em;
+        font-weight: bold;
+        transition: background-color 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      .button:hover, input[type="submit"]:hover {
+        background-color: #ffb300;
+      }
+
+      .button:disabled {
+        background-color: #666;
+        cursor: not-allowed;
+      }
+
+      .button.deny {
+        background-color: #ef5350;
+        color: #f0f0f0;
+      }
+
+      .button.deny:hover {
+        background-color: #e53935;
+      }
+
+      .button.primary {
+        background-color: #4caf50;
+        color: white;
+      }
+
+      .button.primary:hover {
+        background-color: #45a049;
+        transform: translateY(-2px);
+      }
+
+      .button.secondary {
+        background-color: #666;
+        color: white;
+      }
+
+      .button.secondary:hover {
+        background-color: #777;
+        transform: translateY(-2px);
+      }
+
+      .button.logout {
+        background-color: #f44336;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+
+      .button.logout:hover {
+        background-color: #da190b;
+      }
+
+      /* ===== フォームグループ ===== */
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        color: #f0f0f0;
+        font-weight: bold;
+      }
+
+      .form-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 30px;
+      }
+
+      /* ===== リンク ===== */
+      a {
+        color: #ffca28;
+        text-decoration: none;
+      }
+
+      a:hover {
+        color: #ffb300;
+        text-decoration: underline;
+      }
+
+      hr {
+        border: none;
+        border-top: 1px solid #555;
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>シフト追加リクエスト</h1>
+    <p>従業員を選択し、追加したいシフトの日時を入力して依頼を送信します。</p>
+    <p>※ このシフト追加は、オーナーの方が臨時シフトを追加することを想定したものです。シフト交代は、シフト一覧ページからお願いします。</p>
+
+    <form id="add-form" action="<%= shift_additions_path %>" method="post">
+      <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+      
+      <div class="form-group">
+        <label for="employee-select">依頼する相手:</label>
+        <select id="employee-select" name="target_employee_id" required>
+          <option value="">従業員を読み込んでいます...</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="shift-date">追加したいシフトの日付:</label>
+        <input type="date" id="shift-date" name="shift_date" required>
+      </div>
+
+      <div class="form-group">
+        <label>追加したいシフトの時間:</label>
+        <input type="time" id="start-time" name="start_time" required> ～ 
+        <input type="time" id="end-time" name="end_time" required>
+      </div>
+
+      <button type="submit" class="button">この内容でリクエストを送信</button>
+    </form>
+
+    <hr>
+    <a href="#" onclick="goBack(); return false;">ホーム画面に戻る</a>
+
+  <script>
+    var employees = <%= raw @employees.to_json %>;
+
+    /**
+     * ページが読み込まれたときに実行される
+     */
+    window.addEventListener('load', function() {
+      // 従業員リストを取得して、ドロップダウンを生成
+      populateEmployees(employees);
+      
+      // フォームの送信イベントを監視
+      document.getElementById('add-form').addEventListener('submit', handleFormSubmit);
+    });
+
+    /**
+     * サーバーから受け取った従業員リストを基に、ドロップダウンを描画する
+     */
+    function populateEmployees(employees) {
+      var select = document.getElementById('employee-select');
+      select.innerHTML = '<option value="">選択してください</option>'; // 初期化
+
+      if (employees && employees.length > 0) {
+        employees.forEach(function(employee) {
+          // オーナー自身（例: 店長 太郎）はリストに表示しない
+          if (employee.display_name === '店長 太郎') {
+            return;
+          }
+          var option = document.createElement('option');
+          option.value = employee.id;
+          option.textContent = employee.display_name;
+          select.appendChild(option);
+        });
+      }
+    }
+
+    /**
+     * フォームが送信されたときに実行される
+     */
+    function handleFormSubmit(event) {
+      event.preventDefault(); // ページの再読み込みを防止
+
+      // フォームから値を取得
+      var approverId = document.getElementById('employee-select').value;
+      var shiftDate = document.getElementById('shift-date').value;
+      var startTime = document.getElementById('start-time').value;
+      var endTime = document.getElementById('end-time').value;
+
+      // 入力チェック
+      if (!approverId || !shiftDate || !startTime || !endTime) {
+        alert("すべての項目を選択・入力してください。");
+        return;
+      }
+
+      // 日時を文字列として結合
+      var startDateTimeStr = shiftDate + 'T' + startTime;
+      var endDateTimeStr = shiftDate + 'T' + endTime;
+
+      // ボタンを無効化
+      document.querySelector('button[type="submit"]').disabled = true;
+      document.querySelector('button[type="submit"]').textContent = "送信中...";
+
+      // Rails用のフォーム送信処理
+      var form = document.getElementById('add-form');
+      var formData = new FormData(form);
+
+      fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      })
+      .then(response => {
+        if (response.ok) {
+          onRequestSuccess();
+        } else {
+          throw new Error('送信に失敗しました');
+        }
+      })
+      .catch(error => {
+        onRequestFailure(error);
+      });
+    }
+
+    /**
+     * リクエスト成功時の処理
+     */
+    function onRequestSuccess() {
+      alert("シフト追加リクエストを送信しました。");
+      goBack();
+    }
+    
+    /**
+     * リクエスト失敗時の処理
+     */
+    function onRequestFailure(error) {
+      alert("エラーが発生しました: " + error.message);
+      // ボタンを再度有効化
+      document.querySelector('button[type="submit"]').disabled = false;
+      document.querySelector('button[type="submit"]').textContent = "この内容でリクエストを送信";
+    }
+
+    function goBack() {
+      window.location.href = '<%= shifts_path %>';
+    }
+  </script>
+  </body>
+</html>

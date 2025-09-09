@@ -3,11 +3,11 @@ class ApplicationController < ActionController::Base
   allow_browser versions: :modern
   
   # 認証機能
-  before_action :authenticate_user!
+  before_action :require_login
   
   private
   
-  def authenticate_user!
+  def require_login
     return if session[:authenticated] && session[:employee_id]
     
     redirect_to login_auth_path, alert: 'ログインが必要です'

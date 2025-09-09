@@ -1,5 +1,5 @@
 class HomeController < ApplicationController
-  skip_before_action :authenticate_user!, only: [:index]
+  skip_before_action :require_login, only: [:index]
   
   def index
     # 認証されている場合はダッシュボードにリダイレクト

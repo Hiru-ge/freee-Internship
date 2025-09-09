@@ -1,5 +1,5 @@
 class AuthController < ApplicationController
-  skip_before_action :authenticate_user!, only: [:login, :initial_password, :forgot_password, :verify_password_reset, :reset_password, :send_verification_code, :verify_code]
+  skip_before_action :require_login, only: [:login, :initial_password, :forgot_password, :verify_password_reset, :reset_password, :send_verification_code, :verify_code]
   before_action :set_employee, only: [:password_change]
   before_action :load_employees, only: [:login, :initial_password, :forgot_password]
   

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      /* ===== 基本設定 ===== */
+      body {
+        font-family: 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.6;
+        color: #f0f0f0;
+        background-color: #2c2c2c;
+        margin: 0;
+        padding: 20px;
+      }
+
+      /* ===== 見出し ===== */
+      h1, h2, h3 {
+        color: #f0f0f0;
+        margin-top: 15px;
+        margin-bottom: 10px;
+      }
+      h1 { font-size: 1.8em; }
+      h2 { font-size: 1.3em; }
+      h3 { font-size: 1.1em; }
+
+      /* ===== フォーム要素 ===== */
+      input[type="text"], input[type="date"], input[type="time"], input[type="password"], select, textarea {
+        padding: 12px;
+        margin-top: 4px;
+        margin-bottom: 12px;
+        border-radius: 8px;
+        box-sizing: border-box;
+        background-color: #555;
+        color: #f0f0f0;
+        border: 1px solid #777;
+        font-size: 16px;
+        width: 300px;
+        max-width: 100%;
+      }
+
+      input:focus, select:focus, textarea:focus {
+        outline: none;
+        border-color: #ffca28;
+        box-shadow: 0 0 5px rgba(255, 202, 40, 0.3);
+      }
+
+      input::placeholder {
+        color: #999;
+      }
+
+      /* ===== ボタン ===== */
+      .button, input[type="submit"] {
+        background-color: #ffca28;
+        color: #212121;
+        padding: 10px 16px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.9em;
+        font-weight: bold;
+        transition: background-color 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      .button:hover, input[type="submit"]:hover {
+        background-color: #ffb300;
+      }
+
+      .button:disabled {
+        background-color: #666;
+        cursor: not-allowed;
+      }
+
+      .button.deny {
+        background-color: #ef5350;
+        color: #f0f0f0;
+      }
+
+      .button.deny:hover {
+        background-color: #e53935;
+      }
+
+      .button.primary {
+        background-color: #4caf50;
+        color: white;
+      }
+
+      .button.primary:hover {
+        background-color: #45a049;
+        transform: translateY(-2px);
+      }
+
+      .button.secondary {
+        background-color: #666;
+        color: white;
+      }
+
+      .button.secondary:hover {
+        background-color: #777;
+        transform: translateY(-2px);
+      }
+
+      .button.logout {
+        background-color: #f44336;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+
+      .button.logout:hover {
+        background-color: #da190b;
+      }
+
+      /* ===== フォームグループ ===== */
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        color: #f0f0f0;
+        font-weight: bold;
+      }
+
+      .form-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 30px;
+      }
+
+      /* ===== リクエストアイテム ===== */
+      .request-item {
+        border: 1px solid #555;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 8px;
+        background-color: #4a4a4a;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        max-width: 600px;
+        width: 100%;
+      }
+      
+      .request-info {
+        margin-bottom: 10px;
+        color: #f0f0f0;
+      }
+      
+      .request-actions {
+        margin-top: 10px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      
+      .request-actions button {
+        margin-right: 10px;
+      }
+      
+      .button.approve {
+        background-color: #4CAF50;
+        color: white;
+      }
+      
+      .button.deny {
+        background-color: #f44336;
+        color: white;
+      }
+
+      /* ===== リンク ===== */
+      a {
+        color: #ffca28;
+        text-decoration: none;
+      }
+
+      a:hover {
+        color: #ffb300;
+        text-decoration: underline;
+      }
+
+      hr {
+        border: none;
+        border-top: 1px solid #555;
+        margin: 20px 0;
+      }
+
+      /* ===== リスト ===== */
+      ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      li {
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>自分へのシフトリクエスト一覧</h1>
+
+    <ul id="request-list-container">
+      <% if @shift_exchanges.empty? && @shift_additions.empty? %>
+        <p>あなた宛の申請中リクエストはありません。</p>
+      <% else %>
+        <% @shift_exchanges.each do |exchange| %>
+          <li class="request-item" id="req-<%= exchange.request_id %>">
+            <div class="request-info">
+              <strong>種別:</strong> シフト交代<br>
+              <strong>申請者:</strong> <%= @employee_names[exchange.requester_id]&.dig(:display_name) || exchange.requester_id %><br>
+              <strong>依頼日時:</strong> <%= exchange.shift&.shift_date&.strftime('%m/%d') %> <%= exchange.shift&.start_time&.strftime('%H:%M') %> - <%= exchange.shift&.end_time&.strftime('%H:%M') %>
+            </div>
+            
+            <div class="request-actions">
+              <button class="button approve" onclick="handleApprove('exchange', '<%= exchange.request_id %>', '<%= current_employee_id %>')">承認</button>
+              <button class="button deny" onclick="handleDeny('exchange', '<%= exchange.request_id %>', '<%= current_employee_id %>')">否認</button>
+            </div>
+          </li>
+        <% end %>
+
+        <% @shift_additions.each do |addition| %>
+          <li class="request-item" id="req-<%= addition.request_id %>">
+            <div class="request-info">
+              <strong>種別:</strong> シフト追加<br>
+              <strong>申請者:</strong> <%= @employee_names[addition.requester_id]&.dig(:display_name) || addition.requester_id %><br>
+              <strong>依頼日時:</strong> <%= addition.shift_date.strftime('%m/%d') %> <%= addition.start_time.strftime('%H:%M') %> - <%= addition.end_time.strftime('%H:%M') %>
+            </div>
+            
+            <div class="request-actions">
+              <button class="button approve" onclick="handleApprove('addition', '<%= addition.request_id %>', '<%= current_employee_id %>')">承認</button>
+              <button class="button deny" onclick="handleDeny('addition', '<%= addition.request_id %>', '<%= current_employee_id %>')">否認</button>
+            </div>
+          </li>
+        <% end %>
+      <% end %>
+    </ul>
+
+    <hr>
+    <a href="#" onclick="goToMyPage(); return false;">マイページトップに戻る</a>
+
+    <script>
+      var currentUserId = "<%= current_employee_id %>";
+
+      // ★★★ handleApprove / handleDeny を、リクエスト種別に応じて呼び出す関数を切り替えるように修正 ★★★
+      function handleApprove(type, requestId, approverId) {
+        document.querySelector('#req-' + requestId + ' .approve').disabled = true;
+        document.querySelector('#req-' + requestId + ' .deny').disabled = true;
+        
+        var formData = new FormData();
+        formData.append('authenticity_token', document.querySelector('meta[name="csrf-token"]').content);
+        formData.append('request_id', requestId);
+        formData.append('request_type', type);
+        
+        fetch('<%= approve_shift_request_path %>', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(response => {
+          if (response.ok) {
+            document.getElementById('req-' + requestId).innerHTML = '<strong>承認処理が完了しました。</strong>';
+            // 処理完了後にリクエスト一覧を再読み込み
+            setTimeout(function() {
+              location.reload();
+            }, 1000);
+          } else {
+            throw new Error('承認に失敗しました');
+          }
+        })
+        .catch(error => {
+          handleFailure(error);
+        });
+      }
+
+      function handleDeny(type, requestId, denierId) {
+        document.querySelector('#req-' + requestId + ' .approve').disabled = true;
+        document.querySelector('#req-' + requestId + ' .deny').disabled = true;
+        
+        var formData = new FormData();
+        formData.append('authenticity_token', document.querySelector('meta[name="csrf-token"]').content);
+        formData.append('request_id', requestId);
+        formData.append('request_type', type);
+        
+        fetch('<%= reject_shift_request_path %>', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(response => {
+          if (response.ok) {
+            document.getElementById('req-' + requestId).innerHTML = '<strong>否認処理が完了しました。</strong>';
+            // 処理完了後にリクエスト一覧を再読み込み
+            setTimeout(function() {
+              location.reload();
+            }, 1000);
+          } else {
+            throw new Error('否認に失敗しました');
+          }
+        })
+        .catch(error => {
+          handleFailure(error);
+        });
+      }
+
+      function handleFailure(error) {
+        alert('エラーが発生しました: ' + error.message);
+        location.reload();
+      }
+
+      function goToMyPage() {
+        window.location.href = '<%= shifts_path %>';
+      }
+    </script>
+  </body>
+</html>

@@ -90,3 +90,108 @@ puts "従業員別シフト数:"
 Shift.group(:employee_id).count.each do |employee_id, count|
   puts "  #{employee_id}: #{count}件"
 end
+
+# シフト変更・追加リクエストのサンプルデータ
+puts "\nシフト変更・追加リクエストのサンプルデータを作成中..."
+
+# 既存のリクエストデータを削除
+ShiftExchange.destroy_all
+ShiftAddition.destroy_all
+
+# シフト変更リクエストのサンプルデータ
+puts "シフト変更リクエストを作成中..."
+
+# リクエスト1: テスト 太郎 → テスト 次郎への交代依頼
+shift1 = Shift.find_by(employee_id: "3316116", shift_date: Date.new(year, month, 3))
+if shift1
+  ShiftExchange.create!(
+    request_id: SecureRandom.uuid,
+    requester_id: "3316116", # テスト 太郎
+    approver_id: "3316120",  # テスト 次郎
+    shift_id: shift1.id,
+    status: "pending",
+    requested_at: Time.current - 2.hours
+  )
+end
+
+# リクエスト2: テスト 次郎 → テスト 三郎への交代依頼
+shift2 = Shift.find_by(employee_id: "3316120", shift_date: Date.new(year, month, 7))
+if shift2
+  ShiftExchange.create!(
+    request_id: SecureRandom.uuid,
+    requester_id: "3316120", # テスト 次郎
+    approver_id: "3317741",  # テスト 三郎
+    shift_id: shift2.id,
+    status: "pending",
+    requested_at: Time.current - 1.hour
+  )
+end
+
+# リクエスト3: テスト 三郎 → 店長 太郎への交代依頼（承認済み）
+shift3 = Shift.find_by(employee_id: "3317741", shift_date: Date.new(year, month, 10))
+if shift3
+  ShiftExchange.create!(
+    request_id: SecureRandom.uuid,
+    requester_id: "3317741", # テスト 三郎
+    approver_id: "3313254",  # 店長 太郎
+    shift_id: shift3.id,
+    status: "approved",
+    requested_at: Time.current - 3.hours,
+    responded_at: Time.current - 2.hours
+  )
+end
+
+# シフト追加リクエストのサンプルデータ（オーナーが従業員に依頼）
+puts "シフト追加リクエストを作成中..."
+
+# リクエスト1: オーナー → テスト 太郎への追加シフト依頼（承認済み）
+ShiftAddition.create!(
+  request_id: SecureRandom.uuid,
+  requester_id: "3313254", # オーナー（店長 太郎）
+  target_employee_id: "3316116", # テスト 太郎
+  shift_date: Date.new(year, month, 15),
+  start_time: "18:00",
+  end_time: "20:00",
+  status: "approved",
+  requested_at: Time.current - 4.hours,
+  responded_at: Time.current - 3.hours
+)
+
+# リクエスト2: オーナー → テスト 次郎への追加シフト依頼（拒否済み）
+ShiftAddition.create!(
+  request_id: SecureRandom.uuid,
+  requester_id: "3313254", # オーナー（店長 太郎）
+  target_employee_id: "3316120", # テスト 次郎
+  shift_date: Date.new(year, month, 18),
+  start_time: "20:00",
+  end_time: "23:00",
+  status: "rejected",
+  requested_at: Time.current - 5.hours,
+  responded_at: Time.current - 4.hours
+)
+
+# リクエスト3: オーナー → テスト 三郎への追加シフト依頼（承認待ち）
+ShiftAddition.create!(
+  request_id: SecureRandom.uuid,
+  requester_id: "3313254", # オーナー（店長 太郎）
+  target_employee_id: "3317741", # テスト 三郎
+  shift_date: Date.new(year, month, 22),
+  start_time: "18:00",
+  end_time: "23:00",
+  status: "pending",
+  requested_at: Time.current - 30.minutes
+)
+
+puts "シフト変更・追加リクエストのサンプルデータ作成完了"
+puts "作成されたシフト変更リクエスト数: #{ShiftExchange.count}"
+puts "作成されたシフト追加リクエスト数: #{ShiftAddition.count}"
+puts ""
+puts "リクエスト詳細:"
+puts "シフト変更リクエスト:"
+ShiftExchange.includes(:shift).each do |exchange|
+  puts "  - #{exchange.requester_id} → #{exchange.approver_id} (#{exchange.shift&.shift_date} #{exchange.shift&.start_time}-#{exchange.shift&.end_time}) [#{exchange.status}]"
+end
+puts "シフト追加リクエスト:"
+ShiftAddition.all.each do |addition|
+  puts "  - #{addition.requester_id} → #{addition.target_employee_id} (#{addition.shift_date} #{addition.start_time}-#{addition.end_time}) [#{addition.status}]"
+end

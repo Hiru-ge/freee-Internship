@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_09_113815) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_09_123633) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -23,6 +23,40 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_09_113815) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["employee_id"], name: "index_employees_on_employee_id", unique: true
+  end
+
+  create_table "shift_additions", force: :cascade do |t|
+    t.string "request_id", null: false
+    t.string "target_employee_id", null: false
+    t.date "shift_date", null: false
+    t.time "start_time", null: false
+    t.time "end_time", null: false
+    t.string "status", default: "pending"
+    t.datetime "requested_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }
+    t.datetime "responded_at", precision: nil
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "requester_id", default: "3313254", null: false
+    t.index ["request_id"], name: "index_shift_additions_on_request_id", unique: true
+    t.index ["requester_id"], name: "index_shift_additions_on_requester_id"
+    t.index ["status"], name: "index_shift_additions_on_status"
+    t.index ["target_employee_id"], name: "index_shift_additions_on_target_employee_id"
+  end
+
+  create_table "shift_exchanges", force: :cascade do |t|
+    t.string "request_id", null: false
+    t.string "requester_id", null: false
+    t.string "approver_id", null: false
+    t.integer "shift_id"
+    t.string "status", default: "pending"
+    t.datetime "requested_at", precision: nil, default: -> { "CURRENT_TIMESTAMP" }
+    t.datetime "responded_at", precision: nil
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["approver_id"], name: "index_shift_exchanges_on_approver_id"
+    t.index ["request_id"], name: "index_shift_exchanges_on_request_id", unique: true
+    t.index ["requester_id"], name: "index_shift_exchanges_on_requester_id"
+    t.index ["status"], name: "index_shift_exchanges_on_status"
   end
 
   create_table "shifts", force: :cascade do |t|
