@@ -1,8 +1,16 @@
-# 勤怠管理チェックアプリ仕様書
+# 勤怠管理チェックアプリ仕様書（Rails版）
 
 ## 1. 概要
 
 ## 突発的なシフト交代が頻発する小規模飲食店を救う勤怠管理システム！
+
+### 1.1. 技術スタック（Rails移行後）
+- **フロントエンド**: HTML/CSS/JavaScript（既存UI維持）
+- **バックエンド**: Ruby on Rails 7.0
+- **データベース**: PostgreSQL（Heroku）
+- **認証**: LINE認証 + カスタム認証システム
+- **デプロイ**: Heroku
+- **外部API**: Google Sheets API（既存データ連携）、freee API
 
 ### 1.2. ターゲットユーザー
 
@@ -261,34 +269,94 @@ graph TD
 
 ---
 
-## 4. データ構造（Googleスプレッドシート）
+## 4. データ構造（PostgreSQL）
 
-### 4.1. シフト表シート
+### 4.1. 主要テーブル構成
 
-| 2025年8月 |  |  |  |  |  |
-| --- | --- | --- | --- | --- | --- |
-| 従業員ID | **従業員名** | **1** | **2** | **3** | ... |
-| 101 | テスト太郎 | 18-20 | 18-20 |  | ... |
-| 102 | テスト次郎 | 20-24 |  | 18-20 | ... |
+**詳細なスキーマ設計**: [データベーススキーマ設計書](./database-schema-design.md)
 
-### 4.2. シフト交代管理シート
+#### 4.1.1. 従業員テーブル (employees)
+```sql
+CREATE TABLE employees (
+  id SERIAL PRIMARY KEY,
+  employee_id VARCHAR(7) UNIQUE NOT NULL,  -- freeeの従業員ID
+  name VARCHAR(100) NOT NULL,              -- 従業員名
+  email VARCHAR(255),                      -- メールアドレス
+  role VARCHAR(20) DEFAULT 'employee',     -- 'employee' or 'owner'
+  base_pay INTEGER,                        -- 基本時給
+  password_hash VARCHAR(255),              -- パスワードハッシュ
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
 
-| **申請ID** | **申請者ID** | **承認者ID** | **対象シフト開始日時** | **対象シフト終了日時** | **ステータス** |
-| --- | --- | --- | --- | --- | --- |
-| (UUIDなど) | (freeeのempId) | (freeeのempId) | (YYYY-MM-DD HH:MM) | (YYYY-MM-DD HH:MM) | (申請中/承認/否認) |
+#### 4.1.2. シフトテーブル (shifts)
+```sql
+CREATE TABLE shifts (
+  id SERIAL PRIMARY KEY,
+  employee_id VARCHAR(7) REFERENCES employees(employee_id),
+  shift_date DATE NOT NULL,                  -- シフト日付
+  start_time TIME NOT NULL,                  -- 開始時間
+  end_time TIME NOT NULL,                    -- 終了時間
+  is_modified BOOLEAN DEFAULT FALSE,         -- シフト変更フラグ
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
 
-### 4.2.1. シフト追加管理シート（新規追加）
+#### 4.1.3. シフト交代管理テーブル (shift_exchanges)
+```sql
+CREATE TABLE shift_exchanges (
+  id SERIAL PRIMARY KEY,
+  request_id VARCHAR(36) UNIQUE NOT NULL,    -- UUID
+  requester_id VARCHAR(7) REFERENCES employees(employee_id),
+  approver_id VARCHAR(7) REFERENCES employees(employee_id),
+  shift_id INTEGER REFERENCES shifts(id),
+  status VARCHAR(20) DEFAULT 'pending',      -- 'pending', 'approved', 'rejected'
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
 
-| **申請ID** | **依頼対象従業員ID** | **対象シフト開始日時** | **対象シフト終了日時** | **ステータス** |
-| --- | --- | --- | --- | --- |
-| (UUIDなど) | (freeeのempId) | (YYYY-MM-DD HH:MM) | (YYYY-MM-DD HH:MM) | (申請中/承認済み/否認済み) |
+#### 4.1.4. 勤怠記録テーブル (attendance_records)
+```sql
+CREATE TABLE attendance_records (
+  id SERIAL PRIMARY KEY,
+  employee_id VARCHAR(7) REFERENCES employees(employee_id),
+  work_date DATE NOT NULL,                   -- 勤務日
+  clock_in_time TIMESTAMP,                   -- 出勤時刻
+  clock_out_time TIMESTAMP,                  -- 退勤時刻
+  break_duration INTEGER DEFAULT 0,          -- 休憩時間（分）
+  total_work_hours DECIMAL(4,2),             -- 総労働時間
+  daily_wage INTEGER,                         -- 日給
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
 
+#### 4.1.5. LINEユーザーテーブル (line_users)
+```sql
+CREATE TABLE line_users (
+  id SERIAL PRIMARY KEY,
+  line_user_id VARCHAR(100) UNIQUE NOT NULL,  -- LINEユーザーID
+  employee_id VARCHAR(7) REFERENCES employees(employee_id),
+  display_name VARCHAR(100),                  -- LINE表示名
+  is_group BOOLEAN DEFAULT FALSE,             -- グループLINEかどうか
+  authenticated_at TIMESTAMP,                 -- 認証完了日時
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
 
-### 4.3. 認証設定シート（新規追加）
+### 4.2. 既存Google Sheetsデータとの対応
 
-| **従業員ID** | **ハッシュ化パスワード** | **パスワード最終更新日時** | **最終ログイン日時** |
-| --- | --- | --- | --- |
-| (freeeのempId) | (bcrypt等でハッシュ化) | (YYYY-MM-DD HH:MM) | (YYYY-MM-DD HH:MM) |
+| Google Sheets | PostgreSQL | 備考 |
+|---------------|------------|------|
+| シフト表 | shifts | 時間形式: "18-20" → start_time: 18:00, end_time: 20:00 |
+| シフト交代管理 | shift_exchanges | UUID、ステータス管理 |
+| 認証設定 | employees | パスワードハッシュ、権限管理 |
+| 認証コード管理 | verification_codes | 6桁認証コード、有効期限管理 |
+| freee API連携 | attendance_records | 勤怠データ、給与計算 |
 
 ## 今後の展望
 
@@ -303,16 +371,17 @@ graph TD
 - 修正履歴の記録
 - freee連携での自動更新
 
-### LINE連携機能
+### LINE連携機能（Rails移行後）
 
-既存のグループLINEでのシフト交代連携を維持しながら、システムとの自動連携を実現するLINE Bot機能。
+既存のグループLINEでのシフト交代連携を維持しながら、Rails + Herokuでの安定したLINE Bot機能を実現。
 
 **詳細仕様**: [LINE連携機能仕様書](./line-integration.md)
 
 #### 主要機能
-- **グループLINE**: シフト交代依頼・承認、緊急連絡、店舗情報共有
+- **グループLINE**: シフト交代依頼・承認、全員シフト確認、シフト変更通知
 - **個人LINE**: シフト確認、勤怠確認、給与確認、個人通知
-- **自動連携**: シフト表の自動更新、リアルタイム通知
+- **自動連携**: PostgreSQLでのシフト表管理、リアルタイム通知
+- **安定性**: Herokuでの安定したWebhook処理、タイムアウト問題の解決
 
 ### 欠勤の登録
 
