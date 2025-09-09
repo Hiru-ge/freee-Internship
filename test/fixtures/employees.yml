@@ -1,15 +1,22 @@
 # Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
-one:
-  employee_id: MyString
-  password_hash: MyString
-  role: MyString
+owner:
+  employee_id: '3313254'
+  password_hash: <%= BCrypt::Password.create('password123') %>
+  role: 'owner'
   last_login_at: 2025-09-09 17:56:50
   password_updated_at: 2025-09-09 17:56:50
 
-two:
-  employee_id: MyString
-  password_hash: MyString
-  role: MyString
+employee1:
+  employee_id: '3316120'
+  password_hash: <%= BCrypt::Password.create('password123') %>
+  role: 'employee'
+  last_login_at: 2025-09-09 17:56:50
+  password_updated_at: 2025-09-09 17:56:50
+
+employee2:
+  employee_id: '3317741'
+  password_hash: <%= BCrypt::Password.create('password123') %>
+  role: 'employee'
   last_login_at: 2025-09-09 17:56:50
   password_updated_at: 2025-09-09 17:56:50

@@ -29,6 +29,7 @@
   </div>
 
   <!-- 従業員一覧と103万の壁ゲージ（オーナーのみ） -->
+  <% if @is_owner %>
   <div id="employee-list-section" class="employee-list-section">
     <h2>全従業員の給与状況</h2>
     <table border="1" class="employee-list">
@@ -43,8 +44,10 @@
       </tbody>
     </table>
   </div>
+  <% end %>
 
   <!-- 個人の103万の壁ゲージ（従業員のみ） -->
+  <% unless @is_owner %>
   <div id="personal-gauge-section" class="personal-gauge-section">
     <h2>103万の壁ゲージ <span style="font-size: 0.7em; color: #999;">※</span></h2>
     <p style="font-size: 0.8em; color: #999; margin: 5px 0;">※このゲージ状態は、すでに入っているシフトをもとに計算されています</p>
@@ -57,6 +60,7 @@
       </div>
     </div>
   </div>
+  <% end %>
   
   <!-- シフト管理ボタン -->
   <div class="shift-management">

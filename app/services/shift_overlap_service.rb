@@ -51,10 +51,11 @@ class ShiftOverlapService
     # 時間をTimeオブジェクトに変換（日付は同じ日として扱う）
     base_date = existing_shift.shift_date
     
-    existing_start_time = Time.zone.parse("#{base_date} #{existing_start}")
-    existing_end_time = Time.zone.parse("#{base_date} #{existing_end}")
-    new_start_time_obj = Time.zone.parse("#{base_date} #{new_start_time}")
-    new_end_time_obj = Time.zone.parse("#{base_date} #{new_end_time}")
+    # start_timeとend_timeは既にTimeオブジェクトなので、時刻部分のみを取得
+    existing_start_time = Time.zone.parse("#{base_date} #{existing_start.strftime('%H:%M')}")
+    existing_end_time = Time.zone.parse("#{base_date} #{existing_end.strftime('%H:%M')}")
+    new_start_time_obj = Time.zone.parse("#{base_date} #{new_start_time.strftime('%H:%M')}")
+    new_end_time_obj = Time.zone.parse("#{base_date} #{new_end_time.strftime('%H:%M')}")
     
     # 重複チェック: 新しいシフトの開始時間が既存シフトの終了時間より前で、
     # 新しいシフトの終了時間が既存シフトの開始時間より後
