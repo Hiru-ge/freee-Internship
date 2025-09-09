@@ -6,7 +6,7 @@
 
 ### 1.1. 技術スタック（Rails移行後）
 - **フロントエンド**: HTML/CSS/JavaScript（既存UI維持）
-- **バックエンド**: Ruby on Rails 7.0
+- **バックエンド**: Ruby on Rails 8.0.2
 - **データベース**: PostgreSQL（Heroku）
 - **認証**: LINE認証 + カスタム認証システム
 - **デプロイ**: Heroku
@@ -67,34 +67,34 @@
 
 | 画面名 | 役割 | 備考 |
 | --- | --- | --- |
-| ログイン画面 | 従業員の認証を行う。従業員選択とパスワード入力。 | ✅ 実装完了 |
-| マイページトップ | 個人の打刻機能と勤怠履歴を表示。ログイン直後のデフォルト画面。 | ✅ 実装完了 |
-| シフトページ | シフト関連の機能を表示。権限に応じて表示内容が異なる。 | ✅ 実装完了 |
+| ログイン画面 | 従業員の認証を行う。従業員選択とパスワード入力。 | Rails移行対象 |
+| マイページトップ | 個人の打刻機能と勤怠履歴を表示。ログイン直後のデフォルト画面。 | Rails移行対象 |
+| シフトページ | シフト関連の機能を表示。権限に応じて表示内容が異なる。 | Rails移行対象 |
 | 勤怠登録画面 | 個人の詳細な勤怠履歴を表示し、打刻を行う。 | マイページトップに統合 |
-| シフト交代リクエスト画面 | 従業員がシフト交代のリクエストを作成・送信する。 | 既存画面を流用 |
-| シフト交代承認画面 | 従業員が自分宛のシフト交代リクエストを承認または否認する。 | 既存画面を流用 |
-| シフト追加依頼画面 | オーナーが従業員に新しいシフトの追加を依頼する。 | 既存画面を流用 |
-| パスワード変更画面 | パスワードの変更と管理を行う。 | ✅ 実装完了 |
-| 初回パスワード設定画面 | 初回ログイン時のパスワード設定を行う。 | ✅ 実装完了 |
+| シフト交代リクエスト画面 | 従業員がシフト交代のリクエストを作成・送信する。 | Rails移行対象 |
+| シフト交代承認画面 | 従業員が自分宛のシフト交代リクエストを承認または否認する。 | Rails移行対象 |
+| シフト追加依頼画面 | オーナーが従業員に新しいシフトの追加を依頼する。 | Rails移行対象 |
+| パスワード変更画面 | パスワードの変更と管理を行う。 | Rails移行対象 |
+| 初回パスワード設定画面 | 初回ログイン時のパスワード設定を行う。 | Rails移行対象 |
 
 ```mermaid
 graph TD
     subgraph "認証フロー"
-        Login["【実装完了】<br>ログイン画面<br>(従業員選択 + パスワード入力)"]
-        Login -->|"ログイン成功"| MyPage["【実装完了】<br>マイページトップ<br>(個人の打刻機能 + 勤怠履歴)"]
-        Login -->|"初回ログイン"| InitialPassword["【実装完了】<br>初回パスワード設定画面<br>(初回パスワード設定)"]
+        Login["【Rails移行対象】<br>ログイン画面<br>(従業員選択 + パスワード入力)"]
+        Login -->|"ログイン成功"| MyPage["【Rails移行対象】<br>マイページトップ<br>(個人の打刻機能 + 勤怠履歴)"]
+        Login -->|"初回ログイン"| InitialPassword["【Rails移行対象】<br>初回パスワード設定画面<br>(初回パスワード設定)"]
         InitialPassword -->|"パスワード設定完了"| MyPage
-        Login -->|"パスワード忘れ"| PasswordChange["【実装完了】<br>パスワード変更画面<br>(パスワードリセット)"]
+        Login -->|"パスワード忘れ"| PasswordChange["【Rails移行対象】<br>パスワード変更画面<br>(パスワードリセット)"]
         PasswordChange -->|"パスワード変更完了"| MyPage
     end
 
     subgraph "メインアプリケーション"
-        MyPage -->|"「シフトページ」<br>ボタン"| ShiftPage["【実装完了】<br>シフトページ<br>(権限に応じて表示内容が異なる)"]
+        MyPage -->|"「シフトページ」<br>ボタン"| ShiftPage["【Rails移行対象】<br>シフトページ<br>(権限に応じて表示内容が異なる)"]
         MyPage -->|"「パスワード変更」<br>ボタン"| PasswordChange
         ShiftPage -->|"「マイページに戻る」<br>ボタン"| MyPage
-        ShiftPage -->|"シフトのセルをクリック"| RequestForm["【既存】<br>シフト交代リクエスト画面"]
-        ShiftPage -->|"「自分へのリクエスト一覧」<br>ボタン"| Approval("【既存】<br>シフトリクエスト承認画面")
-        ShiftPage -->|"「シフト追加依頼」<br>ボタン（オーナーのみ）"| AddForm["【既存】<br>シフト追加リクエスト画面"]
+        ShiftPage -->|"シフトのセルをクリック"| RequestForm["【Rails移行対象】<br>シフト交代リクエスト画面"]
+        ShiftPage -->|"「自分へのリクエスト一覧」<br>ボタン"| Approval("【Rails移行対象】<br>シフトリクエスト承認画面")
+        ShiftPage -->|"「シフト追加依頼」<br>ボタン（オーナーのみ）"| AddForm["【Rails移行対象】<br>シフト追加リクエスト画面"]
         RequestForm -->|"リクエスト送信"| ShiftPage
         Approval -->|"承認 / 否認"| ShiftPage
         Approval -->|"「マイページトップに戻る」<br>ボタン"| MyPage
@@ -174,6 +174,7 @@ graph TD
 - **計算ロジック**:
     - **時給データ**: freee人事労務API(`GET /api/v1/employees/{id}`)から取得できる`base_pay`を時給として利用する。
     - **実績データ**: freee人事労務APIを利用し、過去の勤怠実績または給与明細を取得して計算に利用する。
+    - **キャッシュ戦略**: 従業員情報は1時間キャッシュし、API呼び出し回数を削減。
 - **実装状況**: ✅ 完了
   - 時間帯別時給システム（通常時給、夜間手当、深夜手当）
   - 給与計算ロジック（`code-wage.js`）
@@ -279,16 +280,20 @@ graph TD
 ```sql
 CREATE TABLE employees (
   id SERIAL PRIMARY KEY,
-  employee_id VARCHAR(7) UNIQUE NOT NULL,  -- freeeの従業員ID
-  name VARCHAR(100) NOT NULL,              -- 従業員名
-  email VARCHAR(255),                      -- メールアドレス
-  role VARCHAR(20) DEFAULT 'employee',     -- 'employee' or 'owner'
-  base_pay INTEGER,                        -- 基本時給
-  password_hash VARCHAR(255),              -- パスワードハッシュ
+  employee_id VARCHAR(7) UNIQUE NOT NULL,  -- freeeの従業員ID（主キー）
+  password_hash VARCHAR(255) NOT NULL,     -- パスワードハッシュ（唯一のローカル情報）
+  role VARCHAR(20) DEFAULT 'employee',     -- 権限管理（'employee' or 'owner'）
+  last_login_at TIMESTAMP,                 -- 最終ログイン日時
+  password_updated_at TIMESTAMP,           -- パスワード最終更新日時
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
+
+**改善点:**
+- 従業員名、メール、時給等の情報はfreee APIから動的取得
+- 認証に必要な情報のみをローカル保存
+- データの重複を排除し、freee APIを唯一の情報源として活用
 
 #### 4.1.2. シフトテーブル (shifts)
 ```sql
@@ -354,9 +359,9 @@ CREATE TABLE line_users (
 |---------------|------------|------|
 | シフト表 | shifts | 時間形式: "18-20" → start_time: 18:00, end_time: 20:00 |
 | シフト交代管理 | shift_exchanges | UUID、ステータス管理 |
-| 認証設定 | employees | パスワードハッシュ、権限管理 |
+| 認証設定 | employees | パスワードハッシュ、権限管理のみ（従業員情報はfreee APIから取得） |
 | 認証コード管理 | verification_codes | 6桁認証コード、有効期限管理 |
-| freee API連携 | attendance_records | 勤怠データ、給与計算 |
+| freee API連携 | attendance_records + employee_cache | 勤怠データ、給与計算、従業員情報キャッシュ |
 
 ## 今後の展望
 
