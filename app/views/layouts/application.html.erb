@@ -20,6 +20,12 @@
     <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
+    
+    <%# 統一されたメッセージ表示システム %>
+    <%= javascript_include_tag 'message_handler' %>
+    
+    <%# 統一されたローディング表示システム %>
+    <%= javascript_include_tag 'loading_handler' %>
   </head>
 
   <body>
