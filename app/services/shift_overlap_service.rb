@@ -17,6 +17,24 @@ class ShiftOverlapService
     overlapping_employees
   end
 
+  # 利用可能な従業員IDと重複している従業員名を返す
+  def get_available_and_overlapping_employees(approver_ids, shift_date, start_time, end_time)
+    available_ids = []
+    overlapping_names = []
+    
+    approver_ids.each do |approver_id|
+      if has_shift_overlap?(approver_id, shift_date, start_time, end_time)
+        employee = Employee.find_by(employee_id: approver_id.to_s)
+        employee_name = employee&.display_name || "ID: #{approver_id}"
+        overlapping_names << employee_name
+      else
+        available_ids << approver_id
+      end
+    end
+    
+    { available_ids: available_ids, overlapping_names: overlapping_names }
+  end
+
   # シフト追加依頼時の重複チェック
   def check_addition_overlap(target_employee_id, shift_date, start_time, end_time)
     if has_shift_overlap?(target_employee_id, shift_date, start_time, end_time)
@@ -34,7 +52,7 @@ class ShiftOverlapService
   def has_shift_overlap?(employee_id, shift_date, start_time, end_time)
     # 既存のシフトを取得
     existing_shifts = Shift.where(
-      employee_id: employee_id,
+      employee_id: employee_id.to_s,
       shift_date: shift_date
     )
     
@@ -51,11 +69,16 @@ class ShiftOverlapService
     # 時間をTimeオブジェクトに変換（日付は同じ日として扱う）
     base_date = existing_shift.shift_date
     
-    # start_timeとend_timeは既にTimeオブジェクトなので、時刻部分のみを取得
+    # 既存シフトの時間をTimeオブジェクトに変換
     existing_start_time = Time.zone.parse("#{base_date} #{existing_start.strftime('%H:%M')}")
     existing_end_time = Time.zone.parse("#{base_date} #{existing_end.strftime('%H:%M')}")
-    new_start_time_obj = Time.zone.parse("#{base_date} #{new_start_time.strftime('%H:%M')}")
-    new_end_time_obj = Time.zone.parse("#{base_date} #{new_end_time.strftime('%H:%M')}")
+    
+    # 新しいシフトの時間をTimeオブジェクトに変換（文字列の場合はそのまま使用）
+    new_start_time_str = new_start_time.is_a?(String) ? new_start_time : new_start_time.strftime('%H:%M')
+    new_end_time_str = new_end_time.is_a?(String) ? new_end_time : new_end_time.strftime('%H:%M')
+    
+    new_start_time_obj = Time.zone.parse("#{base_date} #{new_start_time_str}")
+    new_end_time_obj = Time.zone.parse("#{base_date} #{new_end_time_str}")
     
     # 重複チェック: 新しいシフトの開始時間が既存シフトの終了時間より前で、
     # 新しいシフトの終了時間が既存シフトの開始時間より後

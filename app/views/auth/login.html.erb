@@ -27,17 +27,6 @@
       <%= link_to "初回パスワード設定", initial_password_auth_path, class: "link" %>
     </div>
     
-    <% if flash[:alert] %>
-      <div class="message error">
-        <%= flash[:alert] %>
-      </div>
-    <% end %>
-    
-    <% if flash[:notice] %>
-      <div class="message success">
-        <%= flash[:notice] %>
-      </div>
-    <% end %>
   </div>
 </div>
 

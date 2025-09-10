@@ -30,8 +30,8 @@ class FreeeApiService
       employees = body.is_a?(Array) ? body : body['employees']
       employees ||= []
       
-      # シフト管理に必要な情報のみを返す
-      employees.map do |emp|
+      # シフト管理に必要な情報のみを返す（ID順でソート）
+      employees.sort_by { |emp| emp['id'] }.map do |emp|
         {
           id: emp['id'].to_s,
           display_name: emp['display_name'],

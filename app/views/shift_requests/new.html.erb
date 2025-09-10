@@ -190,15 +190,10 @@
       <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
       
       <div class="form-group">
-        <label for="applicant-select">申請者 (あなたの名前):</label>
-        <select id="applicant-select" name="applicant_id" required>
-          <option value="">選択してください</option>
-          <% @employees.each do |employee| %>
-            <option value="<%= employee[:id] %>" <%= 'selected' if employee[:id] == @applicant_id %>>
-              <%= employee[:display_name] %>
-            </option>
-          <% end %>
-        </select>
+        <label for="applicant-display">申請者 (あなたの名前):</label>
+        <input type="text" id="applicant-display" value="<%= @employees.find { |emp| emp[:id] == @applicant_id }&.dig(:display_name) || '読み込み中...' %>" readonly style="background-color: #666; color: #ccc;">
+        <input type="hidden" id="applicant-select" name="applicant_id" value="<%= @applicant_id %>">
+        <small style="color: #999; font-size: 0.9em;">※ 申請者は変更できません</small>
       </div>
 
       <div class="form-group">
@@ -213,7 +208,8 @@
       </div>
       
       <div class="form-group">
-        <label>交代を依頼する相手 (複数選択可)</label>
+        <label>交代を依頼する相手を選択してください (複数選択可)</label>
+        <p style="color: #999; font-size: 0.9em; margin: 5px 0;">※ 複数の人に同時に依頼できます。誰か一人でも承認されれば交代が成立します。</p>
         <div id="employee-list">
           <p>従業員を読み込んでいます...</p>
         </div>
@@ -223,7 +219,7 @@
     </form>
 
     <hr>
-    <a href="#" onclick="goBack(); return false;">ホーム画面に戻る</a>
+    <a href="#" onclick="goBack(); return false;">シフトページに戻る</a>
 
     <script>
       // サーバーから渡された変数を、JavaScriptの変数として受け取る
@@ -256,7 +252,6 @@
        * サーバーから受け取った従業員リストを基に、UIを生成する
        */
       function populateEmployees(employees) {
-        var applicantSelect = document.getElementById('applicant-select');
         var approverContainer = document.getElementById('employee-list');
         approverContainer.innerHTML = '';
         approverContainer.className = 'approver-card-container';
@@ -266,61 +261,40 @@
           return;
         }
 
-        var applicantFoundInList = false;
+        // 申請者以外の従業員を表示
         employees.forEach(function(employee) {
-          var option = document.createElement('option');
-          option.value = employee.id;
-          option.textContent = employee.display_name;
-          applicantSelect.appendChild(option);
-          
-          if (String(employee.id) === String(applicantIdFromUrl)) {
-            applicantFoundInList = true;
+          if (String(employee.id) !== String(applicantIdFromUrl)) {
+            var wrapper = document.createElement('div');
+            wrapper.className = 'approver-wrapper';
+            
+            var checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = 'emp-' + employee.id;
+            checkbox.name = 'approvers';
+            checkbox.value = employee.id;
+            
+            var label = document.createElement('label');
+            label.className = 'approver-card';
+            label.htmlFor = 'emp-' + employee.id;
+            label.textContent = employee.display_name;
+
+            // クリックイベントでカードの見た目とチェック状態を切り替える
+            label.onclick = function(e) {
+              e.preventDefault(); // デフォルトの動作を防止
+              if (label.classList.contains('selected')) {
+                label.classList.remove('selected');
+                checkbox.checked = false;
+              } else {
+                label.classList.add('selected');
+                checkbox.checked = true;
+              }
+            };
+            
+            wrapper.appendChild(checkbox);
+            wrapper.appendChild(label);
+            approverContainer.appendChild(wrapper);
           }
         });
-
-        applicantSelect.addEventListener('change', function(event) {
-          var selectedApplicantId = event.target.value;
-          approverContainer.innerHTML = '';
-
-          employees.forEach(function(employee) {
-              if (String(employee.id) !== String(selectedApplicantId)) {
-                  var wrapper = document.createElement('div');
-                  wrapper.className = 'approver-wrapper';
-                  
-                  var checkbox = document.createElement('input');
-                  checkbox.type = 'checkbox';
-                  checkbox.id = 'emp-' + employee.id;
-                  checkbox.name = 'approvers';
-                  checkbox.value = employee.id;
-                  
-                  var label = document.createElement('label');
-                  label.className = 'approver-card';
-                  label.htmlFor = 'emp-' + employee.id;
-                  label.textContent = employee.display_name;
-
-                  // ★修正: クリックイベントでカードの見た目とチェック状態を切り替える
-                  label.onclick = function(e) {
-                      e.preventDefault(); // デフォルトの動作を防止
-                      if (label.classList.contains('selected')) {
-                          label.classList.remove('selected');
-                          checkbox.checked = false;
-                      } else {
-                          label.classList.add('selected');
-                          checkbox.checked = true;
-                      }
-                  };
-                  
-                  wrapper.appendChild(checkbox);
-                  wrapper.appendChild(label);
-                  approverContainer.appendChild(wrapper);
-              }
-          });
-        });
-
-        if (applicantIdFromUrl && applicantIdFromUrl !== 'undefined' && applicantFoundInList) {
-          applicantSelect.value = applicantIdFromUrl;
-          applicantSelect.dispatchEvent(new Event('change'));
-        }
       }
 
       function handleFormSubmit(event) {
@@ -336,7 +310,11 @@
         });
         
         if (!applicantId || !shiftDate || !startTime || !endTime || selectedApprovers.length === 0) {
-          alert("申請者を含め、すべての項目を入力・選択してください。");
+          if (window.messageHandler) {
+            window.messageHandler.show("すべての項目を入力・選択してください。特に、交代を依頼する相手を選択することを忘れずに。", "error");
+          } else {
+            alert("すべての項目を入力・選択してください。\n特に、交代を依頼する相手を選択することを忘れずに。");
+          }
           return;
         }
         var startDateTimeStr = shiftDate + 'T' + startTime;
@@ -373,12 +351,96 @@
       }
       
       function onRequestSuccess() {
-        alert("シフト交代リクエストを送信しました。");
-        goBack();
+        // MessageHandlerが利用可能な場合はそれを使用
+        if (window.messageHandler) {
+          window.messageHandler.show("シフト交代リクエストを送信しました。承認をお待ちください。", "success");
+        } else {
+          // フォールバック: 簡易トースト形式
+          createFallbackToast("シフト交代リクエストを送信しました。承認をお待ちください。", "success");
+        }
+        setTimeout(goBack, 2000); // 2秒後に戻る
+      }
+      
+      function createFallbackToast(message, type) {
+        // 簡易トースト通知を作成
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background-color: ${type === 'error' ? '#f44336' : type === 'success' ? '#4caf50' : '#2196f3'};
+          color: white;
+          padding: 12px 16px;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+          z-index: 1000;
+          max-width: 400px;
+          animation: slideInRight 0.3s ease-out;
+          cursor: pointer;
+        `;
+        toast.textContent = message;
+        
+        // アニメーション用のCSSを追加
+        if (!document.getElementById('toast-animations')) {
+          const style = document.createElement('style');
+          style.id = 'toast-animations';
+          style.textContent = `
+            @keyframes slideInRight {
+              from {
+                transform: translateX(100%);
+                opacity: 0;
+              }
+              to {
+                transform: translateX(0);
+                opacity: 1;
+              }
+            }
+            @keyframes slideOutRight {
+              from {
+                transform: translateX(0);
+                opacity: 1;
+              }
+              to {
+                transform: translateX(100%);
+                opacity: 0;
+              }
+            }
+          `;
+          document.head.appendChild(style);
+        }
+        
+        document.body.appendChild(toast);
+        
+        // クリックで閉じる
+        toast.addEventListener('click', () => {
+          toast.style.animation = 'slideOutRight 0.3s ease-out';
+          setTimeout(() => {
+            if (toast.parentNode) {
+              toast.parentNode.removeChild(toast);
+            }
+          }, 300);
+        });
+        
+        // 5秒後に自動で閉じる
+        setTimeout(() => {
+          if (toast.parentNode) {
+            toast.style.animation = 'slideOutRight 0.3s ease-out';
+            setTimeout(() => {
+              if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+              }
+            }, 300);
+          }
+        }, 5000);
       }
       
       function onRequestFailure(error) {
-        alert("エラーが発生しました: " + error.message);
+        if (window.messageHandler) {
+          window.messageHandler.show("エラーが発生しました: " + error.message, "error");
+        } else {
+          // フォールバック: 簡易トースト形式
+          createFallbackToast("エラーが発生しました: " + error.message, "error");
+        }
         document.querySelector('button[type="submit"]').disabled = false;
         document.querySelector('button[type="submit"]').textContent = "この内容でリクエストを送信";
       }

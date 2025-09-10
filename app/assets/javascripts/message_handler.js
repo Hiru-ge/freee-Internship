@@ -6,6 +6,15 @@ class MessageHandler {
   }
 
   init() {
+    // DOMが準備できてから実行
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => this.createContainer());
+    } else {
+      this.createContainer();
+    }
+  }
+
+  createContainer() {
     // メッセージコンテナを作成
     this.messageContainer = document.createElement('div');
     this.messageContainer.id = 'message-container';
@@ -21,6 +30,10 @@ class MessageHandler {
 
   // メッセージ表示
   show(message, type = 'info', duration = 5000) {
+    // コンテナが存在しない場合は作成
+    if (!this.messageContainer) {
+      this.createContainer();
+    }
     const messageElement = this.createMessageElement(message, type);
     this.messageContainer.appendChild(messageElement);
 
@@ -167,8 +180,8 @@ window.showMessage = function(message, type, duration) {
 };
 
 // CSS アニメーション
-const style = document.createElement('style');
-style.textContent = `
+const messageStyle = document.createElement('style');
+messageStyle.textContent = `
   @keyframes slideIn {
     from {
       transform: translateX(100%);
@@ -191,4 +204,4 @@ style.textContent = `
     }
   }
 `;
-document.head.appendChild(style);
+document.head.appendChild(messageStyle);

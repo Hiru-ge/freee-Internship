@@ -31,22 +31,24 @@ class ShiftRequestsController < ApplicationController
       
       # バリデーション
       if approver_ids.empty?
-        flash[:error] = "交代を依頼する相手を選択してください"
+        flash[:error] = "交代を依頼する相手を選択してください。複数の人に同時に依頼することも可能です。"
         redirect_to new_shift_request_path and return
       end
 
       # シフト重複チェック
       overlap_service = ShiftOverlapService.new
-      overlapping_employees = overlap_service.check_exchange_overlap(approver_ids, shift_date, start_time, end_time)
+      result = overlap_service.get_available_and_overlapping_employees(approver_ids, shift_date, start_time, end_time)
+      available_approver_ids = result[:available_ids]
+      overlapping_employees = result[:overlapping_names]
       
-      if overlapping_employees.any?
-        flash[:error] = "選択した相手は全員、その時間に既にシフトが入っています。"
+      if available_approver_ids.empty?
+        flash[:error] = "選択した相手は全員、その時間に既にシフトが入っています。別の時間帯を選択するか、他の人に依頼してください。"
         redirect_to new_shift_request_path and return
       end
 
       # 申請者自身のシフト存在チェック
       unless Shift.exists?(employee_id: applicant_id, shift_date: shift_date, start_time: start_time, end_time: end_time)
-        flash[:error] = "指定されたシフトが見つかりません。"
+        flash[:error] = "指定されたシフトが見つかりません。シフト表を確認して、正しい日時を選択してください。"
         redirect_to new_shift_request_path and return
       end
       
@@ -58,8 +60,8 @@ class ShiftRequestsController < ApplicationController
         end_time: end_time
       )
       
-      # 各承認者に対してリクエストを作成
-      approver_ids.each do |approver_id|
+      # 各承認者に対してリクエストを作成（利用可能な従業員のみ）
+      available_approver_ids.each do |approver_id|
         request_id = SecureRandom.uuid
         
         ShiftExchange.create!(
@@ -71,15 +73,20 @@ class ShiftRequestsController < ApplicationController
         )
       end
 
-      # メール通知を送信
-      send_exchange_request_notifications(applicant_id, approver_ids, shift_date, start_time, end_time)
+      # メール通知を送信（利用可能な従業員のみ）
+      send_exchange_request_notifications(applicant_id, available_approver_ids, shift_date, start_time, end_time)
       
-      flash[:success] = "シフト交代リクエストを送信しました"
+      # 成功メッセージを作成
+      if overlapping_employees.any?
+        flash[:success] = "シフト交代リクエストを送信しました。以下の人は既にシフトが入っているため依頼できませんでした: #{overlapping_employees.join(', ')}"
+      else
+        flash[:success] = "シフト交代リクエストを送信しました。承認者にメール通知が送信されました。"
+      end
       redirect_to shifts_path
       
     rescue => e
       Rails.logger.error "シフト交代リクエスト作成エラー: #{e.message}"
-      flash[:error] = "リクエストの送信に失敗しました"
+      flash[:error] = "リクエストの送信に失敗しました。しばらく時間をおいてから再度お試しください。"
       redirect_to new_shift_request_path
     end
   end

@@ -8,6 +8,15 @@ class LoadingHandler {
   }
 
   init() {
+    // DOMが準備できてから実行
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => this.createOverlay());
+    } else {
+      this.createOverlay();
+    }
+  }
+
+  createOverlay() {
     // ローディングオーバーレイを作成
     this.loadingOverlay = document.createElement('div');
     this.loadingOverlay.id = 'loading-overlay';
@@ -102,6 +111,10 @@ class LoadingHandler {
 
   // ローディング表示
   show(message = '読み込み中...', showProgress = false) {
+    // オーバーレイが存在しない場合は作成
+    if (!this.loadingOverlay) {
+      this.createOverlay();
+    }
     this.loadingText.textContent = message;
     this.progressBar.style.display = showProgress ? 'block' : 'none';
     this.progressText.style.display = showProgress ? 'block' : 'none';
@@ -242,8 +255,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // CSS アニメーション
-const style = document.createElement('style');
-style.textContent = `
+const loadingStyle = document.createElement('style');
+loadingStyle.textContent = `
   .loading-spinner-large {
     animation: spin 1s linear infinite;
   }
@@ -257,4 +270,4 @@ style.textContent = `
     transition: opacity 0.3s ease;
   }
 `;
-document.head.appendChild(style);
+document.head.appendChild(loadingStyle);

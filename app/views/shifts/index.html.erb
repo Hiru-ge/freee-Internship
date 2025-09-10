@@ -13,7 +13,8 @@
   <!-- シフト表 -->
   <div class="shift-calendar-section">
     <h2>シフト表</h2>
-    <p>交代を依頼したいシフトをクリックすると、依頼フォームへ遷移します。</p>
+    <p>交代を依頼したい<strong>自分のシフト</strong>をクリックすると、依頼フォームへ遷移します。<br>
+    <small style="color: #999;">※ 黄色で表示されているシフトがクリック可能です</small></p>
     
     <div class="month-navigation">
       <h3 id="calendar-title"></h3>
@@ -281,13 +282,22 @@
         var shiftCell = document.createElement('td');
         var shiftTime = employeeData.shifts[day] || "";
         if (shiftTime) {
-          shiftCell.style.cursor = 'pointer';
-          shiftCell.style.textDecoration = 'underline';
-          shiftCell.onclick = function(id, d, time) {
-            return function() {
-              startRequestForShift(id, d, time);
-            };
-          }(employeeId, day, shiftTime);
+          // 自分のシフトのみクリック可能にする
+          if (String(employeeId) === String(currentEmployeeId)) {
+            shiftCell.style.cursor = 'pointer';
+            shiftCell.style.textDecoration = 'underline';
+            shiftCell.style.color = '#ffca28'; // 自分のシフトは黄色で強調
+            shiftCell.onclick = function(id, d, time) {
+              return function() {
+                startRequestForShift(id, d, time);
+              };
+            }(employeeId, day, shiftTime);
+          } else {
+            // 他人のシフトはクリック不可
+            shiftCell.style.cursor = 'default';
+            shiftCell.style.color = '#999'; // グレーアウト
+            shiftCell.title = '他の人のシフトはクリックできません';
+          }
         }
         shiftCell.textContent = shiftTime;
         employeeRow.appendChild(shiftCell);
@@ -354,6 +364,16 @@
   }
 
   function startRequestForShift(employeeId, day, timeString) {
+    // 自分のシフトかどうか再確認
+    if (String(employeeId) !== String(currentEmployeeId)) {
+      if (window.messageHandler) {
+        window.messageHandler.show("他の人のシフトはクリックできません。自分のシフトのみ交代依頼が可能です。", "warning");
+      } else {
+        alert("他の人のシフトはクリックできません。");
+      }
+      return;
+    }
+    
     var times = timeString.split('-');
     var startTime = times[0].padStart(2, '0') + ':00';
     var endTime = times[1].padStart(2, '0') + ':00';

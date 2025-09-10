@@ -179,7 +179,7 @@
     </form>
 
     <hr>
-    <a href="#" onclick="goBack(); return false;">ホーム画面に戻る</a>
+    <a href="#" onclick="goBack(); return false;">シフトページに戻る</a>
 
   <script>
     var employees = <%= raw @employees.to_json %>;
@@ -230,7 +230,11 @@
 
       // 入力チェック
       if (!approverId || !shiftDate || !startTime || !endTime) {
-        alert("すべての項目を選択・入力してください。");
+        if (window.messageHandler) {
+          window.messageHandler.show("すべての項目を選択・入力してください。", "error");
+        } else {
+          alert("すべての項目を選択・入力してください。");
+        }
         return;
       }
 
@@ -269,15 +273,23 @@
      * リクエスト成功時の処理
      */
     function onRequestSuccess() {
-      alert("シフト追加リクエストを送信しました。");
-      goBack();
+      if (window.messageHandler) {
+        window.messageHandler.show("シフト追加リクエストを送信しました。承認をお待ちください。", "success");
+      } else {
+        alert("シフト追加リクエストを送信しました。");
+      }
+      setTimeout(goBack, 2000); // 2秒後に戻る
     }
     
     /**
      * リクエスト失敗時の処理
      */
     function onRequestFailure(error) {
-      alert("エラーが発生しました: " + error.message);
+      if (window.messageHandler) {
+        window.messageHandler.show("エラーが発生しました: " + error.message, "error");
+      } else {
+        alert("エラーが発生しました: " + error.message);
+      }
       // ボタンを再度有効化
       document.querySelector('button[type="submit"]').disabled = false;
       document.querySelector('button[type="submit"]').textContent = "この内容でリクエストを送信";

@@ -239,7 +239,7 @@
     </ul>
 
     <hr>
-    <a href="#" onclick="goToMyPage(); return false;">マイページトップに戻る</a>
+    <a href="#" onclick="goToMyPage(); return false;">シフトページに戻る</a>
 
     <script>
       var currentUserId = "<%= current_employee_id %>";
@@ -310,7 +310,11 @@
       }
 
       function handleFailure(error) {
-        alert('エラーが発生しました: ' + error.message);
+        if (window.messageHandler) {
+          window.messageHandler.show('エラーが発生しました: ' + error.message, 'error');
+        } else {
+          alert('エラーが発生しました: ' + error.message);
+        }
         location.reload();
       }
 
