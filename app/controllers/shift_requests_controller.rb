@@ -168,18 +168,23 @@ class ShiftRequestsController < ApplicationController
   # シフト交代依頼のメール通知を送信
   def send_exchange_request_notifications(applicant_id, approver_ids, shift_date, start_time, end_time)
     begin
-      # 申請者情報を取得
-      applicant = Employee.find_by(employee_id: applicant_id)
-      return unless applicant&.email
+      # GAS時代のgetEmployeesを再現したAPIから従業員情報を取得
+      freee_service = FreeeApiService.new(ENV['FREEE_ACCESS_TOKEN'], ENV['FREEE_COMPANY_ID'])
+      all_employees = freee_service.get_employees_full
+      
+      # 申請者情報を検索
+      applicant_info = all_employees.find { |emp| emp['id'].to_s == applicant_id.to_s }
+      return unless applicant_info&.dig('email')
 
       approver_ids.each do |approver_id|
-        approver = Employee.find_by(employee_id: approver_id)
-        next unless approver&.email
+        # 承認者情報を検索
+        approver_info = all_employees.find { |emp| emp['id'].to_s == approver_id.to_s }
+        next unless approver_info&.dig('email')
 
         ShiftMailer.shift_exchange_request(
-          approver.email,
-          approver.display_name,
-          applicant.display_name,
+          approver_info['email'],
+          approver_info['display_name'],
+          applicant_info['display_name'],
           shift_date,
           start_time,
           end_time
@@ -193,12 +198,17 @@ class ShiftRequestsController < ApplicationController
   # シフト追加依頼のメール通知を送信
   def send_addition_request_notification(target_employee_id, shift_date, start_time, end_time)
     begin
-      target_employee = Employee.find_by(employee_id: target_employee_id)
-      return unless target_employee&.email
+      # GAS時代のgetEmployeesを再現したAPIから従業員情報を取得
+      freee_service = FreeeApiService.new(ENV['FREEE_ACCESS_TOKEN'], ENV['FREEE_COMPANY_ID'])
+      all_employees = freee_service.get_employees_full
+      
+      # 対象従業員情報を検索
+      target_employee_info = all_employees.find { |emp| emp['id'].to_s == target_employee_id.to_s }
+      return unless target_employee_info&.dig('email')
 
       ShiftMailer.shift_addition_request(
-        target_employee.email,
-        target_employee.display_name,
+        target_employee_info['email'],
+        target_employee_info['display_name'],
         shift_date,
         start_time,
         end_time

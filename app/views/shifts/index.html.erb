@@ -89,8 +89,6 @@
 
   // オーナー権限チェック
   function checkOwnerPermissions() {
-    console.log('オーナー権限チェック開始...');
-    console.log('オーナー権限チェック結果:', isOwner);
     
     // コンテナに権限モードのクラスを追加
     var container = document.querySelector('.shift-page-container');
@@ -98,13 +96,11 @@
     
     if (isOwner) {
       // オーナーの場合：従業員一覧と給与ゲージを表示
-      console.log('オーナー権限確認 - 従業員一覧と給与ゲージを表示');
       container.classList.add('owner-mode');
       document.getElementById('shift-add-btn').style.display = 'inline-block';
       loadEmployeeList();
     } else {
       // 従業員の場合：個人の給与ゲージを表示
-      console.log('従業員権限確認 - 個人の給与ゲージを表示');
       container.classList.add('employee-mode');
       document.getElementById('shift-add-btn').style.display = 'none';
       loadPersonalGauge();
@@ -126,7 +122,6 @@
 
         if (employees && employees.length > 0) {
           employees.forEach(function(employee) {
-            console.log('従業員データ処理:', employee.id, employee.display_name);
             var row = document.createElement('tr');
             row.innerHTML = 
               '<td>' + employee.display_name + '</td>' +
@@ -156,11 +151,8 @@
     fetch('/wages/api_all_wages')
       .then(response => response.json())
       .then(wages => {
-        console.log('全従業員給与データ:', wages);
-        
         if (wages && wages.length > 0) {
           wages.forEach(function(wage) {
-            console.log('給与データ処理:', wage.employee_id, wage);
             updateWageGaugeForEmployee(wage.employee_id, wage);
           });
         } else {
@@ -199,7 +191,6 @@
     fetch('/wages/api_wage_info?employee_id=' + currentEmployeeId)
       .then(response => response.json())
       .then(wageInfo => {
-        console.log('個人給与情報:', wageInfo);
         updatePersonalWageGauge(wageInfo);
       })
       .catch(error => {
@@ -228,7 +219,6 @@
 
   function initializeShifts(dataFromServer) {
     allShiftsData = dataFromServer;
-    console.log("サーバーから取得した全データ:", allShiftsData);
     
     calendarYear = allShiftsData.year;
     calendarMonth = allShiftsData.month;
@@ -424,11 +414,8 @@
 
   // 給与ゲージの更新（従業員指定）
   function updateWageGaugeForEmployee(employeeId, wageInfo) {
-    console.log('給与ゲージ更新開始:', employeeId, wageInfo);
     var gaugeElement = document.querySelector('.wage-gauge[data-employee-id="' + employeeId + '"]');
-    console.log('ゲージ要素:', gaugeElement);
     if (!gaugeElement) {
-      console.log('ゲージ要素が見つかりません:', employeeId);
       return;
     }
 

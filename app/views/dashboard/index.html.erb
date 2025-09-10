@@ -69,6 +69,7 @@
     </div>
   </div>
 
+
   <!-- ナビゲーション -->
   <div class="navigation">
     <%= link_to "シフトページ", shifts_path, class: "button nav-button" %>
@@ -111,18 +112,13 @@
   // 勤怠データを読み込み
   function loadAttendanceData() {
     var yearMonth = attendanceYear + '-' + String(attendanceMonth).padStart(2, '0');
-    console.log('勤怠データ読み込み開始...');
-    console.log('従業員ID:', currentEmployeeId);
-    console.log('年月:', yearMonth);
     
     fetch('<%= dashboard_attendance_history_path %>?year=' + attendanceYear + '&month=' + attendanceMonth)
       .then(response => response.json())
       .then(data => {
-        console.log('勤怠データ取得成功:', data);
         displayAttendanceData(data);
       })
       .catch(error => {
-        console.log('勤怠データ取得失敗:', error);
         showAttendanceError('勤怠データの取得に失敗しました: ' + error.message);
       });
   }

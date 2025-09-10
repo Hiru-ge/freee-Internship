@@ -34,9 +34,36 @@ class FreeeApiService
       employees.map do |emp|
         {
           id: emp['id'].to_s,
-          display_name: emp['display_name']
+          display_name: emp['display_name'],
+          email: emp['email']
         }
       end
+    rescue => e
+      Rails.logger.error "freee API接続エラー: #{e.message}"
+      Rails.logger.error "Error class: #{e.class}"
+      Rails.logger.error "Error backtrace: #{e.backtrace.join('\n')}"
+      []
+    end
+  end
+
+  # GAS時代のgetEmployeesを再現（全情報を返す）
+  def get_employees_full
+    begin
+      url = "/hr/api/v1/companies/#{@company_id}/employees?limit=100&with_no_payroll_calculation=true"
+      response = self.class.get(url, @options)
+      
+      unless response.success?
+        Rails.logger.error "freee API Error: #{response.code} - #{response.message}"
+        Rails.logger.error "Response body: #{response.body}"
+        return []
+      end
+      
+      body = response.parsed_response
+      employees = body.is_a?(Array) ? body : body['employees']
+      employees ||= []
+      
+      # GAS時代と同じように、IDでソートして全情報を返す
+      employees.sort_by { |emp| emp['id'] }
     rescue => e
       Rails.logger.error "freee API接続エラー: #{e.message}"
       Rails.logger.error "Error class: #{e.class}"

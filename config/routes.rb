@@ -51,6 +51,7 @@ Rails.application.routes.draw do
     end
   end
 
+
   # API エンドポイント（GAS互換）
   namespace :api do
     resources :shift_requests, only: [] do

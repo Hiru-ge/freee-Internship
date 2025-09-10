@@ -158,14 +158,19 @@ class ShiftApprovalsController < ApplicationController
   # シフト交代承認のメール通知を送信
   def send_exchange_approval_notification(shift_exchange)
     begin
-      requester = Employee.find_by(employee_id: shift_exchange.requester_id)
-      approver = Employee.find_by(employee_id: shift_exchange.approver_id)
-      return unless requester&.email && approver
+      # GAS時代のgetEmployeesを再現したAPIから従業員情報を取得
+      freee_service = FreeeApiService.new(ENV['FREEE_ACCESS_TOKEN'], ENV['FREEE_COMPANY_ID'])
+      all_employees = freee_service.get_employees_full
+      
+      # 申請者・承認者情報を検索
+      requester_info = all_employees.find { |emp| emp['id'].to_s == shift_exchange.requester_id.to_s }
+      approver_info = all_employees.find { |emp| emp['id'].to_s == shift_exchange.approver_id.to_s }
+      return unless requester_info&.dig('email') && approver_info
 
       ShiftMailer.shift_exchange_approved(
-        requester.email,
-        requester.display_name,
-        approver.display_name,
+        requester_info['email'],
+        requester_info['display_name'],
+        approver_info['display_name'],
         shift_exchange.shift.shift_date,
         shift_exchange.shift.start_time,
         shift_exchange.shift.end_time
@@ -187,12 +192,17 @@ class ShiftApprovalsController < ApplicationController
       all_denied = all_requests.all? { |req| req.status == 'rejected' }
       
       if all_denied
-        requester = Employee.find_by(employee_id: shift_exchange.requester_id)
-        return unless requester&.email
+        # GAS時代のgetEmployeesを再現したAPIから従業員情報を取得
+        freee_service = FreeeApiService.new(ENV['FREEE_ACCESS_TOKEN'], ENV['FREEE_COMPANY_ID'])
+        all_employees = freee_service.get_employees_full
+        
+        # 申請者情報を検索
+        requester_info = all_employees.find { |emp| emp['id'].to_s == shift_exchange.requester_id.to_s }
+        return unless requester_info&.dig('email')
 
         ShiftMailer.shift_exchange_denied(
-          requester.email,
-          requester.display_name
+          requester_info['email'],
+          requester_info['display_name']
         ).deliver_now
       end
     rescue => e
@@ -203,14 +213,18 @@ class ShiftApprovalsController < ApplicationController
   # シフト追加承認のメール通知を送信
   def send_addition_approval_notification(shift_addition)
     begin
-      # オーナー（依頼者）の情報を取得
-      owner = Employee.find_by(employee_id: shift_addition.requester_id)
-      target_employee = Employee.find_by(employee_id: shift_addition.target_employee_id)
-      return unless owner&.email && target_employee
+      # GAS時代のgetEmployeesを再現したAPIから従業員情報を取得
+      freee_service = FreeeApiService.new(ENV['FREEE_ACCESS_TOKEN'], ENV['FREEE_COMPANY_ID'])
+      all_employees = freee_service.get_employees_full
+      
+      # オーナー（依頼者）・対象従業員情報を検索
+      owner_info = all_employees.find { |emp| emp['id'].to_s == shift_addition.requester_id.to_s }
+      target_employee_info = all_employees.find { |emp| emp['id'].to_s == shift_addition.target_employee_id.to_s }
+      return unless owner_info&.dig('email') && target_employee_info
 
       ShiftMailer.shift_addition_approved(
-        owner.email,
-        target_employee.display_name,
+        owner_info['email'],
+        target_employee_info['display_name'],
         shift_addition.shift_date,
         shift_addition.start_time,
         shift_addition.end_time
@@ -223,14 +237,18 @@ class ShiftApprovalsController < ApplicationController
   # シフト追加否認のメール通知を送信
   def send_addition_denial_notification(shift_addition)
     begin
-      # オーナー（依頼者）の情報を取得
-      owner = Employee.find_by(employee_id: shift_addition.requester_id)
-      target_employee = Employee.find_by(employee_id: shift_addition.target_employee_id)
-      return unless owner&.email && target_employee
+      # GAS時代のgetEmployeesを再現したAPIから従業員情報を取得
+      freee_service = FreeeApiService.new(ENV['FREEE_ACCESS_TOKEN'], ENV['FREEE_COMPANY_ID'])
+      all_employees = freee_service.get_employees_full
+      
+      # オーナー（依頼者）・対象従業員情報を検索
+      owner_info = all_employees.find { |emp| emp['id'].to_s == shift_addition.requester_id.to_s }
+      target_employee_info = all_employees.find { |emp| emp['id'].to_s == shift_addition.target_employee_id.to_s }
+      return unless owner_info&.dig('email') && target_employee_info
 
       ShiftMailer.shift_addition_denied(
-        owner.email,
-        target_employee.display_name
+        owner_info['email'],
+        target_employee_info['display_name']
       ).deliver_now
     rescue => e
       Rails.logger.error "シフト追加否認メール送信エラー: #{e.message}"
