@@ -126,7 +126,7 @@ class ShiftExchangesController < ApplicationController
       end_time: Time.zone.parse(params[:end_time])
     )
 
-    # シフトが存在しない場合は作成（テスト用）
+    # シフトが存在しない場合は作成
     unless shift
       shift = Shift.create!(
         employee_id: params[:applicant_id],
