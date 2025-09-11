@@ -210,7 +210,7 @@ class FreeeApiService
   end
 
   # 勤怠打刻登録
-  def post_work_record(employee_id, form_data)
+  def create_work_record(employee_id, form_data)
     begin
       payload = {
         company_id: @company_id,

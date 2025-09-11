@@ -138,7 +138,7 @@ end
 - `get_time_clocks` - 勤怠データ取得
 - `get_hourly_wage` - 基本時給取得
 - `get_company_name` - 事業所名取得
-- `post_work_record` - 勤怠打刻登録
+- `create_work_record` - 勤怠打刻登録
 
 ### メーラー
 

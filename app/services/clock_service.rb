@@ -23,7 +23,7 @@ class ClockService
         target_type: 'clock_in'
       }
       
-      clock_result = @freee_service.post_work_record(@employee_id, form)
+      clock_result = @freee_service.create_work_record(@employee_id, form)
       
       if clock_result == '登録しました'
         {
@@ -58,7 +58,7 @@ class ClockService
         target_type: 'clock_out'
       }
       
-      clock_result = @freee_service.post_work_record(@employee_id, form)
+      clock_result = @freee_service.create_work_record(@employee_id, form)
       
       if clock_result == '登録しました'
         {
