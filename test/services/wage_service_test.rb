@@ -133,14 +133,15 @@ class WageServiceTest < ActiveSupport::TestCase
 
   # 時間帯別時給レートテスト
   test "should use correct time zone wage rates" do
-    assert_equal 1000, WageService::TIME_ZONE_WAGE_RATES[:normal][:rate]
-    assert_equal 1200, WageService::TIME_ZONE_WAGE_RATES[:evening][:rate]
-    assert_equal 1500, WageService::TIME_ZONE_WAGE_RATES[:night][:rate]
+    rates = WageService.time_zone_wage_rates
+    assert_equal 1000, rates[:normal][:rate]
+    assert_equal 1200, rates[:evening][:rate]
+    assert_equal 1500, rates[:night][:rate]
   end
 
   # 月間給与目標テスト
   test "should use correct monthly wage target" do
-    assert_equal 1_030_000, WageService::MONTHLY_WAGE_TARGET
+    assert_equal 1_030_000, WageService.monthly_wage_target
   end
 
   # エラーハンドリングテスト

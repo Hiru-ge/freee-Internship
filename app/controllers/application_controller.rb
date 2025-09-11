@@ -25,5 +25,22 @@ class ApplicationController < ActionController::Base
     current_employee&.owner?
   end
   
-  helper_method :current_employee, :current_employee_id, :owner?
+  # FreeeApiServiceの共通インスタンス化（DRY原則適用）
+  def freee_api_service
+    @freee_api_service ||= FreeeApiService.new(
+      ENV['FREEE_ACCESS_TOKEN'], 
+      ENV['FREEE_COMPANY_ID']
+    )
+  end
+  
+  # 共通エラーハンドリング（DRY原則適用）
+  def handle_api_error(error, context = '')
+    error_message = "#{context}エラー: #{error.message}"
+    Rails.logger.error error_message
+    Rails.logger.error "Error class: #{error.class}"
+    Rails.logger.error "Error backtrace: #{error.backtrace.join('\n')}" if error.backtrace
+    error_message
+  end
+  
+  helper_method :current_employee, :current_employee_id, :owner?, :freee_api_service
 end

@@ -1,0 +1,126 @@
+/* ===== シフト承認画面スタイル ===== */
+
+.shift-approvals-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.approval-section {
+  background-color: #4a4a4a;
+  border: 1px solid #777;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.approval-section h3 {
+  color: #ffca28;
+  margin-top: 0;
+  margin-bottom: 15px;
+  border-bottom: 2px solid #ffca28;
+  padding-bottom: 5px;
+}
+
+.request-item {
+  background-color: #555;
+  border: 1px solid #666;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 15px;
+  transition: border-color 0.3s ease;
+}
+
+.request-item:hover {
+  border-color: #ffca28;
+}
+
+.request-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.request-info {
+  flex: 1;
+}
+
+.request-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.request-details {
+  color: #ccc;
+  font-size: 0.9em;
+  margin-bottom: 10px;
+}
+
+.request-details strong {
+  color: #f0f0f0;
+}
+
+.approval-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.approval-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.approval-button.approve {
+  background-color: #4caf50;
+  color: white;
+}
+
+.approval-button.approve:hover {
+  background-color: #45a049;
+  transform: translateY(-1px);
+}
+
+.approval-button.reject {
+  background-color: #f44336;
+  color: white;
+}
+
+.approval-button.reject:hover {
+  background-color: #da190b;
+  transform: translateY(-1px);
+}
+
+.no-requests {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 40px 20px;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+  .request-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .request-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .approval-buttons {
+    flex-direction: column;
+  }
+  
+  .approval-button {
+    width: 100%;
+  }
+}

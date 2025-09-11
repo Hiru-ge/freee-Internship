@@ -11,7 +11,7 @@ class ShiftApprovalsController < ApplicationController
     
     # freee APIから従業員情報を取得
     begin
-      freee_service = FreeeApiService.new(ENV['FREEE_ACCESS_TOKEN'], ENV['FREEE_COMPANY_ID'])
+      freee_service = freee_api_service
       @employees = freee_service.get_employees
       @employee_names = @employees.index_by { |emp| emp[:id] }
     rescue => e
@@ -159,7 +159,7 @@ class ShiftApprovalsController < ApplicationController
   def send_exchange_approval_notification(shift_exchange)
     begin
       # GAS時代のgetEmployeesを再現したAPIから従業員情報を取得
-      freee_service = FreeeApiService.new(ENV['FREEE_ACCESS_TOKEN'], ENV['FREEE_COMPANY_ID'])
+      freee_service = freee_api_service
       all_employees = freee_service.get_employees_full
       
       # 申請者・承認者情報を検索
@@ -193,7 +193,7 @@ class ShiftApprovalsController < ApplicationController
       
       if all_denied
         # GAS時代のgetEmployeesを再現したAPIから従業員情報を取得
-        freee_service = FreeeApiService.new(ENV['FREEE_ACCESS_TOKEN'], ENV['FREEE_COMPANY_ID'])
+        freee_service = freee_api_service
         all_employees = freee_service.get_employees_full
         
         # 申請者情報を検索
@@ -214,7 +214,7 @@ class ShiftApprovalsController < ApplicationController
   def send_addition_approval_notification(shift_addition)
     begin
       # GAS時代のgetEmployeesを再現したAPIから従業員情報を取得
-      freee_service = FreeeApiService.new(ENV['FREEE_ACCESS_TOKEN'], ENV['FREEE_COMPANY_ID'])
+      freee_service = freee_api_service
       all_employees = freee_service.get_employees_full
       
       # オーナー（依頼者）・対象従業員情報を検索
@@ -238,7 +238,7 @@ class ShiftApprovalsController < ApplicationController
   def send_addition_denial_notification(shift_addition)
     begin
       # GAS時代のgetEmployeesを再現したAPIから従業員情報を取得
-      freee_service = FreeeApiService.new(ENV['FREEE_ACCESS_TOKEN'], ENV['FREEE_COMPANY_ID'])
+      freee_service = freee_api_service
       all_employees = freee_service.get_employees_full
       
       # オーナー（依頼者）・対象従業員情報を検索

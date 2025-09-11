@@ -38,6 +38,7 @@ class ShiftOverlapServiceTest < ActiveSupport::TestCase
       Time.zone.parse('21:00')
     )
     
+    
     assert_not result.empty?
     assert result.include?("テスト 三郎")
   end

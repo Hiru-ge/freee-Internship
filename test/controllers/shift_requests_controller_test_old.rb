@@ -17,7 +17,7 @@ class ShiftRequestsControllerTest < ActionDispatch::IntegrationTest
 
   # 認証が必要なページへのアクセステスト
   test "should redirect to login when not authenticated" do
-    get new_shift_request_url
+    get new_shift_exchange_url
     assert_redirected_to login_auth_url
   end
 
@@ -28,7 +28,7 @@ class ShiftRequestsControllerTest < ActionDispatch::IntegrationTest
       password: 'password123'
     }
     
-    get new_shift_request_url, params: {
+    get new_shift_exchange_url, params: {
       employee_id: '3316120',
       date: Date.current.strftime('%Y-%m-%d'),
       start_time: '18:00',
@@ -37,7 +37,7 @@ class ShiftRequestsControllerTest < ActionDispatch::IntegrationTest
     
     assert_response :success
     assert_select "h1", "シフト交代リクエスト"
-    assert_select "form[action=?]", shift_requests_path
+    assert_select "form[action=?]", shift_exchanges_path
   end
 
   # シフト交代リクエスト送信成功テスト
@@ -48,7 +48,7 @@ class ShiftRequestsControllerTest < ActionDispatch::IntegrationTest
     }
     
     # リクエスト送信（実際のレスポンスを確認）
-    post shift_requests_url, params: {
+    post shift_exchanges_url, params: {
       applicant_id: '3316120',
       approver_ids: ['3317741'],
       shift_date: Date.current,
@@ -76,7 +76,7 @@ class ShiftRequestsControllerTest < ActionDispatch::IntegrationTest
     }
     
     # リクエスト送信
-    post shift_requests_url, params: {
+    post shift_exchanges_url, params: {
       applicant_id: '3316120',
       approver_ids: ['3317741'],
       shift_date: Date.current,
@@ -98,7 +98,7 @@ class ShiftRequestsControllerTest < ActionDispatch::IntegrationTest
     get new_shift_addition_url
     assert_response :success
     assert_select "h1", "シフト追加リクエスト"
-    assert_select "form[action=?]", shift_requests_path
+    assert_select "form[action=?]", shift_additions_path
   end
 
   # シフト追加リクエスト画面の表示テスト（従業員はアクセス不可）
@@ -167,7 +167,7 @@ class ShiftRequestsControllerTest < ActionDispatch::IntegrationTest
     }
     
     # バリデーションテスト
-    post shift_requests_url, params: {
+    post shift_exchanges_url, params: {
       applicant_id: '',
       approver_ids: [],
       shift_date: '',

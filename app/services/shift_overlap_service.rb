@@ -70,8 +70,8 @@ class ShiftOverlapService
     base_date = existing_shift.shift_date
     
     # 既存シフトの時間をTimeオブジェクトに変換
-    existing_start_time = Time.zone.parse("#{base_date} #{existing_start.strftime('%H:%M')}")
-    existing_end_time = Time.zone.parse("#{base_date} #{existing_end.strftime('%H:%M')}")
+    existing_start_time_obj = Time.zone.parse("#{base_date} #{existing_start.strftime('%H:%M')}")
+    existing_end_time_obj = Time.zone.parse("#{base_date} #{existing_end.strftime('%H:%M')}")
     
     # 新しいシフトの時間をTimeオブジェクトに変換（文字列の場合はそのまま使用）
     new_start_time_str = new_start_time.is_a?(String) ? new_start_time : new_start_time.strftime('%H:%M')
@@ -82,6 +82,6 @@ class ShiftOverlapService
     
     # 重複チェック: 新しいシフトの開始時間が既存シフトの終了時間より前で、
     # 新しいシフトの終了時間が既存シフトの開始時間より後
-    new_start_time_obj < existing_end_time && new_end_time_obj > existing_start_time
+    new_start_time_obj < existing_end_time_obj && new_end_time_obj > existing_start_time_obj
   end
 end

@@ -220,7 +220,7 @@ class AuthController < ApplicationController
     @employees = Employee.order(:employee_id).map do |employee|
       {
         employee_id: employee.employee_id,
-        display_name: employee.owner? ? '店長 太郎' : "従業員 #{employee.employee_id}"
+        display_name: employee.display_name
       }
     end
   end

@@ -244,17 +244,10 @@ class AuthService
         return { success: false, message: '認証コードの有効期限が切れています' }
       end
       
-      # パスワードの検証
-      if new_password.length < 8
-        return { success: false, message: 'パスワードは8文字以上で入力してください' }
-      end
-      
-      if !new_password.match(/[a-zA-Z]/)
-        return { success: false, message: 'パスワードには英字を含めてください' }
-      end
-      
-      if !new_password.match(/[0-9]/)
-        return { success: false, message: 'パスワードには数字を含めてください' }
+      # パスワードの検証（共通モジュールを使用）
+      validation_result = PasswordValidator.validate_password(new_password)
+      unless validation_result[:valid]
+        return { success: false, message: validation_result[:errors].join(', ') }
       end
       
       # パスワードをハッシュ化して保存
@@ -278,8 +271,7 @@ class AuthService
       employee = Employee.find_by(employee_id: employee_id)
       return false if employee.nil?
       
-      # 既存のGASロジック: employee.display_name === '店長 太郎'
-      # 現在はroleで判定
+      # オーナー権限はroleで判定
       employee.owner?
     rescue => e
       Rails.logger.error "オーナー権限チェックエラー: #{e.message}"

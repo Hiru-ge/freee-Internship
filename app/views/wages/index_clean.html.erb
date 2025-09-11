@@ -33,11 +33,11 @@
           </tr>
         </thead>
         <tbody>
-          <% @employee_wages.each do |wage_data| %>
+          <% @employee_wages.each do |employee_id, wage_data| %>
             <tr>
               <td><%= wage_data[:employee_name] %></td>
-              <td><%= wage_data[:work_hours].values.sum %>時間</td>
-              <td class="wage-amount">¥<%= number_with_delimiter(wage_data[:wage]) %></td>
+              <td><%= wage_data[:total_hours] %>時間</td>
+              <td class="wage-amount">¥<%= number_with_delimiter(wage_data[:total_wage]) %></td>
               <td class="wage-percentage <%= wage_data[:percentage] >= 100 ? 'high' : wage_data[:percentage] >= 80 ? 'medium' : 'low' %>">
                 <%= wage_data[:percentage] %>%
               </td>
@@ -47,7 +47,7 @@
                        style="width: <%= [wage_data[:percentage], 100].min %>%"></div>
                 </div>
                 <div class="gauge-text">
-                  ¥<%= number_with_delimiter(wage_data[:wage]) %> / ¥<%= number_with_delimiter(wage_data[:target]) %>
+                  ¥<%= number_with_delimiter(wage_data[:total_wage]) %> / ¥<%= number_with_delimiter(wage_data[:target]) %>
                 </div>
               </td>
             </tr>

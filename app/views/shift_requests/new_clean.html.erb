@@ -13,7 +13,7 @@
         
         <div class="form-group">
           <label for="applicant-display" class="form-label">申請者 (あなたの名前):</label>
-          <input type="text" id="applicant-display" class="form-input readonly" value="<%= @employees.find { |emp| emp[:id] == @applicant_id }&.dig(:display_name) || '読み込み中...' %>" readonly>
+          <input type="text" id="applicant-display" class="form-input" value="<%= @employees.find { |emp| emp[:id] == @applicant_id }&.dig(:display_name) || '読み込み中...' %>" readonly style="background-color: #666; color: #ccc;">
           <input type="hidden" id="applicant-select" name="applicant_id" value="<%= @applicant_id %>">
           <div class="form-help">※ 申請者は変更できません</div>
         </div>

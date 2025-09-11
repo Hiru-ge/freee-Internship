@@ -1,22 +1,31 @@
 class WageService
-  # 時間帯別時給レート（GAS互換）
-  TIME_ZONE_WAGE_RATES = {
-    normal: { start: 9, end: 18, rate: 1000, name: '通常時給' },
-    evening: { start: 18, end: 22, rate: 1200, name: '夜間手当' },
-    night: { start: 22, end: 9, rate: 1500, name: '深夜手当' }
-  }.freeze
+  # 時間帯別時給レート（設定ファイルから取得）
+  def self.time_zone_wage_rates
+    @time_zone_wage_rates ||= begin
+      rates = AppConstants.wage[:time_zone_rates] || {}
+      {
+        normal: { start: rates.dig(:normal, :start_hour) || 9, end: rates.dig(:normal, :end_hour) || 18, rate: rates.dig(:normal, :rate) || 1000, name: rates.dig(:normal, :name) || '通常時給' },
+        evening: { start: rates.dig(:evening, :start_hour) || 18, end: rates.dig(:evening, :end_hour) || 22, rate: rates.dig(:evening, :rate) || 1200, name: rates.dig(:evening, :name) || '夜間手当' },
+        night: { start: rates.dig(:night, :start_hour) || 22, end: rates.dig(:night, :end_hour) || 9, rate: rates.dig(:night, :rate) || 1500, name: rates.dig(:night, :name) || '深夜手当' }
+      }.freeze
+    end
+  end
 
-  # 月間給与目標（103万の壁）
-  MONTHLY_WAGE_TARGET = 1_030_000
+  # 月間給与目標（設定ファイルから取得）
+  def self.monthly_wage_target
+    AppConstants.monthly_wage_target
+  end
 
   def initialize
   end
 
   # 時間帯を判定する
   def get_time_zone(hour)
-    if hour >= 9 && hour < 18
+    rates = self.class.time_zone_wage_rates
+    
+    if hour >= rates[:normal][:start] && hour < rates[:normal][:end]
       :normal
-    elsif hour >= 18 && hour < 22
+    elsif hour >= rates[:evening][:start] && hour < rates[:evening][:end]
       :evening
     else
       :night
@@ -87,14 +96,14 @@ class WageService
       total = 0
 
       monthly_work_hours.each do |time_zone, hours|
-        rate = TIME_ZONE_WAGE_RATES[time_zone][:rate]
+        rate = self.class.time_zone_wage_rates[time_zone][:rate]
         wage = hours * rate
         
         breakdown[time_zone] = {
           hours: hours,
           rate: rate,
           wage: wage,
-          name: TIME_ZONE_WAGE_RATES[time_zone][:name]
+          name: self.class.time_zone_wage_rates[time_zone][:name]
         }
         
         total += wage
@@ -131,8 +140,8 @@ class WageService
           wage: wage_info[:total],
           breakdown: wage_info[:breakdown],
           work_hours: wage_info[:work_hours],
-          target: MONTHLY_WAGE_TARGET,
-          percentage: (wage_info[:total].to_f / MONTHLY_WAGE_TARGET * 100).round(2)
+          target: self.class.monthly_wage_target,
+          percentage: (wage_info[:total].to_f / self.class.monthly_wage_target * 100).round(2)
         }
       end
 
@@ -162,10 +171,10 @@ class WageService
         wage: wage_info[:total],
         breakdown: wage_info[:breakdown],
         work_hours: wage_info[:work_hours],
-        target: MONTHLY_WAGE_TARGET,
-        percentage: (wage_info[:total].to_f / MONTHLY_WAGE_TARGET * 100).round(2),
-        is_over_limit: wage_info[:total] >= MONTHLY_WAGE_TARGET,
-        remaining: [MONTHLY_WAGE_TARGET - wage_info[:total], 0].max
+        target: self.class.monthly_wage_target,
+        percentage: (wage_info[:total].to_f / self.class.monthly_wage_target * 100).round(2),
+        is_over_limit: wage_info[:total] >= self.class.monthly_wage_target,
+        remaining: [self.class.monthly_wage_target - wage_info[:total], 0].max
       }
       
     rescue => e
@@ -187,7 +196,7 @@ class WageService
       wage_data = get_employee_wage_info(employee_id, current_month, current_year)
       
       if wage_data[:error]
-        return { wage: 0, target: MONTHLY_WAGE_TARGET, percentage: 0 }
+        return { wage: 0, target: self.class.monthly_wage_target, percentage: 0 }
       end
       
       {
@@ -197,7 +206,7 @@ class WageService
       }
     rescue => e
       Rails.logger.error "給与情報取得エラー: #{e.message}"
-      { wage: 0, target: MONTHLY_WAGE_TARGET, percentage: 0 }
+      { wage: 0, target: self.class.monthly_wage_target, percentage: 0 }
     end
   end
 

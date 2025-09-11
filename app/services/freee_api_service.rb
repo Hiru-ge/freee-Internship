@@ -291,9 +291,10 @@ class FreeeApiService
     }
   end
 
-  # 従業員の役割を判定（GAS時代の仕様に合わせる）
+  # 従業員の役割を判定（設定ファイルから取得）
   def determine_role(display_name)
-    # GAS時代の仕様: 従業員名が「店長 太郎」の場合はオーナー
-    display_name == '店長 太郎' ? 'owner' : 'employee'
+    # 設定ファイルからオーナーの従業員名を取得
+    owner_name = AppConstants.employee_name('3313254') # 店長のID
+    display_name == owner_name ? 'owner' : 'employee'
   end
 end

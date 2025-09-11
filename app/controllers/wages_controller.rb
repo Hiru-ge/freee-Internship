@@ -12,12 +12,19 @@ class WagesController < ApplicationController
     @year = params[:year]&.to_i || Time.current.year
     
     wage_service = WageService.new
-    @wages = wage_service.get_all_employees_wages(@month, @year)
+    @employee_wages = wage_service.get_all_employees_wages(@month, @year)
     
     # 月次ナビゲーション用
     @current_date = Date.new(@year, @month, 1)
     @prev_month = @current_date.prev_month
     @next_month = @current_date.next_month
+    @prev_year = @prev_month.year
+    @next_year = @next_month.year
+    
+    # サマリー情報
+    @total_hours = @employee_wages.sum { |w| w[:work_hours].values.sum }
+    @total_wage = @employee_wages.sum { |w| w[:wage] }
+    @average_percentage = @employee_wages.any? ? @employee_wages.sum { |w| w[:percentage] } / @employee_wages.size : 0
   end
 
 

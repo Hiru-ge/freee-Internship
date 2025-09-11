@@ -29,7 +29,7 @@ class WagesControllerTest < ActionDispatch::IntegrationTest
     
     get wages_url
     assert_response :success
-    assert_select "h1", "従業員一覧"
+    assert_select "h1", "給与管理"
     assert_select ".wage-gauge", minimum: 1  # 給与ゲージが表示される
   end
 
