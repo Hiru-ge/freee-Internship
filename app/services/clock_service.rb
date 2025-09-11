@@ -17,13 +17,13 @@ class ClockService
       date_str = now.strftime('%Y-%m-%d')
       time_str = now.strftime('%H:%M')
       
-      form = {
+      clock_in_form = {
         target_date: date_str,
         target_time: time_str,
         target_type: 'clock_in'
       }
       
-      clock_result = @freee_service.create_work_record(@employee_id, form)
+      clock_result = @freee_service.create_work_record(@employee_id, clock_in_form)
       
       if clock_result == '登録しました'
         {
@@ -52,13 +52,13 @@ class ClockService
       date_str = now.strftime('%Y-%m-%d')
       time_str = now.strftime('%H:%M')
       
-      form = {
+      clock_out_form = {
         target_date: date_str,
         target_time: time_str,
         target_type: 'clock_out'
       }
       
-      clock_result = @freee_service.create_work_record(@employee_id, form)
+      clock_result = @freee_service.create_work_record(@employee_id, clock_out_form)
       
       if clock_result == '登録しました'
         {

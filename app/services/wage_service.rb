@@ -2,11 +2,11 @@ class WageService
   # 時間帯別時給レート（設定ファイルから取得）
   def self.time_zone_wage_rates
     @time_zone_wage_rates ||= begin
-      rates = AppConstants.wage[:time_zone_rates] || {}
+      time_zone_rates = AppConstants.wage[:time_zone_rates] || {}
       {
-        normal: { start: rates.dig(:normal, :start_hour) || 9, end: rates.dig(:normal, :end_hour) || 18, rate: rates.dig(:normal, :rate) || 1000, name: rates.dig(:normal, :name) || '通常時給' },
-        evening: { start: rates.dig(:evening, :start_hour) || 18, end: rates.dig(:evening, :end_hour) || 22, rate: rates.dig(:evening, :rate) || 1200, name: rates.dig(:evening, :name) || '夜間手当' },
-        night: { start: rates.dig(:night, :start_hour) || 22, end: rates.dig(:night, :end_hour) || 9, rate: rates.dig(:night, :rate) || 1500, name: rates.dig(:night, :name) || '深夜手当' }
+        normal: { start: time_zone_rates.dig(:normal, :start_hour) || 9, end: time_zone_rates.dig(:normal, :end_hour) || 18, rate: time_zone_rates.dig(:normal, :rate) || 1000, name: time_zone_rates.dig(:normal, :name) || '通常時給' },
+        evening: { start: time_zone_rates.dig(:evening, :start_hour) || 18, end: time_zone_rates.dig(:evening, :end_hour) || 22, rate: time_zone_rates.dig(:evening, :rate) || 1200, name: time_zone_rates.dig(:evening, :name) || '夜間手当' },
+        night: { start: time_zone_rates.dig(:night, :start_hour) || 22, end: time_zone_rates.dig(:night, :end_hour) || 9, rate: time_zone_rates.dig(:night, :rate) || 1500, name: time_zone_rates.dig(:night, :name) || '深夜手当' }
       }.freeze
     end
   end
@@ -21,11 +21,11 @@ class WageService
 
   # 時間帯を判定する
   def get_time_zone(hour)
-    rates = self.class.time_zone_wage_rates
+    time_zone_rates = self.class.time_zone_wage_rates
     
-    if hour >= rates[:normal][:start] && hour < rates[:normal][:end]
+    if hour >= time_zone_rates[:normal][:start] && hour < time_zone_rates[:normal][:end]
       :normal
-    elsif hour >= rates[:evening][:start] && hour < rates[:evening][:end]
+    elsif hour >= time_zone_rates[:evening][:start] && hour < time_zone_rates[:evening][:end]
       :evening
     else
       :night
@@ -115,8 +115,8 @@ class WageService
         work_hours: monthly_work_hours
       }
       
-    rescue => e
-      Rails.logger.error "給与計算エラー: #{e.message}"
+    rescue => error
+      Rails.logger.error "給与計算エラー: #{error.message}"
       {
         total: 0,
         breakdown: {},
@@ -146,8 +146,8 @@ class WageService
       end
 
       all_wages
-    rescue => e
-      Rails.logger.error "全従業員給与取得エラー: #{e.message}"
+    rescue => error
+      Rails.logger.error "全従業員給与取得エラー: #{error.message}"
       []
     end
   end
@@ -177,10 +177,10 @@ class WageService
         remaining: [self.class.monthly_wage_target - wage_info[:total], 0].max
       }
       
-    rescue => e
-      Rails.logger.error "従業員給与取得エラー: #{e.message}"
+    rescue => error
+      Rails.logger.error "従業員給与取得エラー: #{error.message}"
       {
-        error: "給与計算中にエラーが発生しました: #{e.message}",
+        error: "給与計算中にエラーが発生しました: #{error.message}",
         employee_id: employee_id
       }
     end
@@ -204,8 +204,8 @@ class WageService
         target: wage_data[:target],
         percentage: wage_data[:percentage]
       }
-    rescue => e
-      Rails.logger.error "給与情報取得エラー: #{e.message}"
+    rescue => error
+      Rails.logger.error "給与情報取得エラー: #{error.message}"
       { wage: 0, target: self.class.monthly_wage_target, percentage: 0 }
     end
   end
@@ -216,8 +216,8 @@ class WageService
       # freee APIの実装は将来の拡張で追加
       # 現在は固定値を使用
       1000
-    rescue => e
-      Rails.logger.error "freee API時給取得エラー: #{e.message}"
+    rescue => error
+      Rails.logger.error "freee API時給取得エラー: #{error.message}"
       1000
     end
   end

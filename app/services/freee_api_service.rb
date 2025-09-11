@@ -38,10 +38,10 @@ class FreeeApiService
           email: emp['email']
         }
       end
-    rescue => e
-      Rails.logger.error "freee API接続エラー: #{e.message}"
-      Rails.logger.error "Error class: #{e.class}"
-      Rails.logger.error "Error backtrace: #{e.backtrace.join('\n')}"
+    rescue => error
+      Rails.logger.error "freee API接続エラー: #{error.message}"
+      Rails.logger.error "Error class: #{error.class}"
+      Rails.logger.error "Error backtrace: #{error.backtrace.join('\n')}"
       []
     end
   end
@@ -64,10 +64,10 @@ class FreeeApiService
       
       # GAS時代と同じように、IDでソートして全情報を返す
       employees.sort_by { |emp| emp['id'] }
-    rescue => e
-      Rails.logger.error "freee API接続エラー: #{e.message}"
-      Rails.logger.error "Error class: #{e.class}"
-      Rails.logger.error "Error backtrace: #{e.backtrace.join('\n')}"
+    rescue => error
+      Rails.logger.error "freee API接続エラー: #{error.message}"
+      Rails.logger.error "Error class: #{error.class}"
+      Rails.logger.error "Error backtrace: #{error.backtrace.join('\n')}"
       []
     end
   end
@@ -104,8 +104,8 @@ class FreeeApiService
 
       # IDでソートして返却
       all.sort_by { |emp| emp['id'] }
-    rescue => e
-      Rails.logger.error "freee API接続エラー: #{e.message}"
+    rescue => error
+      Rails.logger.error "freee API接続エラー: #{error.message}"
       []
     end
   end
@@ -126,8 +126,8 @@ class FreeeApiService
         Rails.logger.error "Response body: #{response.body}"
         nil
       end
-    rescue => e
-      Rails.logger.error "freee API接続エラー: #{e.message}"
+    rescue => error
+      Rails.logger.error "freee API接続エラー: #{error.message}"
       nil
     end
   end
@@ -158,10 +158,10 @@ class FreeeApiService
         Rails.logger.error "Response body: #{response.body}"
         []
       end
-    rescue => e
-      Rails.logger.error "freee API接続エラー: #{e.message}"
-      Rails.logger.error "Error class: #{e.class}"
-      Rails.logger.error "Error backtrace: #{e.backtrace.first(5).join('\n')}"
+    rescue => error
+      Rails.logger.error "freee API接続エラー: #{error.message}"
+      Rails.logger.error "Error class: #{error.class}"
+      Rails.logger.error "Error backtrace: #{error.backtrace.first(5).join('\n')}"
       []
     end
   end
@@ -186,8 +186,8 @@ class FreeeApiService
         Rails.logger.error "freee API Error: #{response.code} - #{response.message}"
         1000 # デフォルト時給
       end
-    rescue => e
-      Rails.logger.error "freee API接続エラー: #{e.message}"
+    rescue => error
+      Rails.logger.error "freee API接続エラー: #{error.message}"
       1000 # デフォルト時給
     end
   end
@@ -203,8 +203,8 @@ class FreeeApiService
         Rails.logger.error "freee API Error: #{response.code} - #{response.message}"
         "不明な事業所"
       end
-    rescue => e
-      Rails.logger.error "freee API接続エラー: #{e.message}"
+    rescue => error
+      Rails.logger.error "freee API接続エラー: #{error.message}"
       "不明な事業所"
     end
   end
@@ -231,8 +231,8 @@ class FreeeApiService
         Rails.logger.error "freee API Error: #{response.code} - #{error_message}"
         error_message
       end
-    rescue => e
-      Rails.logger.error "freee API接続エラー: #{e.message}"
+    rescue => error
+      Rails.logger.error "freee API接続エラー: #{error.message}"
       '登録に失敗しました'
     end
   end
@@ -273,8 +273,8 @@ class FreeeApiService
         Rails.logger.error "freee API Error: #{response.code} - #{response.message}"
         []
       end
-    rescue => e
-      Rails.logger.error "freee API接続エラー: #{e.message}"
+    rescue => error
+      Rails.logger.error "freee API接続エラー: #{error.message}"
       []
     end
   end

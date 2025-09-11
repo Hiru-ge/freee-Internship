@@ -5,14 +5,14 @@ class ShiftExchangesController < ApplicationController
   def new
     @employee_id = current_employee_id
     @date = params[:date] || Date.current.strftime('%Y-%m-%d')
-    @start = params[:start] || '09:00'
-    @end = params[:end] || '18:00'
+    @start_time = params[:start] || '09:00'
+    @end_time = params[:end] || '18:00'
     
     begin
       @employees = freee_api_service.get_employees
       @applicant_id = @employee_id
-    rescue => e
-      handle_api_error(e, '従業員一覧取得')
+    rescue => error
+      handle_api_error(error, '従業員一覧取得')
       @employees = []
     end
   end
@@ -41,8 +41,8 @@ class ShiftExchangesController < ApplicationController
       set_success_message(overlap_result[:overlapping_names])
       redirect_to shifts_path
 
-    rescue => e
-      handle_api_error(e, 'シフト交代リクエスト作成')
+    rescue => error
+      handle_api_error(error, 'シフト交代リクエスト作成')
       flash[:error] = "リクエストの送信に失敗しました。しばらく時間をおいてから再度お試しください。"
       redirect_to new_shift_exchange_path
     end

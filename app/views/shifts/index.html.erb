@@ -74,8 +74,8 @@
 </div>
 
 <script>
-  var currentEmployeeId = '<%= @employee_id %>';
-  var isOwner = <%= @is_owner %>;
+  var current_employee_id = '<%= @employee_id %>';
+  var is_owner = <%= @is_owner %>;
   var calendarYear;
   var calendarMonth;
   var allShiftsData;
@@ -92,17 +92,17 @@
   function checkOwnerPermissions() {
     
     // コンテナに権限モードのクラスを追加
-    var container = document.querySelector('.shift-page-container');
-    container.classList.remove('owner-mode', 'employee-mode');
+    var shift_page_container = document.querySelector('.shift-page-container');
+    shift_page_container.classList.remove('owner-mode', 'employee-mode');
     
-    if (isOwner) {
+    if (is_owner) {
       // オーナーの場合：従業員一覧と給与ゲージを表示
-      container.classList.add('owner-mode');
+      shift_page_container.classList.add('owner-mode');
       document.getElementById('shift-add-btn').style.display = 'inline-block';
       loadEmployeeList();
     } else {
       // 従業員の場合：個人の給与ゲージを表示
-      container.classList.add('employee-mode');
+      shift_page_container.classList.add('employee-mode');
       document.getElementById('shift-add-btn').style.display = 'none';
       loadPersonalGauge();
     }
@@ -189,14 +189,14 @@
     }
     
     // 個人の給与情報を取得
-    fetch('/wages/api_wage_info?employee_id=' + currentEmployeeId)
+    fetch('/wages/api_wage_info?employee_id=' + current_employee_id)
       .then(response => response.json())
       .then(wageInfo => {
         updatePersonalWageGauge(wageInfo);
       })
       .catch(error => {
         console.error('給与情報取得エラー:', error);
-        if (currentEmployeeId) { // 実際のIDが設定されている場合のみエラー表示
+        if (current_employee_id) { // 実際のIDが設定されている場合のみエラー表示
           document.querySelector('#personal-wage-gauge .gauge-text').textContent = 'エラーが発生しました';
         }
       });
@@ -204,8 +204,8 @@
 
   // シフト情報の読み込み
   function loadShifts() {
-    var container = document.getElementById('shift-calendar-container');
-    container.innerHTML = '<p>シフト情報を読み込んでいます...</p>';
+    var shift_calendar_container = document.getElementById('shift-calendar-container');
+    shift_calendar_container.innerHTML = '<p>シフト情報を読み込んでいます...</p>';
     
     fetch('<%= shifts_data_path %>')
       .then(response => response.json())
@@ -214,7 +214,7 @@
       })
       .catch(error => {
         console.error('シフト情報取得エラー:', error);
-        container.innerHTML = '<p>シフト情報の取得に失敗しました</p>';
+        shift_calendar_container.innerHTML = '<p>シフト情報の取得に失敗しました</p>';
       });
   }
 
@@ -283,7 +283,7 @@
         var shiftTime = employeeData.shifts[day] || "";
         if (shiftTime) {
           // 自分のシフトのみクリック可能にする
-          if (String(employeeId) === String(currentEmployeeId)) {
+          if (String(employeeId) === String(current_employee_id)) {
             shiftCell.style.cursor = 'pointer';
             shiftCell.style.textDecoration = 'underline';
             shiftCell.style.color = '#ffca28'; // 自分のシフトは黄色で強調
@@ -307,7 +307,7 @@
 
     table.appendChild(thead);
     table.appendChild(tbody);
-    container.appendChild(table);
+    shift_calendar_container.appendChild(table);
     
     updatePaginationButtons();
   }
@@ -365,7 +365,7 @@
 
   function startRequestForShift(employeeId, day, timeString) {
     // 自分のシフトかどうか再確認
-    if (String(employeeId) !== String(currentEmployeeId)) {
+    if (String(employeeId) !== String(current_employee_id)) {
       if (window.messageHandler) {
         window.messageHandler.show("他の人のシフトはクリックできません。自分のシフトのみ交代依頼が可能です。", "warning");
       } else {

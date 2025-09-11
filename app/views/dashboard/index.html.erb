@@ -84,8 +84,8 @@
 </div>
 
 <script>
-  var currentEmployeeId = '<%= @employee_id %>';
-  var currentEmployeeName = '<%= @employee_name %>';
+  var current_employee_id = '<%= @employee_id %>';
+  var current_employee_name = '<%= @employee_name %>';
   
   // 勤怠履歴の変数
   var attendanceYear = <%= Date.current.year %>;
@@ -100,7 +100,7 @@
 
   // 勤怠履歴の初期化
   function initializeAttendanceHistory() {
-    if (!currentEmployeeId) {
+    if (!current_employee_id) {
       showAttendanceError('従業員IDが取得できません');
       return;
     }
@@ -124,9 +124,9 @@
   }
 
   // 勤怠データを表示
-  function displayAttendanceData(records) {
+  function displayAttendanceData(attendance_records) {
     try {
-      var container = document.getElementById('attendance-container');
+      var attendance_container = document.getElementById('attendance-container');
       var title = document.getElementById('attendance-title');
       
       // タイトルを更新（ページネーションボタンを保持）
@@ -141,21 +141,21 @@
       html += '<thead><tr><th>種別</th><th>日時</th></tr></thead>';
       html += '<tbody>';
       
-      if (!records || records.length === 0) {
+      if (!attendance_records || attendance_records.length === 0) {
         // データがない場合は空の行を表示
         html += '<tr><td colspan="2" style="text-align: center; padding: 40px; color: #999;">この月の勤怠記録がありません</td></tr>';
       } else {
-        for (var i = 0; i < records.length; i++) {
-          var record = records[i];
+        for (var i = 0; i < attendance_records.length; i++) {
+          var attendance_record = attendance_records[i];
           html += '<tr>';
-          html += '<td>' + record.type + '</td>';
-          html += '<td>' + record.date + '</td>';
+          html += '<td>' + attendance_record.type + '</td>';
+          html += '<td>' + attendance_record.date + '</td>';
           html += '</tr>';
         }
       }
       
       html += '</tbody></table>';
-      container.innerHTML = html;
+      attendance_container.innerHTML = html;
       
     } catch (error) {
       showAttendanceError('勤怠データの表示に失敗しました: ' + error.message);
@@ -190,7 +190,7 @@
 
   // 打刻ボタンの状態更新
   function updateClockButtons() {
-    if (!currentEmployeeId) return;
+    if (!current_employee_id) return;
     
     fetch('<%= clock_status_path %>')
       .then(response => response.json())
@@ -229,7 +229,7 @@
 
   // 出勤打刻
   function clockIn() {
-    if (!currentEmployeeId) return;
+    if (!current_employee_id) return;
     
     fetch('<%= clock_in_path %>', {
       method: 'POST',
@@ -254,7 +254,7 @@
 
   // 退勤打刻
   function clockOut() {
-    if (!currentEmployeeId) return;
+    if (!current_employee_id) return;
     
     fetch('<%= clock_out_path %>', {
       method: 'POST',
