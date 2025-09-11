@@ -7,7 +7,7 @@ class AuthControllerTest < ActionDispatch::IntegrationTest
 
   # ログイン画面の表示テスト
   test "should get login" do
-    get login_auth_url
+    get login_url
     assert_response :success
     assert_select "title", "Freee Internship"
     assert_select "form[action=?]", auth_login_path
@@ -15,7 +15,7 @@ class AuthControllerTest < ActionDispatch::IntegrationTest
 
   # ログイン成功テスト
   test "should login with valid credentials" do
-    post login_auth_url, params: {
+    post login_url, params: {
       employee_id: '3313254',
       password: 'password123'
     }
@@ -25,7 +25,7 @@ class AuthControllerTest < ActionDispatch::IntegrationTest
 
   # ログイン失敗テスト
   test "should not login with invalid credentials" do
-    post login_auth_url, params: {
+    post login_url, params: {
       employee_id: '3313254',
       password: 'wrongpassword'
     }
@@ -35,20 +35,20 @@ class AuthControllerTest < ActionDispatch::IntegrationTest
 
   # ログアウトテスト
   test "should logout successfully" do
-    post login_auth_url, params: {
+    post login_url, params: {
       employee_id: '3313254',
       password: 'password123'
     }
     assert_equal @employee.employee_id, session[:employee_id]
     
-    post logout_auth_url
-    assert_redirected_to login_auth_url
+    post logout_url
+    assert_redirected_to login_url
     assert_nil session[:employee_id]
   end
 
   # 初回パスワード設定画面の表示テスト
   test "should get initial_password" do
-    get initial_password_auth_url
+    get initial_password_url
     assert_response :success
     assert_select "title", "Freee Internship"
   end
@@ -66,36 +66,36 @@ class AuthControllerTest < ActionDispatch::IntegrationTest
     )
     
     # 認証コードでパスワード設定
-    post initial_password_auth_url, params: {
+    post initial_password_url, params: {
       employee_id: '3316120',
       verification_code: '123456',  # テスト用の認証コード
       password: 'newpassword123',
       confirm_password: 'newpassword123'
     }
     
-    assert_redirected_to login_auth_path
+    assert_redirected_to login_path
   end
 
   # パスワード変更画面の表示テスト
   test "should get password_change" do
-    post login_auth_url, params: {
+    post login_url, params: {
       employee_id: '3313254',
       password: 'password123'
     }
     
-    get password_change_auth_url
+    get password_change_url
     assert_response :success
     assert_select "title", "Freee Internship"
   end
 
   # パスワード変更成功テスト
   test "should change password successfully" do
-    post login_auth_url, params: {
+    post login_url, params: {
       employee_id: '3313254',
       password: 'password123'
     }
     
-    post password_change_auth_url, params: {
+    post password_change_url, params: {
       current_password: 'password123',
       password: 'newpassword456',
       password_confirmation: 'newpassword456'
@@ -113,7 +113,7 @@ class AuthControllerTest < ActionDispatch::IntegrationTest
 
   # パスワード忘れ画面の表示テスト
   test "should get forgot_password" do
-    get forgot_password_auth_url
+    get forgot_password_url
     assert_response :success
     assert_select "title", "Freee Internship"
   end
@@ -121,12 +121,12 @@ class AuthControllerTest < ActionDispatch::IntegrationTest
   # 認証が必要なページへのアクセステスト
   test "should redirect to login when not authenticated" do
     get dashboard_url
-    assert_redirected_to login_auth_url
+    assert_redirected_to login_url
   end
 
   # 認証後のページアクセステスト
   test "should access protected page when authenticated" do
-    post login_auth_url, params: {
+    post login_url, params: {
       employee_id: '3313254',
       password: 'password123'
     }

@@ -73,8 +73,8 @@
   <!-- ナビゲーション -->
   <div class="navigation">
     <%= link_to "シフトページ", shifts_path, class: "button nav-button" %>
-    <%= link_to "パスワード変更", password_change_auth_path, class: "button nav-button" %>
-    <%= form_with url: logout_auth_path, method: :post, local: true, class: "logout-form" do |form| %>
+    <%= link_to "パスワード変更", password_change_path, class: "button nav-button" %>
+    <%= form_with url: logout_path, method: :post, local: true, class: "logout-form" do |form| %>
       <%= form.submit "ログアウト", class: "button nav-button logout" %>
     <% end %>
   </div>
@@ -113,7 +113,7 @@
   function loadAttendanceData() {
     var yearMonth = attendanceYear + '-' + String(attendanceMonth).padStart(2, '0');
     
-    fetch('<%= dashboard_attendance_history_path %>?year=' + attendanceYear + '&month=' + attendanceMonth)
+    fetch('<%= attendance_history_path %>?year=' + attendanceYear + '&month=' + attendanceMonth)
       .then(response => response.json())
       .then(data => {
         displayAttendanceData(data);
@@ -192,7 +192,7 @@
   function updateClockButtons() {
     if (!currentEmployeeId) return;
     
-    fetch('<%= dashboard_clock_status_path %>')
+    fetch('<%= clock_status_path %>')
       .then(response => response.json())
       .then(clockStatus => {
         var clockInBtn = document.getElementById('clock-in-btn');
@@ -231,7 +231,7 @@
   function clockIn() {
     if (!currentEmployeeId) return;
     
-    fetch('<%= dashboard_clock_in_path %>', {
+    fetch('<%= clock_in_path %>', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -256,7 +256,7 @@
   function clockOut() {
     if (!currentEmployeeId) return;
     
-    fetch('<%= dashboard_clock_out_path %>', {
+    fetch('<%= clock_out_path %>', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

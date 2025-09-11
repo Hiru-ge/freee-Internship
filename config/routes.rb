@@ -2,52 +2,54 @@ Rails.application.routes.draw do
   get "wages/index"
   get "wages/show"
   # 認証関連ルート
-  get "auth/login", to: "auth#login", as: :login_auth
+  get "auth/login", to: "auth#login", as: :login
   post "auth/login", to: "auth#login"
-  get "auth/initial_password", to: "auth#initial_password", as: :initial_password_auth
+  get "auth/initial_password", to: "auth#initial_password", as: :initial_password
   post "auth/initial_password", to: "auth#initial_password"
-  get "auth/password_change", to: "auth#password_change", as: :password_change_auth
+  get "auth/password_change", to: "auth#password_change", as: :password_change
   post "auth/password_change", to: "auth#password_change"
-  get "auth/forgot_password", to: "auth#forgot_password", as: :forgot_password_auth
+  get "auth/forgot_password", to: "auth#forgot_password", as: :forgot_password
   post "auth/forgot_password", to: "auth#forgot_password"
-  get "auth/verify_password_reset", to: "auth#verify_password_reset", as: :verify_password_reset_auth
+  get "auth/verify_password_reset", to: "auth#verify_password_reset", as: :verify_password_reset
   post "auth/verify_password_reset", to: "auth#verify_password_reset"
-  get "auth/reset_password", to: "auth#reset_password", as: :reset_password_auth
+  get "auth/reset_password", to: "auth#reset_password", as: :reset_password
   post "auth/reset_password", to: "auth#reset_password"
-  post "auth/logout", to: "auth#logout", as: :logout_auth
+  post "auth/logout", to: "auth#logout", as: :logout
   
   # 認証API
-  post "auth/send_verification_code", to: "auth#send_verification_code", as: :send_verification_code_auth
-  post "auth/verify_code", to: "auth#verify_code", as: :verify_code_auth
+  post "auth/send_verification_code", to: "auth#send_verification_code", as: :send_verification_code
+  post "auth/verify_code", to: "auth#verify_code", as: :verify_code
   
   # ダッシュボード
   get "dashboard", to: "dashboard#index", as: :dashboard
-  post "dashboard/clock_in", to: "dashboard#clock_in", as: :dashboard_clock_in
-  post "dashboard/clock_out", to: "dashboard#clock_out", as: :dashboard_clock_out
-  get "dashboard/clock_status", to: "dashboard#clock_status", as: :dashboard_clock_status
-  get "dashboard/attendance_history", to: "dashboard#attendance_history", as: :dashboard_attendance_history
+  post "dashboard/clock_in", to: "dashboard#clock_in", as: :clock_in
+  post "dashboard/clock_out", to: "dashboard#clock_out", as: :clock_out
+  get "dashboard/clock_status", to: "dashboard#clock_status", as: :clock_status
+  get "dashboard/attendance_history", to: "dashboard#attendance_history", as: :attendance_history
   
   # シフト管理
   get "shifts", to: "shifts#index"
   get "shifts/data", to: "shifts#data", as: :shifts_data
   get "shifts/employees", to: "shifts#employees", as: :shifts_employees
   
-  # シフト交代・追加リクエスト
-  get "shifts/request", to: "shift_requests#new", as: :new_shift_request
-  post "shifts/request", to: "shift_requests#create", as: :shift_requests
-  get "shifts/add", to: "shift_requests#new_addition", as: :new_shift_addition
-  post "shifts/add", to: "shift_requests#create_addition", as: :shift_additions
+  # シフト交代
+  get "shift_exchanges/new", to: "shift_exchanges#new", as: :new_shift_exchange
+  post "shift_exchanges", to: "shift_exchanges#create", as: :shift_exchanges
+  
+  # シフト追加
+  get "shift_additions/new", to: "shift_additions#new", as: :new_shift_addition
+  post "shift_additions", to: "shift_additions#create", as: :shift_additions
   
   # シフト承認
-  get "shifts/approval", to: "shift_approvals#index", as: :shift_approvals
-  post "shifts/approval/approve", to: "shift_approvals#approve", as: :approve_shift_request
-  post "shifts/approval/reject", to: "shift_approvals#reject", as: :reject_shift_request
+  get "shift_approvals", to: "shift_approvals#index", as: :shift_approvals
+  post "shift_approvals/approve", to: "shift_approvals#approve", as: :approve_shift_approval
+  post "shift_approvals/reject", to: "shift_approvals#reject", as: :reject_shift_approval
 
   # 給与管理
   resources :wages, only: [:index] do
     collection do
-      get :api_wage_info
-      get :api_all_wages
+      get :wage_info
+      get :all_wages
     end
   end
 
@@ -57,7 +59,7 @@ Rails.application.routes.draw do
     resources :shift_requests, only: [] do
       collection do
         get :pending_requests_for_user
-        get :pending_change_requests
+        get :pending_exchange_requests
         get :pending_addition_requests
       end
     end

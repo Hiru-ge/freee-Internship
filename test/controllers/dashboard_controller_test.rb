@@ -7,7 +7,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
 
   test "should get index" do
     # ログインしてからダッシュボードにアクセス
-    post login_auth_url, params: { employee_id: @employee.employee_id, password: 'password123' }
+    post login_url, params: { employee_id: @employee.employee_id, password: 'password123' }
     get dashboard_url
     assert_response :success
   end

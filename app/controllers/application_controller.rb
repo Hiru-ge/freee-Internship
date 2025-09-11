@@ -10,7 +10,7 @@ class ApplicationController < ActionController::Base
   def require_login
     return if session[:authenticated] && session[:employee_id]
     
-    redirect_to login_auth_path, alert: 'ログインが必要です'
+    redirect_to login_path, alert: 'ログインが必要です'
   end
   
   def current_employee

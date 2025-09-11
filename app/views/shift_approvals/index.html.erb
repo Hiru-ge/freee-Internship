@@ -66,7 +66,7 @@
           window.loadingHandler.show('承認処理中...');
         }
         
-        fetch('<%= shift_approvals_path %>/approve', {
+        fetch('<%= approve_shift_approval_path %>', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -105,7 +105,7 @@
           window.loadingHandler.show('否認処理中...');
         }
         
-        fetch('<%= shift_approvals_path %>/reject', {
+        fetch('<%= reject_shift_approval_path %>', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',

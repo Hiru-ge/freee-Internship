@@ -6,7 +6,7 @@ class Api::ShiftRequestsController < ApplicationController
   def pending_requests_for_user
     employee_id = params[:employee_id] || current_employee_id
     
-    change_requests = get_pending_change_requests_for(employee_id)
+    change_requests = get_pending_exchange_requests_for(employee_id)
     addition_requests = get_pending_addition_requests_for(employee_id)
     all_requests = change_requests + addition_requests
     
@@ -14,9 +14,9 @@ class Api::ShiftRequestsController < ApplicationController
   end
 
   # 指定した従業員宛のシフト交代リクエストを取得（GAS互換）
-  def pending_change_requests
+  def pending_exchange_requests
     employee_id = params[:employee_id] || current_employee_id
-    requests = get_pending_change_requests_for(employee_id)
+    requests = get_pending_exchange_requests_for(employee_id)
     
     render json: requests
   end
@@ -36,7 +36,7 @@ class Api::ShiftRequestsController < ApplicationController
   end
 
   # シフト交代リクエストを取得
-  def get_pending_change_requests_for(employee_id)
+  def get_pending_exchange_requests_for(employee_id)
     shift_exchanges = ShiftExchange.for_approver(employee_id).pending.includes(:shift)
     
     shift_exchanges.map do |exchange|

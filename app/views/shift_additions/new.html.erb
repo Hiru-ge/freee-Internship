@@ -8,7 +8,7 @@
     <div class="shift-addition-container">
       <h1>シフト追加リクエスト</h1>
       
-      <form id="addition-form" action="<%= shift_requests_path %>" method="post" class="shift-addition-form">
+      <form id="addition-form" action="<%= shift_additions_path %>" method="post" class="shift-addition-form">
         <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
         <%= hidden_field_tag :request_type, 'addition' %>
         

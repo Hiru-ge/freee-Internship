@@ -16,7 +16,7 @@ class AuthController < ApplicationController
         redirect_to dashboard_path, notice: result[:message]
       else
         if result[:needs_password_setup]
-          redirect_to initial_password_auth_path, alert: result[:message]
+          redirect_to initial_password_path, alert: result[:message]
         else
           flash.now[:alert] = result[:message]
           render :login
@@ -41,7 +41,7 @@ class AuthController < ApplicationController
       result = AuthService.set_initial_password_with_verification(employee_id, password, verification_code)
       
       if result[:success]
-        redirect_to login_auth_path, notice: result[:message]
+        redirect_to login_path, notice: result[:message]
       else
         flash.now[:alert] = result[:message]
         render :initial_password
@@ -107,7 +107,7 @@ class AuthController < ApplicationController
       
       if result[:success]
         # 認証コード送信成功時は、認証コード入力画面にリダイレクト
-        redirect_to verify_password_reset_auth_path(employee_id: employee_id), notice: result[:message]
+        redirect_to verify_password_reset_path(employee_id: employee_id), notice: result[:message]
       else
         flash.now[:alert] = result[:message]
         render :forgot_password
@@ -119,7 +119,7 @@ class AuthController < ApplicationController
     @employee_id = params[:employee_id]
     
     if @employee_id.blank?
-      redirect_to forgot_password_auth_path, alert: '従業員IDが指定されていません'
+      redirect_to forgot_password_path, alert: '従業員IDが指定されていません'
       return
     end
     
@@ -136,7 +136,7 @@ class AuthController < ApplicationController
       
       if result[:success]
         # 認証成功時は、パスワード再設定画面にリダイレクト
-        redirect_to reset_password_auth_path(employee_id: @employee_id, code: verification_code), notice: result[:message]
+        redirect_to reset_password_path(employee_id: @employee_id, code: verification_code), notice: result[:message]
       else
         flash.now[:alert] = result[:message]
         render :verify_password_reset
@@ -149,7 +149,7 @@ class AuthController < ApplicationController
     @verification_code = params[:code]
     
     if @employee_id.blank? || @verification_code.blank?
-      redirect_to forgot_password_auth_path, alert: 'パラメータが不正です'
+      redirect_to forgot_password_path, alert: 'パラメータが不正です'
       return
     end
     
@@ -172,7 +172,7 @@ class AuthController < ApplicationController
       result = AuthService.reset_password_with_verification(@employee_id, new_password, @verification_code)
       
       if result[:success]
-        redirect_to login_auth_path, notice: result[:message]
+        redirect_to login_path, notice: result[:message]
       else
         flash.now[:alert] = result[:message]
         render :reset_password
@@ -183,14 +183,14 @@ class AuthController < ApplicationController
   def logout
     session[:employee_id] = nil
     session[:authenticated] = nil
-    redirect_to login_auth_path, notice: 'ログアウトしました'
+    redirect_to login_path, notice: 'ログアウトしました'
   end
   
   private
   
   def set_employee
     @employee = Employee.find_by(employee_id: session[:employee_id])
-    redirect_to login_auth_path unless @employee
+    redirect_to login_path unless @employee
   end
   
   def load_employees

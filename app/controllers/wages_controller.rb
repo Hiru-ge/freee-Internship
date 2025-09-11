@@ -29,7 +29,7 @@ class WagesController < ApplicationController
 
 
   # API: 給与情報をJSONで取得
-  def api_wage_info
+  def wage_info
     employee_id = params[:employee_id] || current_employee_id
     month = params[:month]&.to_i || Time.current.month
     year = params[:year]&.to_i || Time.current.year
@@ -41,7 +41,7 @@ class WagesController < ApplicationController
   end
 
   # API: 全従業員の給与情報をJSONで取得
-  def api_all_wages
+  def all_wages
     month = params[:month]&.to_i || Time.current.month
     year = params[:year]&.to_i || Time.current.year
     

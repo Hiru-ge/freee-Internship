@@ -17,12 +17,12 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
   # 認証が必要なページへのアクセステスト
   test "should redirect to login when not authenticated" do
     get shifts_url
-    assert_redirected_to login_auth_url
+    assert_redirected_to login_url
   end
 
   # シフトページの表示テスト（オーナー）
   test "should get index as owner" do
-    post login_auth_url, params: {
+    post login_url, params: {
       employee_id: '3313254',
       password: 'password123'
     }
@@ -35,7 +35,7 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
 
   # シフトページの表示テスト（従業員）
   test "should get index as employee" do
-    post login_auth_url, params: {
+    post login_url, params: {
       employee_id: '3316120',
       password: 'password123'
     }
@@ -49,7 +49,7 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
 
   # シフトデータ取得APIテスト
   test "should get shift data" do
-    post login_auth_url, params: {
+    post login_url, params: {
       employee_id: '3313254',
       password: 'password123'
     }
@@ -65,7 +65,7 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
 
   # 従業員一覧取得APIテスト（オーナーのみ）
   test "should get employees list as owner" do
-    post login_auth_url, params: {
+    post login_url, params: {
       employee_id: '3313254',
       password: 'password123'
     }
@@ -80,7 +80,7 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
 
   # 従業員一覧取得APIテスト（従業員はアクセス不可）
   test "should not get employees list as employee" do
-    post login_auth_url, params: {
+    post login_url, params: {
       employee_id: '3316120',
       password: 'password123'
     }
@@ -91,7 +91,7 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
 
   # 週次ナビゲーションテスト
   test "should navigate to different weeks" do
-    post login_auth_url, params: {
+    post login_url, params: {
       employee_id: '3313254',
       password: 'password123'
     }
@@ -107,7 +107,7 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
 
   # シフト表の表示テスト
   test "should display shift calendar" do
-    post login_auth_url, params: {
+    post login_url, params: {
       employee_id: '3313254',
       password: 'password123'
     }
@@ -119,7 +119,7 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
 
   # 103万の壁ゲージの表示テスト（オーナー）
   test "should display wage gauge for owner" do
-    post login_auth_url, params: {
+    post login_url, params: {
       employee_id: '3313254',
       password: 'password123'
     }
@@ -132,7 +132,7 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
 
   # 103万の壁ゲージの表示テスト（従業員）
   test "should display wage gauge for employee" do
-    post login_auth_url, params: {
+    post login_url, params: {
       employee_id: '3316120',
       password: 'password123'
     }

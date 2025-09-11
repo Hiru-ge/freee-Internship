@@ -4,8 +4,8 @@
   <!-- ナビゲーション -->
   <div class="page-navigation">
     <%= link_to "マイページに戻る", dashboard_path, class: "button nav-button" %>
-    <%= link_to "パスワード変更", password_change_auth_path, class: "button nav-button" %>
-    <%= form_with url: logout_auth_path, method: :post, local: true, class: "logout-form" do |form| %>
+    <%= link_to "パスワード変更", password_change_path, class: "button nav-button" %>
+    <%= form_with url: logout_path, method: :post, local: true, class: "logout-form" do |form| %>
       <%= form.submit "ログアウト", class: "button nav-button logout" %>
     <% end %>
   </div>
@@ -382,7 +382,7 @@
     var dayStr = String(day).padStart(2, '0');
     var dateStr = calendarYear + '-' + monthStr + '-' + dayStr;
 
-    var baseUrl = '<%= new_shift_request_path %>';
+    var baseUrl = '<%= new_shift_exchange_path %>';
     var params = '?applicant_id=' + encodeURIComponent(employeeId) +
                 '&date=' + encodeURIComponent(dateStr) +
                 '&start=' + encodeURIComponent(startTime) +
