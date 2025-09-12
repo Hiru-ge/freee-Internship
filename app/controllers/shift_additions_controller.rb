@@ -63,7 +63,6 @@ class ShiftAdditionsController < ApplicationController
       # 通知送信（テスト環境ではスキップ）
       unless Rails.env.test?
         EmailNotificationService.new.send_shift_addition_request(
-          current_employee_id,
           params[:employee_id],
           params[:shift_date],
           params[:start_time],

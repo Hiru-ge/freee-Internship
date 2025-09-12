@@ -4,6 +4,7 @@ class ApplicationController < ActionController::Base
   
   # 認証機能
   before_action :require_login
+  before_action :set_header_variables
   
   private
   
@@ -42,5 +43,29 @@ class ApplicationController < ActionController::Base
     error_message
   end
   
+  def set_header_variables
+    if session[:authenticated] && session[:employee_id]
+      @employee_name = get_employee_name
+      @is_owner = owner?
+    else
+      @employee_name = nil
+      @is_owner = false
+    end
+  end
+
+  def get_employee_name
+    begin
+      freee_service = FreeeApiService.new(
+        ENV['FREEE_ACCESS_TOKEN'],
+        ENV['FREEE_COMPANY_ID']
+      )
+      employee_info = freee_service.get_employee_info(current_employee_id)
+      employee_info['display_name'] || 'Unknown'
+    rescue => error
+      Rails.logger.error "Failed to get employee name: #{error.message}"
+      'Unknown'
+    end
+  end
+
   helper_method :current_employee, :current_employee_id, :owner?, :freee_api_service
 end

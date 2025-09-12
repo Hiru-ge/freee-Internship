@@ -66,7 +66,7 @@ class AuthControllerTest < ActionDispatch::IntegrationTest
     )
     
     # 認証コードでパスワード設定
-    post initial_password_url, params: {
+    post setup_initial_password_url, params: {
       employee_id: '3316120',
       verification_code: '123456',  # テスト用の認証コード
       password: 'newpassword123',

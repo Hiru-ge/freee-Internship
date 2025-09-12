@@ -1,0 +1,98 @@
+<header class="main-header">
+  <div class="header-container">
+    <!-- ロゴ・ブランド -->
+    <div class="logo">
+      <%= link_to dashboard_path, class: "logo-link" do %>
+        <span class="logo-text">勤怠管理システム</span>
+      <% end %>
+    </div>
+    
+    
+    <% if @employee_name.present? %>
+      <div class="header-right">
+        <!-- ユーザー情報表示 -->
+        <div class="user-info">
+          <span class="user-name"><%= @employee_name %></span>
+          <span class="user-role">[<%= @is_owner ? 'オーナー' : '従業員' %>]</span>
+        </div>
+        
+        <!-- ログアウトリンク -->
+        <div class="header-logout">
+          <%= button_to "ログアウト", logout_path, method: :post, class: "logout-link", 
+              data: { confirm: "ログアウトしますか？" } %>
+        </div>
+        
+        <!-- モバイルメニューボタン -->
+        <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" aria-label="メニューを開く">
+          <span class="hamburger-icon">☰</span>
+        </button>
+      </div>
+    <% else %>
+      <!-- ログインリンク -->
+      <div class="header-login">
+        <%= link_to "ログイン", login_path, class: "login-link" %>
+      </div>
+    <% end %>
+  </div>
+  
+  <!-- モバイルナビゲーション -->
+  <nav class="mobile-navigation" id="mobile-nav">
+    <ul class="mobile-nav-list">
+      <li class="mobile-nav-item">
+        <%= link_to dashboard_path, class: "mobile-nav-link #{'active' if current_page?(dashboard_path)}" do %>
+          <span class="mobile-nav-text">ダッシュボード</span>
+        <% end %>
+      </li>
+      <li class="mobile-nav-item">
+        <%= link_to shifts_path, class: "mobile-nav-link #{'active' if current_page?(shifts_path)}" do %>
+          <span class="mobile-nav-text">シフト</span>
+        <% end %>
+      </li>
+      <li class="mobile-nav-item">
+        <%= link_to password_change_path, class: "mobile-nav-link #{'active' if current_page?(password_change_path)}" do %>
+          <span class="mobile-nav-text">パスワード変更</span>
+        <% end %>
+      </li>
+    </ul>
+  </nav>
+</header>
+
+<script>
+  // モバイルメニューの制御
+  function toggleMobileMenu() {
+    const mobileNav = document.getElementById('mobile-nav');
+    const toggleButton = document.querySelector('.mobile-menu-toggle');
+    
+    if (mobileNav.classList.contains('active')) {
+      mobileNav.classList.remove('active');
+      toggleButton.setAttribute('aria-label', 'メニューを開く');
+    } else {
+      mobileNav.classList.add('active');
+      toggleButton.setAttribute('aria-label', 'メニューを閉じる');
+    }
+  }
+  
+  // メニュー外クリックで閉じる
+  document.addEventListener('click', function(event) {
+    const mobileNav = document.getElementById('mobile-nav');
+    const toggleButton = document.querySelector('.mobile-menu-toggle');
+    
+    if (!mobileNav.contains(event.target) && !toggleButton.contains(event.target)) {
+      mobileNav.classList.remove('active');
+      toggleButton.setAttribute('aria-label', 'メニューを開く');
+    }
+  });
+  
+  // ログアウト確認
+  document.addEventListener('DOMContentLoaded', function() {
+    const logoutForms = document.querySelectorAll('.logout-form, .mobile-logout-form');
+    
+    logoutForms.forEach(form => {
+      form.addEventListener('submit', function(e) {
+        if (!confirm('ログアウトしますか？')) {
+          e.preventDefault();
+        }
+      });
+    });
+  });
+</script>

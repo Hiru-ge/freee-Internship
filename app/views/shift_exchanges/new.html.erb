@@ -12,21 +12,29 @@
         <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
         
         <div class="form-group">
-          <label for="applicant-display" class="form-label">申請者 (あなたの名前):</label>
-          <input type="text" id="applicant-display" class="form-input readonly" value="<%= @employees.find { |emp| emp[:id] == @applicant_id }&.dig(:display_name) || '読み込み中...' %>" readonly>
-          <input type="hidden" id="applicant-select" name="applicant_id" value="<%= @applicant_id %>">
-          <div class="form-help">※ 申請者は変更できません</div>
+          <div class="form-row">
+            <label for="applicant-display" class="form-label">申請者 (あなたの名前):</label>
+            <input type="text" id="applicant-display" class="form-input readonly" value="<%= @employees.find { |emp| emp[:id] == @applicant_id }&.dig(:display_name) || '読み込み中...' %>" readonly>
+            <input type="hidden" id="applicant-select" name="applicant_id" value="<%= @applicant_id %>">
+          </div>
         </div>
 
         <div class="form-group">
-          <label for="shift-date" class="form-label">交代したいシフトの日付:</label>
-          <input type="date" id="shift-date" name="shift_date" class="form-input" value="<%= @date %>" required>
+          <div class="form-row">
+            <label for="shift-date" class="form-label">交代したいシフトの日付:</label>
+            <input type="date" id="shift-date" name="shift_date" class="form-input readonly" value="<%= @date %>" readonly required>
+          </div>
         </div>
 
         <div class="form-group">
-          <label class="form-label">交代したいシフトの時間:</label>
-          <input type="time" id="start-time" name="start_time" class="form-input" value="<%= @start %>" required> ～ 
-          <input type="time" id="end-time" name="end_time" class="form-input" value="<%= @end %>" required>
+          <div class="form-row">
+            <label class="form-label">交代したいシフトの時間:</label>
+            <div class="time-inputs">
+              <input type="time" id="start-time" name="start_time" class="form-input readonly" value="<%= @start_time %>" readonly required>
+              <span class="time-separator">～</span>
+              <input type="time" id="end-time" name="end_time" class="form-input readonly" value="<%= @end_time %>" readonly required>
+            </div>
+          </div>
         </div>
         
         <div class="form-group">
@@ -37,21 +45,19 @@
           </div>
         </div>
         
-        <button type="submit" class="form-button">この内容でリクエストを送信</button>
+        <div class="form-buttons">
+          <button type="submit" class="form-button">この内容でリクエストを送信</button>
+          <a href="#" onclick="goBack(); return false;" class="form-button secondary">シフトページに戻る</a>
+        </div>
       </form>
-
-      <hr>
-      <div class="nav-buttons">
-        <a href="#" onclick="goBack(); return false;" class="form-button secondary">シフトページに戻る</a>
-      </div>
     </div>
 
     <script>
       // サーバーから渡された変数を、JavaScriptの変数として受け取る
       var applicantIdFromUrl = "<%= @applicant_id %>";
       var dateFromUrl = "<%= @date %>";
-      var startFromUrl = "<%= @start %>";
-      var endFromUrl = "<%= @end %>";
+      var startFromUrl = "<%= @start_time %>";
+      var endFromUrl = "<%= @end_time %>";
       var employees = <%= raw @employees.to_json %>;
 
       /**

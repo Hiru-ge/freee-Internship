@@ -128,15 +128,28 @@ class WageService
   # 全従業員の給与情報を取得
   def get_all_employees_wages(month, year)
     begin
-      employees = Employee.all
+      # freeeAPIから従業員一覧を取得
+      freee_service = FreeeApiService.new(
+        ENV['FREEE_ACCESS_TOKEN'],
+        ENV['FREEE_COMPANY_ID']
+      )
+      
+      freee_employees = freee_service.get_all_employees
+      
+      if freee_employees.empty?
+        Rails.logger.warn "freeeAPIから従業員データを取得できませんでした"
+        return []
+      end
+      
       all_wages = []
       
-      employees.each do |employee|
-        wage_info = calculate_monthly_wage(employee.employee_id, month, year)
+      freee_employees.each do |employee_data|
+        employee_id = employee_data['id'].to_s
+        wage_info = calculate_monthly_wage(employee_id, month, year)
         
         all_wages << {
-          employee_id: employee.employee_id,
-          employee_name: employee.display_name || "ID: #{employee.employee_id}",
+          employee_id: employee_id,
+          employee_name: employee_data['display_name'] || "ID: #{employee_id}",
           wage: wage_info[:total],
           breakdown: wage_info[:breakdown],
           work_hours: wage_info[:work_hours],
@@ -155,8 +168,14 @@ class WageService
   # 指定従業員の給与情報を取得
   def get_employee_wage_info(employee_id, month, year)
     begin
-      employee = Employee.find_by(employee_id: employee_id)
-      unless employee
+      # freeeAPIから従業員情報を取得
+      freee_service = FreeeApiService.new(
+        ENV['FREEE_ACCESS_TOKEN'],
+        ENV['FREEE_COMPANY_ID']
+      )
+      
+      employee_info = freee_service.get_employee_info(employee_id)
+      unless employee_info
         return {
           error: '指定された従業員IDが見つかりません',
           employee_id: employee_id
@@ -167,7 +186,7 @@ class WageService
       
       {
         employee_id: employee_id,
-        employee_name: employee.display_name || "ID: #{employee_id}",
+        employee_name: employee_info['display_name'] || "ID: #{employee_id}",
         wage: wage_info[:total],
         breakdown: wage_info[:breakdown],
         work_hours: wage_info[:work_hours],

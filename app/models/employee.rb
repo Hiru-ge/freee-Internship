@@ -30,10 +30,21 @@ class Employee < ApplicationRecord
     update!(password_hash: new_password_hash, password_updated_at: Time.current)
   end
 
-  # freee APIから取得した従業員名を返す（将来の拡張用）
+  # freee APIから取得した従業員名を返す
   def display_name
-    # 設定ファイルから従業員名を取得
-    AppConstants.employee_name(employee_id)
+    begin
+      # freeeAPIから従業員情報を取得
+      freee_service = FreeeApiService.new(
+        ENV['FREEE_ACCESS_TOKEN'],
+        ENV['FREEE_COMPANY_ID']
+      )
+      
+      employee_info = freee_service.get_employee_info(employee_id)
+      employee_info&.dig('display_name') || "ID: #{employee_id}"
+    rescue => e
+      Rails.logger.error "従業員名取得エラー: #{e.message}"
+      "ID: #{employee_id}"
+    end
   end
   
   private

@@ -18,7 +18,7 @@
     <link rel="apple-touch-icon" href="/icon.png">
 
     <%# Includes all stylesheet files in app/assets/stylesheets %>
-    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
     
     <%# 統一されたメッセージ表示システム（最初に読み込み） %>
     <%= javascript_include_tag 'message_handler' %>
@@ -30,7 +30,10 @@
   </head>
 
   <body>
-    <%= yield %>
+    <%= render 'shared/header' %>
+    <main class="main-content">
+      <%= yield %>
+    </main>
     
     <!-- フラッシュメッセージをトースト形式で表示 -->
     <script>

@@ -1,5 +1,5 @@
-<div class="my-page-container">
-  <h1>マイページ</h1>
+<div class="dashboard-container">
+  <h1>ダッシュボード</h1>
   
   <!-- ユーザー情報 -->
   <div class="user-info">
@@ -7,53 +7,14 @@
     <span id="user-role"><%= @is_owner ? 'オーナー' : '従業員' %></span>
   </div>
 
-  <!-- 打刻機能 -->
-  <div class="time-clock-section">
-    <h3>勤怠打刻</h3>
+  <!-- 打刻機能（メインエリア） -->
+  <div class="time-clock-section main-section">
+    <h2>勤怠打刻</h2>
     <div class="time-clock-buttons">
-      <button id="clock-in-btn" class="button clock-in" onclick="clockIn()">出勤打刻</button>
-      <button id="clock-out-btn" class="button clock-out" onclick="clockOut()">退勤打刻</button>
+      <button id="clock-in-btn" class="button clock-in main-button" onclick="clockIn()">出勤</button>
+      <button id="clock-out-btn" class="button clock-out main-button" onclick="clockOut()">退勤</button>
     </div>
     <div id="clock-status" class="clock-status"><%= @clock_status[:message] %></div>
-  </div>
-
-  <!-- 給与情報（103万の壁ゲージ） -->
-  <div class="wage-section">
-    <h3>103万の壁ゲージ <span class="help-text small">※</span></h3>
-    <p class="help-text">※このゲージ状態は、すでに入っているシフトをもとに計算されています</p>
-    <div class="wage-gauge">
-      <div class="wage-info">
-        <span class="wage-amount">¥<%= number_with_delimiter(@wage_info[:wage]) %></span>
-        <span class="wage-target">/ ¥<%= number_with_delimiter(@wage_info[:target]) %></span>
-      </div>
-      <div class="gauge-container">
-        <div class="gauge-bar">
-          <div class="gauge-fill" style="width: <%= [@wage_info[:percentage], 100].min %>%"></div>
-        </div>
-        <div class="gauge-percentage"><%= @wage_info[:percentage] %>%</div>
-      </div>
-      <% if @wage_info[:wage] >= @wage_info[:target] %>
-        <div class="wage-achievement">🎉 目標達成！</div>
-      <% else %>
-        <div class="wage-remaining">残り: ¥<%= number_with_delimiter(@wage_info[:target] - @wage_info[:wage]) %></div>
-      <% end %>
-      
-      <script>
-        // 給与ゲージの色を動的に変更
-        document.addEventListener('DOMContentLoaded', function() {
-          var percentage = <%= @wage_info[:percentage] %>;
-          var gaugeFill = document.querySelector('.gauge-fill');
-          
-          if (percentage >= 100) {
-            gaugeFill.style.backgroundColor = '#ff4444'; // 赤
-          } else if (percentage >= 80) {
-            gaugeFill.style.backgroundColor = '#ffaa44'; // オレンジ
-          } else {
-            gaugeFill.style.backgroundColor = '#44ff44'; // 緑
-          }
-        });
-      </script>
-    </div>
   </div>
 
   <!-- 勤怠履歴 -->
@@ -69,15 +30,6 @@
     </div>
   </div>
 
-
-  <!-- ナビゲーション -->
-  <div class="navigation">
-    <%= link_to "シフトページ", shifts_path, class: "button nav-button" %>
-    <%= link_to "パスワード変更", password_change_path, class: "button nav-button" %>
-    <%= form_with url: logout_path, method: :post, local: true, class: "logout-form" do |form| %>
-      <%= form.submit "ログアウト", class: "button nav-button logout" %>
-    <% end %>
-  </div>
 
   <!-- メッセージ表示 -->
   <div id="message" class="message" style="display: none;"></div>
@@ -201,18 +153,18 @@
         
         if (clockStatus.can_clock_in) {
           clockInBtn.disabled = false;
-          clockInBtn.textContent = '出勤打刻';
+          clockInBtn.textContent = '出勤';
         } else {
           clockInBtn.disabled = true;
-          clockInBtn.textContent = '出勤済み';
+          clockInBtn.textContent = '出勤';
         }
         
         if (clockStatus.can_clock_out) {
           clockOutBtn.disabled = false;
-          clockOutBtn.textContent = '退勤打刻';
+          clockOutBtn.textContent = '退勤';
         } else {
           clockOutBtn.disabled = true;
-          clockOutBtn.textContent = '退勤済み';
+          clockOutBtn.textContent = '退勤';
         }
         
         if (clockStatus.message) {
@@ -277,17 +229,23 @@
     });
   }
 
-  // メッセージ表示
+  // メッセージ表示（トースト通知を使用）
   function showMessage(message, type) {
-    var messageDiv = document.getElementById('message');
-    messageDiv.textContent = message;
-    messageDiv.className = 'message ' + type;
-    messageDiv.style.display = 'block';
-    
-    // 3秒後にメッセージを非表示
-    setTimeout(function() {
-      messageDiv.style.display = 'none';
-    }, 3000);
+    // グローバルなshowFlashMessage関数を使用
+    if (typeof showFlashMessage === 'function') {
+      showFlashMessage(message, type);
+    } else {
+      // フォールバック: 既存のメッセージ表示
+      var messageDiv = document.getElementById('message');
+      messageDiv.textContent = message;
+      messageDiv.className = 'message ' + type;
+      messageDiv.style.display = 'block';
+      
+      // 3秒後にメッセージを非表示
+      setTimeout(function() {
+        messageDiv.style.display = 'none';
+      }, 3000);
+    }
   }
 </script>
 

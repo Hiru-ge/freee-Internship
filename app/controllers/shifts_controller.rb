@@ -3,6 +3,20 @@ class ShiftsController < ApplicationController
     @employee = current_employee
     @employee_id = current_employee_id
     @is_owner = owner?
+    
+    # 給与情報を取得
+    if @is_owner
+      # オーナー: 全従業員の給与情報
+      wage_service = WageService.new
+      @employee_wages = wage_service.get_all_employees_wages(
+        Date.current.month, 
+        Date.current.year
+      )
+    else
+      # 従業員: 個人の給与情報
+      wage_service = WageService.new
+      @wage_info = wage_service.get_wage_info(@employee_id)
+    end
   end
 
   # 従業員一覧の取得（オーナーのみ）

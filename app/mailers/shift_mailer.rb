@@ -6,7 +6,7 @@ class ShiftMailer < ApplicationMailer
     @shift_date = shift_date
     @start_time = start_time
     @end_time = end_time
-    @approval_url = "#{root_url}shifts/approval"
+    @approval_url = "#{root_url}shift_approvals"
     
     mail(
       to: approver_email,
@@ -44,7 +44,7 @@ class ShiftMailer < ApplicationMailer
     @shift_date = shift_date
     @start_time = start_time
     @end_time = end_time
-    @approval_url = "#{root_url}shifts/approval"
+    @approval_url = "#{root_url}shift_approvals"
     
     mail(
       to: target_email,

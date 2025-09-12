@@ -6,6 +6,10 @@ Rails.application.routes.draw do
   post "auth/login", to: "auth#login"
   get "auth/initial_password", to: "auth#initial_password", as: :initial_password
   post "auth/initial_password", to: "auth#initial_password"
+  get "auth/verify_initial_code", to: "auth#verify_initial_code", as: :verify_initial_code
+  post "auth/verify_initial_code", to: "auth#verify_initial_code"
+  get "auth/setup_initial_password", to: "auth#setup_initial_password", as: :setup_initial_password
+  post "auth/setup_initial_password", to: "auth#setup_initial_password"
   get "auth/password_change", to: "auth#password_change", as: :password_change
   post "auth/password_change", to: "auth#password_change"
   get "auth/forgot_password", to: "auth#forgot_password", as: :forgot_password

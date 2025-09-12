@@ -1,14 +1,6 @@
 <div class="shift-page-container <%= @is_owner ? 'owner-mode' : 'employee-mode' %>">
   <h1>シフトページ</h1>
   
-  <!-- ナビゲーション -->
-  <div class="page-navigation">
-    <%= link_to "マイページに戻る", dashboard_path, class: "button nav-button" %>
-    <%= link_to "パスワード変更", password_change_path, class: "button nav-button" %>
-    <%= form_with url: logout_path, method: :post, local: true, class: "logout-form" do |form| %>
-      <%= form.submit "ログアウト", class: "button nav-button logout" %>
-    <% end %>
-  </div>
   
   <!-- シフト表 -->
   <div class="shift-calendar-section">
@@ -149,7 +141,7 @@
   // 給与ゲージの読み込み（オーナーのみ）
   function loadWageGauge() {
     // 全従業員の給与データを取得
-    fetch('/wages/api_all_wages')
+    fetch('/wages/all_wages')
       .then(response => response.json())
       .then(wages => {
         if (wages && wages.length > 0) {
@@ -189,7 +181,7 @@
     }
     
     // 個人の給与情報を取得
-    fetch('/wages/api_wage_info?employee_id=' + current_employee_id)
+    fetch('/wages/wage_info?employee_id=' + current_employee_id)
       .then(response => response.json())
       .then(wageInfo => {
         updatePersonalWageGauge(wageInfo);
@@ -242,8 +234,12 @@
     var titleEl = document.getElementById('calendar-title');
     titleEl.textContent = calendarYear + '年' + calendarMonth + '月';
     
-    var container = document.getElementById('shift-calendar-container');
-    container.innerHTML = "";
+    var shift_calendar_container = document.getElementById('shift-calendar-container');
+    if (!shift_calendar_container) {
+      console.error('shift-calendar-container要素が見つかりません');
+      return;
+    }
+    shift_calendar_container.innerHTML = "";
 
     var table = document.createElement('table');
     table.className = 'shift-calendar';

@@ -16,10 +16,30 @@ class AuthService
   # ログイン処理
   def self.login(employee_id, password)
     begin
+      # freeeAPIから従業員情報を取得
+      freee_service = FreeeApiService.new(
+        Rails.application.config.freee_api['access_token'],
+        Rails.application.config.freee_api['company_id']
+      )
+      
+      # 従業員が存在するかチェック
+      employee_info = freee_service.get_employee_info(employee_id)
+      unless employee_info
+        return { success: false, message: '従業員IDが見つかりません' }
+      end
+      
+      # データベースから従業員レコードを取得（パスワード認証用）
       employee = Employee.find_by(employee_id: employee_id)
       
       if employee.nil?
-        return { success: false, message: '従業員IDが見つかりません' }
+        # 従業員レコードが存在しない場合は作成
+        employee = Employee.create!(
+          employee_id: employee_id,
+          role: determine_role_from_freee(employee_info),
+          password_hash: nil, # 初回ログイン時はパスワード未設定
+          password_updated_at: nil,
+          last_login_at: nil
+        )
       end
       
       if employee.password_hash.blank?
@@ -268,11 +288,18 @@ class AuthService
   # オーナー権限チェック
   def self.is_owner?(employee_id)
     begin
-      employee = Employee.find_by(employee_id: employee_id)
-      return false if employee.nil?
+      # freeeAPIから従業員情報を取得して権限を判定
+      freee_service = FreeeApiService.new(
+        Rails.application.config.freee_api['access_token'],
+        Rails.application.config.freee_api['company_id']
+      )
       
-      # オーナー権限はroleで判定
-      employee.owner?
+      employee_info = freee_service.get_employee_info(employee_id)
+      return false unless employee_info
+      
+      # 店長のIDをチェック
+      owner_id = '3313254' # 店長 太郎のID
+      employee_info['id'].to_s == owner_id
     rescue => e
       Rails.logger.error "オーナー権限チェックエラー: #{e.message}"
       false
@@ -280,6 +307,13 @@ class AuthService
   end
   
   private
+  
+  # freeeAPIの従業員情報から役割を判定
+  def self.determine_role_from_freee(employee_info)
+    # 店長のIDをチェック（設定ファイルから取得）
+    owner_id = '3313254' # 店長 太郎のID
+    employee_info['id'].to_s == owner_id ? 'owner' : 'employee'
+  end
   
   # freee APIから従業員情報を取得
   def self.get_employee_info_from_freee(employee_id)
