@@ -1,4 +1,7 @@
 class Shift < ApplicationRecord
+  # アソシエーション
+  belongs_to :employee, foreign_key: 'employee_id', primary_key: 'employee_id'
+  
   # バリデーション
   validates :employee_id, presence: true
   validates :shift_date, presence: true

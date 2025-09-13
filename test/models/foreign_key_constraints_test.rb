@@ -6,7 +6,8 @@ class ForeignKeyConstraintsTest < ActiveSupport::TestCase
 
   test "shifts should have foreign key constraint to employees" do
     # 存在しないemployee_idでshiftを作成しようとするとエラーになることを確認
-    assert_raises(ActiveRecord::InvalidForeignKey) do
+    # Railsのバリデーションが先に実行されるため、RecordInvalid例外を期待
+    assert_raises(ActiveRecord::RecordInvalid) do
       Shift.create!(
         employee_id: "non_existent_employee",
         shift_date: Date.current,

@@ -16,7 +16,8 @@ class WageService
     AppConstants.monthly_wage_target
   end
 
-  def initialize
+  def initialize(freee_api_service = nil)
+    @freee_api_service = freee_api_service
   end
 
   # 時間帯を判定する
@@ -125,11 +126,61 @@ class WageService
     end
   end
 
+  # シフトデータから給与を計算（N+1問題解決用）
+  def calculate_monthly_wage_from_shifts(shifts)
+    begin
+      monthly_hours = { normal: 0, evening: 0, night: 0 }
+
+      shifts.each do |shift|
+        day_hours = calculate_work_hours_by_time_zone(
+          shift.shift_date,
+          shift.start_time,
+          shift.end_time
+        )
+        
+        monthly_hours[:normal] += day_hours[:normal]
+        monthly_hours[:evening] += day_hours[:evening]
+        monthly_hours[:night] += day_hours[:night]
+      end
+
+      breakdown = {}
+      total = 0
+
+      monthly_hours.each do |time_zone, hours|
+        rate = self.class.time_zone_wage_rates[time_zone][:rate]
+        wage = hours * rate
+        
+        breakdown[time_zone] = {
+          hours: hours,
+          rate: rate,
+          wage: wage,
+          name: self.class.time_zone_wage_rates[time_zone][:name]
+        }
+        
+        total += wage
+      end
+
+      {
+        total: total,
+        breakdown: breakdown,
+        work_hours: monthly_hours
+      }
+      
+    rescue => error
+      Rails.logger.error "給与計算エラー: #{error.message}"
+      {
+        total: 0,
+        breakdown: {},
+        work_hours: { normal: 0, evening: 0, night: 0 }
+      }
+    end
+  end
+
   # 全従業員の給与情報を取得
   def get_all_employees_wages(month, year)
     begin
-      # freeeAPIから従業員一覧を取得
-      freee_service = FreeeApiService.new(
+      # freeeAPIから従業員一覧を取得（共通インスタンス使用）
+      freee_service = @freee_api_service || FreeeApiService.new(
         ENV['FREEE_ACCESS_TOKEN'],
         ENV['FREEE_COMPANY_ID']
       )
@@ -141,11 +192,28 @@ class WageService
         return []
       end
       
+      # N+1問題を解決するため、全従業員のシフトデータを一括取得
+      employee_ids = freee_employees.map { |emp| emp['id'].to_s }
+      start_date = Date.new(year, month, 1)
+      end_date = start_date.end_of_month
+      
+      # 全従業員のシフトデータを一括取得（includesを使用）
+      all_shifts = Shift.where(
+        employee_id: employee_ids,
+        shift_date: start_date..end_date
+      ).includes(:employee)
+      
+      # 従業員ごとにシフトデータをグループ化
+      shifts_by_employee = all_shifts.group_by(&:employee_id)
+      
       all_wages = []
       
       freee_employees.each do |employee_data|
         employee_id = employee_data['id'].to_s
-        wage_info = calculate_monthly_wage(employee_id, month, year)
+        employee_shifts = shifts_by_employee[employee_id] || []
+        
+        # 給与計算（N+1問題を解決）
+        wage_info = calculate_monthly_wage_from_shifts(employee_shifts)
         
         all_wages << {
           employee_id: employee_id,
@@ -168,8 +236,8 @@ class WageService
   # 指定従業員の給与情報を取得
   def get_employee_wage_info(employee_id, month, year)
     begin
-      # freeeAPIから従業員情報を取得
-      freee_service = FreeeApiService.new(
+      # freeeAPIから従業員情報を取得（共通インスタンス使用）
+      freee_service = @freee_api_service || FreeeApiService.new(
         ENV['FREEE_ACCESS_TOKEN'],
         ENV['FREEE_COMPANY_ID']
       )

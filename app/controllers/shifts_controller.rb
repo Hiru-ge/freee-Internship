@@ -7,17 +7,17 @@ class ShiftsController < ApplicationController
     @employee_id = current_employee_id
     @is_owner = owner?
     
-    # 給与情報を取得
+    # 給与情報を取得（freee API呼び出し最適化）
     if @is_owner
       # オーナー: 全従業員の給与情報
-      wage_service = WageService.new
+      wage_service = WageService.new(freee_api_service)
       @employee_wages = wage_service.get_all_employees_wages(
         Date.current.month, 
         Date.current.year
       )
     else
       # 従業員: 個人の給与情報
-      wage_service = WageService.new
+      wage_service = WageService.new(freee_api_service)
       @wage_info = wage_service.get_wage_info(@employee_id)
     end
   end
@@ -25,9 +25,8 @@ class ShiftsController < ApplicationController
   # 従業員一覧の取得（オーナーのみ）
   def employees
     if owner?
-      # freee APIから従業員一覧を取得
-      freee_service = FreeeApiService.new(ENV['FREEE_ACCESS_TOKEN'], ENV['FREEE_COMPANY_ID'])
-      employees = freee_service.get_employees
+      # freee APIから従業員一覧を取得（共通インスタンス使用）
+      employees = freee_api_service.get_employees
       
       # 従業員データを整形
       formatted_employees = employees.map do |employee|
@@ -52,27 +51,32 @@ class ShiftsController < ApplicationController
       year = now.year
       month = now.month
       
-      # freee APIから従業員一覧を取得
-      freee_service = FreeeApiService.new(ENV['FREEE_ACCESS_TOKEN'], ENV['FREEE_COMPANY_ID'])
-      employees = freee_service.get_employees
+      # freee APIから従業員一覧を取得（共通インスタンス使用）
+      employees = freee_api_service.get_employees
       
-      # DBからシフトデータを取得
-      shifts_in_db = Shift.for_month(year, month)
+      # DBからシフトデータを取得（N+1問題を解決するためincludesを使用）
+      shifts_in_db = Shift.for_month(year, month).includes(:employee)
       
-      # 従業員データをシフト形式に変換
+      # 従業員データをシフト形式に変換（N+1問題を解決するため一括処理）
       shifts = {}
+      employee_ids = employees.map { |emp| emp[:id] }
+      
+      # 従業員ごとにシフトデータをグループ化
+      shifts_by_employee = shifts_in_db.group_by(&:employee_id)
+      
       employees.each do |employee|
         employee_shifts = {}
+        employee_id = employee[:id]
         
-        # 該当従業員のシフトデータを取得
-        employee_shift_records = shifts_in_db.where(employee_id: employee[:id])
+        # 該当従業員のシフトデータを取得（N+1問題を解決）
+        employee_shift_records = shifts_by_employee[employee_id] || []
         employee_shift_records.each do |shift_record|
           day = shift_record.shift_date.day
           time_string = "#{shift_record.start_time.strftime('%H')}-#{shift_record.end_time.strftime('%H')}"
           employee_shifts[day.to_s] = time_string
         end
         
-        shifts[employee[:id]] = {
+        shifts[employee_id] = {
           name: employee[:display_name],
           shifts: employee_shifts
         }
@@ -99,9 +103,8 @@ class ShiftsController < ApplicationController
     end
 
     begin
-      # freee APIから従業員一覧を取得
-      freee_service = FreeeApiService.new(ENV['FREEE_ACCESS_TOKEN'], ENV['FREEE_COMPANY_ID'])
-      employees = freee_service.get_employees
+      # freee APIから従業員一覧を取得（共通インスタンス使用）
+      employees = freee_api_service.get_employees
       
       render json: employees
     rescue => e

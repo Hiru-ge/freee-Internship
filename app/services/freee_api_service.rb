@@ -2,6 +2,10 @@ class FreeeApiService
   include HTTParty
   base_uri 'https://api.freee.co.jp'
 
+  # キャッシュ設定
+  CACHE_DURATION = 5.minutes
+  RATE_LIMIT_DELAY = 1.second
+
   def initialize(access_token, company_id)
     @access_token = access_token
     @company_id = company_id.to_s  # 文字列に変換
@@ -12,11 +16,23 @@ class FreeeApiService
         'Accept' => 'application/json'
       }
     }
+    @cache = {}
+    @last_api_call = nil
   end
 
   # 従業員一覧取得（シフト管理用）
   def get_employees
+    cache_key = "employees_#{@company_id}"
+    
+    # キャッシュチェック
+    if cached_data = get_cached_data(cache_key)
+      return cached_data
+    end
+    
     begin
+      # レート制限チェック
+      enforce_rate_limit
+      
       url = "/hr/api/v1/companies/#{@company_id}/employees?limit=100&with_no_payroll_calculation=true"
       response = self.class.get(url, @options)
       
@@ -31,13 +47,17 @@ class FreeeApiService
       employees ||= []
       
       # シフト管理に必要な情報のみを返す（ID順でソート）
-      employees.sort_by { |emp| emp['id'] }.map do |emp|
+      result = employees.sort_by { |emp| emp['id'] }.map do |emp|
         {
           id: emp['id'].to_s,
           display_name: emp['display_name'],
           email: emp['email']
         }
       end
+      
+      # キャッシュに保存
+      set_cached_data(cache_key, result)
+      result
     rescue => error
       Rails.logger.error "freee API接続エラー: #{error.message}"
       Rails.logger.error "Error class: #{error.class}"
@@ -74,12 +94,22 @@ class FreeeApiService
 
   # 全従業員情報取得
   def get_all_employees
+    cache_key = "all_employees_#{@company_id}"
+    
+    # キャッシュチェック
+    if cached_data = get_cached_data(cache_key)
+      return cached_data
+    end
+    
     begin
       all = []
       limit = 50
       offset = 0
 
       loop do
+        # レート制限チェック
+        enforce_rate_limit
+        
         url = "/hr/api/v1/companies/#{@company_id}/employees?limit=#{limit}&offset=#{offset}&with_no_payroll_calculation=true"
         response = self.class.get(url, @options)
 
@@ -103,7 +133,11 @@ class FreeeApiService
       end
 
       # IDでソートして返却
-      all.sort_by { |emp| emp['id'] }
+      result = all.sort_by { |emp| emp['id'] }
+      
+      # キャッシュに保存
+      set_cached_data(cache_key, result)
+      result
     rescue => error
       Rails.logger.error "freee API接続エラー: #{error.message}"
       []
@@ -112,7 +146,17 @@ class FreeeApiService
 
   # 特定従業員情報取得
   def get_employee_info(employee_id)
+    cache_key = "employee_info_#{employee_id}_#{@company_id}"
+    
+    # キャッシュチェック
+    if cached_data = get_cached_data(cache_key)
+      return cached_data
+    end
+    
     begin
+      # レート制限チェック
+      enforce_rate_limit
+      
       now = Time.current
       response = self.class.get(
         "/hr/api/v1/employees/#{employee_id}?company_id=#{@company_id}&year=#{now.year}&month=#{now.month}",
@@ -120,7 +164,10 @@ class FreeeApiService
       )
       
       if response.success?
-        response.parsed_response['employee']
+        result = response.parsed_response['employee']
+        # キャッシュに保存
+        set_cached_data(cache_key, result)
+        result
       else
         Rails.logger.error "freee API Error: #{response.code} - #{response.message}"
         Rails.logger.error "Response body: #{response.body}"
@@ -296,5 +343,41 @@ class FreeeApiService
     # 設定ファイルからオーナーの従業員名を取得
     owner_name = AppConstants.employee_name('3313254') # 店長のID
     display_name == owner_name ? 'owner' : 'employee'
+  end
+
+  private
+
+  # キャッシュからデータを取得
+  def get_cached_data(cache_key)
+    cached_entry = @cache[cache_key]
+    return nil unless cached_entry
+    
+    if cached_entry[:expires_at] > Time.current
+      cached_entry[:data]
+    else
+      @cache.delete(cache_key)
+      nil
+    end
+  end
+
+  # キャッシュにデータを保存
+  def set_cached_data(cache_key, data)
+    @cache[cache_key] = {
+      data: data,
+      expires_at: Time.current + CACHE_DURATION
+    }
+  end
+
+  # レート制限の強制
+  def enforce_rate_limit
+    return unless @last_api_call
+    
+    time_since_last_call = Time.current - @last_api_call
+    if time_since_last_call < RATE_LIMIT_DELAY
+      sleep_time = RATE_LIMIT_DELAY - time_since_last_call
+      sleep(sleep_time)
+    end
+  ensure
+    @last_api_call = Time.current
   end
 end
