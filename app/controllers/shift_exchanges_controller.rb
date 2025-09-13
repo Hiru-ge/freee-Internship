@@ -1,6 +1,7 @@
 class ShiftExchangesController < ApplicationController
   include InputValidation
   include AuthorizationCheck
+  include ErrorHandler
   
   before_action :require_login
 
@@ -56,9 +57,7 @@ class ShiftExchangesController < ApplicationController
       redirect_to shifts_path
 
     rescue => error
-      handle_api_error(error, 'シフト交代リクエスト作成')
-      flash[:error] = "リクエストの送信に失敗しました。しばらく時間をおいてから再度お試しください。"
-      redirect_to new_shift_exchange_path
+      handle_api_error(error, 'シフト交代リクエスト作成', new_shift_exchange_path)
     end
   end
 

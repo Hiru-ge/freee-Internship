@@ -1,4 +1,6 @@
 class ApplicationController < ActionController::Base
+  include ErrorHandler
+  
   # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
   allow_browser versions: :modern
   
@@ -54,12 +56,9 @@ class ApplicationController < ActionController::Base
   end
   
   # 共通エラーハンドリング（DRY原則適用）
+  # ErrorHandlerモジュールのhandle_api_errorを使用
   def handle_api_error(error, context = '')
-    error_message = "#{context}エラー: #{error.message}"
-    Rails.logger.error error_message
-    Rails.logger.error "Error class: #{error.class}"
-    Rails.logger.error "Error backtrace: #{error.backtrace.join('\n')}" if error.backtrace
-    error_message
+    super(error, context)
   end
   
   def set_header_variables

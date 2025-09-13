@@ -1,5 +1,6 @@
 class AuthController < ApplicationController
   include InputValidation
+  include ErrorHandler
   
   skip_before_action :require_login, only: [:login, :initial_password, :verify_initial_code, :setup_initial_password, :forgot_password, :verify_password_reset, :reset_password, :send_verification_code, :verify_code]
   skip_before_action :set_header_variables, only: [:login, :initial_password, :verify_initial_code, :setup_initial_password, :forgot_password, :verify_password_reset, :reset_password, :send_verification_code, :verify_code]
@@ -17,7 +18,7 @@ class AuthController < ApplicationController
       
       # SQLインジェクション対策
       if contains_sql_injection?(employee_id) || contains_sql_injection?(password)
-        flash[:alert] = '無効な文字が含まれています'
+        handle_validation_error('input', '無効な文字が含まれています')
         render :login
         return
       end
@@ -28,12 +29,14 @@ class AuthController < ApplicationController
         session[:employee_id] = employee_id
         session[:authenticated] = true
         session[:created_at] = Time.current.to_i
-        redirect_to dashboard_path, notice: result[:message]
+        handle_success(result[:message])
+        redirect_to dashboard_path
       else
         if result[:needs_password_setup]
-          redirect_to initial_password_path, alert: result[:message]
+          handle_warning(result[:message])
+          redirect_to initial_password_path
         else
-          flash.now[:alert] = result[:message]
+          handle_validation_error('login', result[:message])
           render :login
         end
       end

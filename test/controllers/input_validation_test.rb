@@ -161,7 +161,7 @@ class InputValidationTest < ActionDispatch::IntegrationTest
     # バリデーション関数がリダイレクトを返すことを確認
     assert_response :redirect
     follow_redirect!
-    assert_match /パスワードが長すぎます/i, flash[:alert]
+    assert_match /パスワードが長すぎます/i, flash[:error]
   end
 
   test "should limit employee_id length" do
@@ -176,7 +176,7 @@ class InputValidationTest < ActionDispatch::IntegrationTest
     # バリデーション関数がリダイレクトを返すことを確認
     assert_response :redirect
     follow_redirect!
-    assert_match /従業員IDが長すぎます/i, flash[:alert]
+    assert_match /従業員IDが長すぎます/i, flash[:error]
   end
 
   # 特殊文字の処理テスト

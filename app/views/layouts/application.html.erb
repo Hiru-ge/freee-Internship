@@ -124,20 +124,28 @@
         // フラッシュメッセージを即座にトースト形式で表示
         setTimeout(function() {
           try {
-            <% if flash[:notice] %>
-              showFlashMessage('<%= j(flash[:notice]) %>', 'success');
-            <% end %>
-            
-            <% if flash[:alert] %>
-              showFlashMessage('<%= j(flash[:alert]) %>', 'error');
+            <% if flash[:success] %>
+              showFlashMessage('<%= j(flash[:success]) %>', 'success');
             <% end %>
             
             <% if flash[:error] %>
               showFlashMessage('<%= j(flash[:error]) %>', 'error');
             <% end %>
             
-            <% if flash[:success] %>
-              showFlashMessage('<%= j(flash[:success]) %>', 'success');
+            <% if flash[:warning] %>
+              showFlashMessage('<%= j(flash[:warning]) %>', 'warning');
+            <% end %>
+            
+            <% if flash[:info] %>
+              showFlashMessage('<%= j(flash[:info]) %>', 'info');
+            <% end %>
+            
+            <% if flash[:notice] %>
+              showFlashMessage('<%= j(flash[:notice]) %>', 'success');
+            <% end %>
+            
+            <% if flash[:alert] %>
+              showFlashMessage('<%= j(flash[:alert]) %>', 'error');
             <% end %>
           } catch (error) {
             console.error('フラッシュメッセージ表示エラー:', error);

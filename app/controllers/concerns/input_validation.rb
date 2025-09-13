@@ -59,16 +59,20 @@ module InputValidation
   end
 
   def validate_password_length(password, redirect_path)
-    return true if password.blank?
+    if password.blank?
+      flash[:error] = 'パスワードを入力してください'
+      redirect_to redirect_path
+      return false
+    end
     
     if password.length < 8
-      flash[:alert] = 'パスワードは8文字以上で入力してください'
+      flash[:error] = 'パスワードは8文字以上で入力してください'
       redirect_to redirect_path
       return false
     end
     
     if password.length > MAX_PASSWORD_LENGTH
-      flash[:alert] = 'パスワードが長すぎます'
+      flash[:error] = 'パスワードが長すぎます'
       redirect_to redirect_path
       return false
     end
@@ -77,10 +81,14 @@ module InputValidation
   end
 
   def validate_employee_id_format(employee_id, redirect_path)
-    return true if employee_id.blank?
+    if employee_id.blank?
+      flash[:error] = '従業員IDを入力してください'
+      redirect_to redirect_path
+      return false
+    end
     
     if employee_id.length > MAX_EMPLOYEE_ID_LENGTH
-      flash[:alert] = '従業員IDが長すぎます'
+      flash[:error] = '従業員IDが長すぎます'
       redirect_to redirect_path
       return false
     end
