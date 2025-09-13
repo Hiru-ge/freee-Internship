@@ -14,7 +14,14 @@ month = current_date.month
 employee_ids = ["3313254", "3316116", "3316120", "3317741"]
 
 # 既存のシフトデータを削除（同じ月のデータ）
-Shift.where(shift_date: Date.new(year, month, 1)..Date.new(year, month, -1)).destroy_all
+# 外部キー制約を考慮して、shift_exchangesを先に削除してからshiftsを削除
+target_shifts = Shift.where(shift_date: Date.new(year, month, 1)..Date.new(year, month, -1))
+if target_shifts.exists?
+  # 対象のシフトに関連するshift_exchangesを先に削除
+  ShiftExchange.where(shift_id: target_shifts.pluck(:id)).destroy_all
+  # その後、シフトを削除
+  target_shifts.destroy_all
+end
 
 # GASのテストコードから移植したシフトデータ
 # 従業員0（店長 太郎）: 週3回程度、18-20と20-23中心
