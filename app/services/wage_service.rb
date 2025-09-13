@@ -92,141 +92,32 @@ class WageService
   def calculate_monthly_wage(employee_id, month, year)
     begin
       monthly_work_hours = calculate_monthly_work_hours(employee_id, month, year)
-      
-      breakdown = {}
-      total = 0
-
-      monthly_work_hours.each do |time_zone, hours|
-        rate = self.class.time_zone_wage_rates[time_zone][:rate]
-        wage = hours * rate
-        
-        breakdown[time_zone] = {
-          hours: hours,
-          rate: rate,
-          wage: wage,
-          name: self.class.time_zone_wage_rates[time_zone][:name]
-        }
-        
-        total += wage
-      end
-
-      {
-        total: total,
-        breakdown: breakdown,
-        work_hours: monthly_work_hours
-      }
-      
+      calculate_wage_from_hours(monthly_work_hours)
     rescue => error
       Rails.logger.error "給与計算エラー: #{error.message}"
-      {
-        total: 0,
-        breakdown: {},
-        work_hours: { normal: 0, evening: 0, night: 0 }
-      }
+      default_wage_result
     end
   end
 
   # シフトデータから給与を計算（N+1問題解決用）
   def calculate_monthly_wage_from_shifts(shifts)
     begin
-      monthly_hours = { normal: 0, evening: 0, night: 0 }
-
-      shifts.each do |shift|
-        day_hours = calculate_work_hours_by_time_zone(
-          shift.shift_date,
-          shift.start_time,
-          shift.end_time
-        )
-        
-        monthly_hours[:normal] += day_hours[:normal]
-        monthly_hours[:evening] += day_hours[:evening]
-        monthly_hours[:night] += day_hours[:night]
-      end
-
-      breakdown = {}
-      total = 0
-
-      monthly_hours.each do |time_zone, hours|
-        rate = self.class.time_zone_wage_rates[time_zone][:rate]
-        wage = hours * rate
-        
-        breakdown[time_zone] = {
-          hours: hours,
-          rate: rate,
-          wage: wage,
-          name: self.class.time_zone_wage_rates[time_zone][:name]
-        }
-        
-        total += wage
-      end
-
-      {
-        total: total,
-        breakdown: breakdown,
-        work_hours: monthly_hours
-      }
-      
+      monthly_hours = calculate_monthly_hours_from_shifts(shifts)
+      calculate_wage_from_hours(monthly_hours)
     rescue => error
       Rails.logger.error "給与計算エラー: #{error.message}"
-      {
-        total: 0,
-        breakdown: {},
-        work_hours: { normal: 0, evening: 0, night: 0 }
-      }
+      default_wage_result
     end
   end
 
   # 全従業員の給与情報を取得
   def get_all_employees_wages(month, year)
     begin
-      # freeeAPIから従業員一覧を取得（共通インスタンス使用）
-      freee_service = @freee_api_service || FreeeApiService.new(
-        ENV['FREEE_ACCESS_TOKEN'],
-        ENV['FREEE_COMPANY_ID']
-      )
+      freee_employees = fetch_freee_employees
+      return [] if freee_employees.empty?
       
-      freee_employees = freee_service.get_all_employees
-      
-      if freee_employees.empty?
-        Rails.logger.warn "freeeAPIから従業員データを取得できませんでした"
-        return []
-      end
-      
-      # N+1問題を解決するため、全従業員のシフトデータを一括取得
-      employee_ids = freee_employees.map { |emp| emp['id'].to_s }
-      start_date = Date.new(year, month, 1)
-      end_date = start_date.end_of_month
-      
-      # 全従業員のシフトデータを一括取得（includesを使用）
-      all_shifts = Shift.where(
-        employee_id: employee_ids,
-        shift_date: start_date..end_date
-      ).includes(:employee)
-      
-      # 従業員ごとにシフトデータをグループ化
-      shifts_by_employee = all_shifts.group_by(&:employee_id)
-      
-      all_wages = []
-      
-      freee_employees.each do |employee_data|
-        employee_id = employee_data['id'].to_s
-        employee_shifts = shifts_by_employee[employee_id] || []
-        
-        # 給与計算（N+1問題を解決）
-        wage_info = calculate_monthly_wage_from_shifts(employee_shifts)
-        
-        all_wages << {
-          employee_id: employee_id,
-          employee_name: employee_data['display_name'] || "ID: #{employee_id}",
-          wage: wage_info[:total],
-          breakdown: wage_info[:breakdown],
-          work_hours: wage_info[:work_hours],
-          target: self.class.monthly_wage_target,
-          percentage: (wage_info[:total].to_f / self.class.monthly_wage_target * 100).round(2)
-        }
-      end
-
-      all_wages
+      shifts_by_employee = fetch_shifts_by_employee(freee_employees, month, year)
+      build_wage_data_for_all_employees(freee_employees, shifts_by_employee)
     rescue => error
       Rails.logger.error "全従業員給与取得エラー: #{error.message}"
       []
@@ -237,10 +128,7 @@ class WageService
   def get_employee_wage_info(employee_id, month, year)
     begin
       # freeeAPIから従業員情報を取得（共通インスタンス使用）
-      freee_service = @freee_api_service || FreeeApiService.new(
-        ENV['FREEE_ACCESS_TOKEN'],
-        ENV['FREEE_COMPANY_ID']
-      )
+      freee_service = @freee_api_service || get_freee_api_service
       
       employee_info = freee_service.get_employee_info(employee_id)
       unless employee_info
@@ -307,5 +195,124 @@ class WageService
       Rails.logger.error "freee API時給取得エラー: #{error.message}"
       1000
     end
+  end
+
+  private
+
+  # FreeeApiServiceの共通インスタンス取得（DRY原則適用）
+  def get_freee_api_service
+    FreeeApiService.new(
+      ENV['FREEE_ACCESS_TOKEN'],
+      ENV['FREEE_COMPANY_ID']
+    )
+  end
+
+  # 勤務時間から給与を計算（共通ロジック）
+  def calculate_wage_from_hours(monthly_hours)
+    breakdown = {}
+    total = 0
+
+    monthly_hours.each do |time_zone, hours|
+      rate = self.class.time_zone_wage_rates[time_zone][:rate]
+      wage = hours * rate
+      
+      breakdown[time_zone] = {
+        hours: hours,
+        rate: rate,
+        wage: wage,
+        name: self.class.time_zone_wage_rates[time_zone][:name]
+      }
+      
+      total += wage
+    end
+
+    {
+      total: total,
+      breakdown: breakdown,
+      work_hours: monthly_hours
+    }
+  end
+
+  # シフトデータから月間勤務時間を計算
+  def calculate_monthly_hours_from_shifts(shifts)
+    monthly_hours = { normal: 0, evening: 0, night: 0 }
+
+    shifts.each do |shift|
+      day_hours = calculate_work_hours_by_time_zone(
+        shift.shift_date,
+        shift.start_time,
+        shift.end_time
+      )
+      
+      monthly_hours[:normal] += day_hours[:normal]
+      monthly_hours[:evening] += day_hours[:evening]
+      monthly_hours[:night] += day_hours[:night]
+    end
+
+    monthly_hours
+  end
+
+  # デフォルトの給与計算結果
+  def default_wage_result
+    {
+      total: 0,
+      breakdown: {},
+      work_hours: { normal: 0, evening: 0, night: 0 }
+    }
+  end
+
+  # freeeAPIから従業員一覧を取得
+  def fetch_freee_employees
+    freee_service = @freee_api_service || get_freee_api_service
+    employees = freee_service.get_all_employees
+    
+    if employees.empty?
+      Rails.logger.warn "freeeAPIから従業員データを取得できませんでした"
+    end
+    
+    employees
+  end
+
+  # 全従業員のシフトデータを一括取得（N+1問題解決）
+  def fetch_shifts_by_employee(freee_employees, month, year)
+    employee_ids = freee_employees.map { |emp| emp['id'].to_s }
+    start_date = Date.new(year, month, 1)
+    end_date = start_date.end_of_month
+    
+    all_shifts = Shift.where(
+      employee_id: employee_ids,
+      shift_date: start_date..end_date
+    ).includes(:employee)
+    
+    all_shifts.group_by(&:employee_id)
+  end
+
+  # 全従業員の給与データを構築
+  def build_wage_data_for_all_employees(freee_employees, shifts_by_employee)
+    all_wages = []
+    
+    freee_employees.each do |employee_data|
+      employee_id = employee_data['id'].to_s
+      employee_shifts = shifts_by_employee[employee_id] || []
+      
+      wage_info = calculate_monthly_wage_from_shifts(employee_shifts)
+      
+      all_wages << build_employee_wage_data(employee_data, employee_id, wage_info)
+    end
+
+    all_wages
+  end
+
+  # 個別従業員の給与データを構築
+  def build_employee_wage_data(employee_data, employee_id, wage_info)
+    {
+      employee_id: employee_id,
+      employee_name: employee_data['display_name'] || "ID: #{employee_id}",
+      wage: wage_info[:total],
+      breakdown: wage_info[:breakdown],
+      work_hours: wage_info[:work_hours],
+      target: self.class.monthly_wage_target,
+      percentage: (wage_info[:total].to_f / self.class.monthly_wage_target * 100).round(2)
+    }
   end
 end

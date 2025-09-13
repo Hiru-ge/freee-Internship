@@ -1,6 +1,7 @@
 class ShiftAdditionsController < ApplicationController
   include InputValidation
   include AuthorizationCheck
+  include RequestIdGenerator
   
   before_action :require_login
 
@@ -28,15 +29,11 @@ class ShiftAdditionsController < ApplicationController
     return unless check_shift_addition_authorization
 
     begin
-      # 必須項目チェック
+      # 必須項目チェック（従業員ID含む）
       return unless validate_required_params(params, [:employee_id, :shift_date, :start_time, :end_time], new_shift_addition_path)
 
-      # 日付形式チェック
-      return unless validate_date_format(params[:shift_date], new_shift_addition_path)
-
-      # 時間形式チェック
-      return unless validate_time_format(params[:start_time], new_shift_addition_path)
-      return unless validate_time_format(params[:end_time], new_shift_addition_path)
+      # シフト関連の共通バリデーション
+      return unless validate_shift_params(params, new_shift_addition_path)
 
       # 重複チェック
       overlap_service = ShiftOverlapService.new
@@ -85,8 +82,4 @@ class ShiftAdditionsController < ApplicationController
 
   private
 
-  # リクエストIDの生成
-  def generate_request_id
-    "REQ_#{Time.current.to_i}_#{SecureRandom.hex(4)}"
-  end
 end

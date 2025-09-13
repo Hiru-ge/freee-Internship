@@ -63,25 +63,37 @@ class ShiftOverlapService
 
   # 2つのシフト時間が重複しているかチェック
   def shift_overlaps?(existing_shift, new_start_time, new_end_time)
-    existing_start = existing_shift.start_time
-    existing_end = existing_shift.end_time
-    
-    # 時間をTimeオブジェクトに変換（日付は同じ日として扱う）
-    base_date = existing_shift.shift_date
-    
-    # 既存シフトの時間をTimeオブジェクトに変換
-    existing_start_time_obj = Time.zone.parse("#{base_date} #{existing_start.strftime('%H:%M')}")
-    existing_end_time_obj = Time.zone.parse("#{base_date} #{existing_end.strftime('%H:%M')}")
-    
-    # 新しいシフトの時間をTimeオブジェクトに変換（文字列の場合はそのまま使用）
-    new_start_time_str = new_start_time.is_a?(String) ? new_start_time : new_start_time.strftime('%H:%M')
-    new_end_time_str = new_end_time.is_a?(String) ? new_end_time : new_end_time.strftime('%H:%M')
-    
-    new_start_time_obj = Time.zone.parse("#{base_date} #{new_start_time_str}")
-    new_end_time_obj = Time.zone.parse("#{base_date} #{new_end_time_str}")
+    existing_times = convert_shift_times_to_objects(existing_shift)
+    new_times = convert_new_shift_times_to_objects(existing_shift.shift_date, new_start_time, new_end_time)
     
     # 重複チェック: 新しいシフトの開始時間が既存シフトの終了時間より前で、
     # 新しいシフトの終了時間が既存シフトの開始時間より後
-    new_start_time_obj < existing_end_time_obj && new_end_time_obj > existing_start_time_obj
+    new_times[:start] < existing_times[:end] && new_times[:end] > existing_times[:start]
+  end
+
+  # 既存シフトの時間をTimeオブジェクトに変換
+  def convert_shift_times_to_objects(existing_shift)
+    base_date = existing_shift.shift_date
+    
+    {
+      start: Time.zone.parse("#{base_date} #{existing_shift.start_time.strftime('%H:%M')}"),
+      end: Time.zone.parse("#{base_date} #{existing_shift.end_time.strftime('%H:%M')}")
+    }
+  end
+
+  # 新しいシフトの時間をTimeオブジェクトに変換
+  def convert_new_shift_times_to_objects(base_date, new_start_time, new_end_time)
+    new_start_time_str = format_time_to_string(new_start_time)
+    new_end_time_str = format_time_to_string(new_end_time)
+    
+    {
+      start: Time.zone.parse("#{base_date} #{new_start_time_str}"),
+      end: Time.zone.parse("#{base_date} #{new_end_time_str}")
+    }
+  end
+
+  # 時間オブジェクトを文字列に変換
+  def format_time_to_string(time)
+    time.is_a?(String) ? time : time.strftime('%H:%M')
   end
 end

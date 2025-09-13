@@ -2,6 +2,7 @@ class ShiftExchangesController < ApplicationController
   include InputValidation
   include AuthorizationCheck
   include ErrorHandler
+  include RequestIdGenerator
   
   before_action :require_login
 
@@ -26,15 +27,8 @@ class ShiftExchangesController < ApplicationController
     begin
       request_params = extract_request_params
 
-      # 必須項目チェック
-      return unless validate_required_params(request_params, [:shift_date, :start_time, :end_time], new_shift_exchange_path)
-
-      # 日付形式チェック
-      return unless validate_date_format(request_params[:shift_date], new_shift_exchange_path)
-
-      # 時間形式チェック
-      return unless validate_time_format(request_params[:start_time], new_shift_exchange_path)
-      return unless validate_time_format(request_params[:end_time], new_shift_exchange_path)
+      # シフト関連の共通バリデーション
+      return unless validate_shift_params(request_params, new_shift_exchange_path)
 
       # ビジネスロジックのバリデーション
       validation_result = validate_exchange_request(request_params)
@@ -152,10 +146,6 @@ class ShiftExchangesController < ApplicationController
     shift
   end
 
-  # リクエストIDの生成
-  def generate_request_id
-    "REQ_#{Time.current.to_f}_#{SecureRandom.hex(4)}"
-  end
 
   # 成功メッセージの設定
   def set_success_message(overlapping_employees)

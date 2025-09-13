@@ -58,6 +58,23 @@ module InputValidation
     true
   end
 
+  # シフト関連の共通バリデーション
+  def validate_shift_params(params, redirect_path)
+    required_fields = [:shift_date, :start_time, :end_time]
+    
+    # 必須項目チェック
+    return false unless validate_required_params(params, required_fields, redirect_path)
+    
+    # 日付形式チェック
+    return false unless validate_date_format(params[:shift_date], redirect_path)
+    
+    # 時間形式チェック
+    return false unless validate_time_format(params[:start_time], redirect_path)
+    return false unless validate_time_format(params[:end_time], redirect_path)
+    
+    true
+  end
+
   def validate_password_length(password, redirect_path)
     if password.blank?
       flash[:error] = 'パスワードを入力してください'
