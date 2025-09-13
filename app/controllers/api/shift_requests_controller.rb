@@ -1,4 +1,7 @@
 class Api::ShiftRequestsController < ApplicationController
+  include InputValidation
+  include AuthorizationCheck
+  
   before_action :require_login
   skip_before_action :verify_authenticity_token, if: :json_request?
 
@@ -39,7 +42,9 @@ class Api::ShiftRequestsController < ApplicationController
   def get_pending_exchange_requests_for(employee_id)
     shift_exchanges = ShiftExchange.for_approver(employee_id).pending.includes(:shift)
     
-    shift_exchanges.map do |exchange|
+    shift_exchanges.filter_map do |exchange|
+      next unless exchange.shift # shiftが存在しない場合はスキップ
+      
       {
         type: 'change',
         requestId: exchange.request_id,

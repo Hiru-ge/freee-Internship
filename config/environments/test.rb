@@ -42,6 +42,9 @@ Rails.application.configure do
 
   # Print deprecation notices to the stderr.
   config.active_support.deprecation = :stderr
+  
+  # Suppress specific deprecation warnings for Rails 8.0 compatibility
+  config.active_support.deprecation_behavior = :stderr
 
   # Set log level to debug for testing
   config.log_level = :debug

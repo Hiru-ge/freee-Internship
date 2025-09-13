@@ -1,4 +1,6 @@
 class AuthController < ApplicationController
+  include InputValidation
+  
   skip_before_action :require_login, only: [:login, :initial_password, :verify_initial_code, :setup_initial_password, :forgot_password, :verify_password_reset, :reset_password, :send_verification_code, :verify_code]
   skip_before_action :set_header_variables, only: [:login, :initial_password, :verify_initial_code, :setup_initial_password, :forgot_password, :verify_password_reset, :reset_password, :send_verification_code, :verify_code]
   before_action :set_employee, only: [:password_change]
@@ -8,6 +10,17 @@ class AuthController < ApplicationController
     if request.post?
       employee_id = params[:employee_id]
       password = params[:password]
+      
+      # 入力値検証
+      return unless validate_employee_id_format(employee_id, auth_login_path)
+      return unless validate_password_length(password, auth_login_path)
+      
+      # SQLインジェクション対策
+      if contains_sql_injection?(employee_id) || contains_sql_injection?(password)
+        flash[:alert] = '無効な文字が含まれています'
+        render :login
+        return
+      end
       
       result = AuthService.login(employee_id, password)
       
@@ -238,6 +251,18 @@ class AuthController < ApplicationController
   end
   
   private
+  
+  def contains_sql_injection?(input)
+    return false if input.blank?
+    
+    # SQLインジェクション攻撃のパターンを検出
+    sql_patterns = [
+      /('|(\\')|(;)|(\-\-)|(\/\*)|(\*\/)|(\|)|(\*)|(%)|(\+)|(\=)|(\<)|(\>)|(\[)|(\])|(\{)|(\})|(\()|(\))|(\^)|(\$)|(\?)|(\!)|(\~)|(\`)|(\@)|(\#)|(\&)|(\\)|(\|)|(\:)|(\;)|(\")|(\')|(\x00)|(\x1a)|(\x0d)|(\x0a)|(\x09)|(\x08)|(\x07)|(\x1b)|(\x0c)|(\x0b)|(\x0e)|(\x0f)|(\x10)|(\x11)|(\x12)|(\x13)|(\x14)|(\x15)|(\x16)|(\x17)|(\x18)|(\x19)|(\x1c)|(\x1d)|(\x1e)|(\x1f))/i,
+      /(union|select|insert|update|delete|drop|create|alter|exec|execute|script|javascript|vbscript|onload|onerror|onclick|onmouseover|onfocus|onblur|onchange|onsubmit|onreset|onselect|onkeydown|onkeyup|onkeypress|onmousedown|onmouseup|onmousemove|onmouseout|onmouseover|onmouseenter|onmouseleave|ondblclick|oncontextmenu|onwheel|ontouchstart|ontouchend|ontouchmove|ontouchcancel|ongesturestart|ongesturechange|ongestureend|onabort|onafterprint|onbeforeprint|onbeforeunload|onerror|onhashchange|onload|onmessage|onoffline|ononline|onpagehide|onpageshow|onpopstate|onresize|onstorage|onunload)/i
+    ]
+    
+    sql_patterns.any? { |pattern| input.match?(pattern) }
+  end
   
   def set_employee
     @employee = Employee.find_by(employee_id: session[:employee_id])

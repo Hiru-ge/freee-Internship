@@ -1,12 +1,12 @@
 class WagesController < ApplicationController
+  include InputValidation
+  include AuthorizationCheck
+  
   before_action :require_login
 
   # 給与一覧（オーナーのみ）
   def index
-    unless owner?
-      flash[:error] = 'このページにアクセスする権限がありません'
-      redirect_to dashboard_path and return
-    end
+    return unless check_owner_permission
     
     @month = params[:month]&.to_i || Time.current.month
     @year = params[:year]&.to_i || Time.current.year

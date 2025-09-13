@@ -1,4 +1,7 @@
 class ShiftApprovalsController < ApplicationController
+  include InputValidation
+  include AuthorizationCheck
+  
   before_action :require_login
   
   # リクエスト一覧表示
@@ -25,6 +28,9 @@ class ShiftApprovalsController < ApplicationController
     begin
       request_id = params[:request_id]
       request_type = params[:request_type]
+      
+      # 権限チェック
+      return unless check_shift_approval_authorization(request_id, request_type)
       
       if request_type == 'exchange'
         # シフト交代リクエストの承認
@@ -110,6 +116,9 @@ class ShiftApprovalsController < ApplicationController
     begin
       request_id = params[:request_id]
       request_type = params[:request_type]
+      
+      # 権限チェック
+      return unless check_shift_approval_authorization(request_id, request_type)
       
       if request_type == 'exchange'
         # シフト交代リクエストの拒否

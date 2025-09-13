@@ -6,11 +6,20 @@ class CsrfProtectionTest < ActionDispatch::IntegrationTest
     # このテストクラスでのみCSRF保護を有効にする
     @original_csrf_protection = ActionController::Base.allow_forgery_protection
     ActionController::Base.allow_forgery_protection = true
+    
+    # Rails 8.0の非推奨警告を抑制
+    @original_warn = Warning.method(:warn)
+    Warning.define_singleton_method(:warn) do |message|
+      @original_warn.call(message) unless message.include?('unprocessable_entity is deprecated')
+    end
   end
 
   def teardown
     # テスト後にCSRF保護設定を元に戻す
     ActionController::Base.allow_forgery_protection = @original_csrf_protection
+    
+    # 警告抑制を元に戻す
+    Warning.define_singleton_method(:warn, @original_warn)
   end
 
   test "CSRFトークンなしでPOSTリクエストを送信すると422エラーが返される" do
@@ -23,7 +32,7 @@ class CsrfProtectionTest < ActionDispatch::IntegrationTest
 
     # CSRFトークンなしでPOSTリクエストを送信
     post clock_in_path, params: {}, headers: { 'X-CSRF-Token' => 'invalid_token' }
-    assert_response :unprocessable_entity
+    assert_response :unprocessable_content
     # CSRFエラーの場合、レスポンスボディにCSRF関連のメッセージが含まれる
     assert_includes response.body, 'CSRF'
   end

@@ -1,4 +1,7 @@
 class ShiftAdditionsController < ApplicationController
+  include InputValidation
+  include AuthorizationCheck
+  
   before_action :require_login
 
   # シフト追加リクエスト画面の表示（オーナーのみ）
@@ -22,18 +25,18 @@ class ShiftAdditionsController < ApplicationController
 
   # シフト追加リクエストの作成
   def create
-    unless owner?
-      flash[:error] = 'このページにアクセスする権限がありません'
-      redirect_to dashboard_path and return
-    end
+    return unless check_shift_addition_authorization
 
     begin
-      # パラメータの検証
-      if params[:employee_id].blank? || params[:shift_date].blank? || 
-         params[:start_time].blank? || params[:end_time].blank?
-        flash[:error] = "すべての項目を入力してください。"
-        redirect_to new_shift_addition_path and return
-      end
+      # 必須項目チェック
+      return unless validate_required_params(params, [:employee_id, :shift_date, :start_time, :end_time], new_shift_addition_path)
+
+      # 日付形式チェック
+      return unless validate_date_format(params[:shift_date], new_shift_addition_path)
+
+      # 時間形式チェック
+      return unless validate_time_format(params[:start_time], new_shift_addition_path)
+      return unless validate_time_format(params[:end_time], new_shift_addition_path)
 
       # 重複チェック
       overlap_service = ShiftOverlapService.new

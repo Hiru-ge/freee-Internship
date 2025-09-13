@@ -1,4 +1,7 @@
 class ShiftExchangesController < ApplicationController
+  include InputValidation
+  include AuthorizationCheck
+  
   before_action :require_login
 
   # シフト交代リクエスト画面の表示
@@ -22,6 +25,17 @@ class ShiftExchangesController < ApplicationController
     begin
       request_params = extract_request_params
 
+      # 必須項目チェック
+      return unless validate_required_params(request_params, [:shift_date, :start_time, :end_time], new_shift_exchange_path)
+
+      # 日付形式チェック
+      return unless validate_date_format(request_params[:shift_date], new_shift_exchange_path)
+
+      # 時間形式チェック
+      return unless validate_time_format(request_params[:start_time], new_shift_exchange_path)
+      return unless validate_time_format(request_params[:end_time], new_shift_exchange_path)
+
+      # ビジネスロジックのバリデーション
       validation_result = validate_exchange_request(request_params)
       return if validation_result[:redirect]
 
