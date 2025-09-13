@@ -2,7 +2,7 @@
 
 ## 概要
 
-Phase 6-1として、セッションタイムアウト機能とCSRF保護の強化をTDD手法で実装しました。Phase 6-2では、入力値検証と権限チェック機能を追加し、テストスイートの完全修復とRails 8.0対応を行いました。これらの機能により、Webアプリケーションのセキュリティが大幅に向上しています。
+Phase 6-1として、セッションタイムアウト機能とCSRF保護の強化をTDD手法で実装しました。Phase 6-2では、入力値検証と権限チェック機能を追加し、テストスイートの完全修復とRails 8.0対応を行いました。Phase 6-3では、データベースセキュリティの強化として外部キー制約の追加とデータベースインデックスの最適化を実装しました。これらの機能により、Webアプリケーションのセキュリティが大幅に向上しています。
 
 ## 実装フェーズ
 
@@ -11,11 +11,17 @@ Phase 6-1として、セッションタイムアウト機能とCSRF保護の強�
 - CSRF保護の強化
 - セキュリティヘッダーの設定
 
-### Phase 6-2: 入力値検証と権限チェック（本フェーズ）
+### Phase 6-2: 入力値検証と権限チェック
 - 入力値検証機能の実装
 - 権限チェック機能の実装
 - テストスイートの完全修復
 - Rails 8.0対応と非推奨警告の解消
+
+### Phase 6-3: データベースセキュリティ（本フェーズ）
+- 外部キー制約の追加
+- データベースインデックスの最適化
+- データ整合性の保証
+- パフォーマンスの向上
 
 ## 実装内容
 
@@ -385,12 +391,150 @@ Phase 6-2では、サーバーサイドバリデーションの実装と権限�
 5. **再利用性**: セキュリティ関数を他のコントローラーでも使用可能
 6. **テスト容易性**: 各機能を個別にテスト可能
 
+## Phase 6-3: データベースセキュリティ実装詳細
+
+### 1. 外部キー制約の追加
+
+#### 機能概要
+- データベースレベルでの参照整合性の保証
+- 不正なデータの挿入を防止
+- データ削除時の依存関係の制御
+
+#### 実装された外部キー制約
+
+**shiftsテーブル**
+```ruby
+# employee_id → employees.employee_id
+add_foreign_key :shifts, :employees, column: :employee_id, primary_key: :employee_id, on_delete: :restrict
+
+# original_employee_id → employees.employee_id  
+add_foreign_key :shifts, :employees, column: :original_employee_id, primary_key: :employee_id, on_delete: :restrict
+```
+
+**shift_exchangesテーブル**
+```ruby
+# requester_id → employees.employee_id
+add_foreign_key :shift_exchanges, :employees, column: :requester_id, primary_key: :employee_id, on_delete: :restrict
+
+# approver_id → employees.employee_id
+add_foreign_key :shift_exchanges, :employees, column: :approver_id, primary_key: :employee_id, on_delete: :restrict
+
+# shift_id → shifts.id
+add_foreign_key :shift_exchanges, :shifts, column: :shift_id, on_delete: :restrict
+```
+
+**shift_additionsテーブル**
+```ruby
+# target_employee_id → employees.employee_id
+add_foreign_key :shift_additions, :employees, column: :target_employee_id, primary_key: :employee_id, on_delete: :restrict
+
+# requester_id → employees.employee_id
+add_foreign_key :shift_additions, :employees, column: :requester_id, primary_key: :employee_id, on_delete: :restrict
+```
+
+**verification_codesテーブル**
+```ruby
+# employee_id → employees.employee_id
+add_foreign_key :verification_codes, :employees, column: :employee_id, primary_key: :employee_id, on_delete: :restrict
+```
+
+#### データクリーンアップ
+既存の無効なデータを削除するマイグレーションを実行：
+- 存在しない従業員ID（3316116, 3316120）を参照するデータを削除
+- 関連するshift_exchanges、shift_additions、verification_codesも同時に削除
+
+### 2. データベースインデックスの最適化
+
+#### 既存インデックスの確認
+以下のインデックスが適切に設定されていることを確認：
+
+**employeesテーブル**
+- `employee_id` (ユニークインデックス)
+
+**shiftsテーブル**
+- `employee_id`
+- `shift_date`
+- `shift_date, start_time, end_time` (複合インデックス)
+
+**shift_exchangesテーブル**
+- `requester_id`
+- `approver_id`
+- `status`
+
+**shift_additionsテーブル**
+- `target_employee_id`
+- `requester_id`
+- `status`
+
+**verification_codesテーブル**
+- `employee_id`
+- `code`
+- `expires_at`
+
+#### パフォーマンステスト
+```ruby
+test "performance test for employee_id lookups" do
+  start_time = Time.current
+  shifts = Shift.where(employee_id: employee.employee_id)
+  end_time = Time.current
+  
+  assert (end_time - start_time) < 0.1  # 0.1秒以内で検索完了
+end
+```
+
+### 3. テスト実装
+
+#### 外部キー制約テスト
+```ruby
+test "shifts should have foreign key constraint to employees" do
+  assert_raises(ActiveRecord::InvalidForeignKey) do
+    Shift.create!(
+      employee_id: "non_existent_employee",
+      shift_date: Date.current,
+      start_time: Time.parse("09:00"),
+      end_time: Time.parse("17:00")
+    )
+  end
+end
+```
+
+#### インデックステスト
+```ruby
+test "employees table should have unique index on employee_id" do
+  indexes = ActiveRecord::Base.connection.indexes(:employees)
+  employee_id_index = indexes.find { |index| index.columns == ["employee_id"] }
+  
+  assert_not_nil employee_id_index
+  assert employee_id_index.unique
+end
+```
+
+### 4. セキュリティ効果
+
+#### データ整合性の保証
+- 存在しない従業員IDでのシフト作成を防止
+- 従業員削除時の関連データの制御
+- 不正なデータの挿入をデータベースレベルで防止
+
+#### パフォーマンスの向上
+- 検索頻度の高いカラムへのインデックスによる高速化
+- 複合インデックスによる複雑なクエリの最適化
+
+#### 運用面での改善
+- データの信頼性向上
+- バグの早期発見
+- デバッグの容易さ
+
 ## 関連ファイル
 
 - `app/controllers/application_controller.rb` - セッションタイムアウトとセキュリティヘッダー
 - `app/controllers/auth_controller.rb` - ログイン時のセッション設定
 - `app/controllers/concerns/input_validation.rb` - 入力値検証モジュール
 - `app/controllers/concerns/authorization_check.rb` - 権限チェックモジュール
+- `db/migrate/20250913064047_add_foreign_key_constraints.rb` - 外部キー制約追加マイグレーション
+- `db/migrate/20250913065415_cleanup_invalid_data_before_foreign_keys.rb` - データクリーンアップマイグレーション
+- `test/models/foreign_key_constraints_test.rb` - 外部キー制約テスト
+- `test/models/database_indexes_test.rb` - インデックステスト
 - `test/controllers/session_timeout_test.rb` - セッションタイムアウトテスト
 - `test/controllers/csrf_protection_test.rb` - CSRF保護テスト
 - `test/controllers/input_validation_test.rb` - 入力値検証テスト

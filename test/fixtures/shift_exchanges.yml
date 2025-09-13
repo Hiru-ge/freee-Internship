@@ -4,7 +4,7 @@ exchange1:
   request_id: 'REQ_TEST_001'
   requester_id: '3316120'
   approver_id: '3317741'
-  shift_id: 1
+  shift: shift1
   status: 'pending'
   created_at: '2024-01-15 10:00:00'
   updated_at: '2024-01-15 10:00:00'
@@ -13,7 +13,7 @@ exchange2:
   request_id: 'REQ_TEST_002'
   requester_id: '3317741'
   approver_id: '3316120'
-  shift_id: 2
+  shift: shift2
   status: 'pending'
   created_at: '2024-01-16 10:00:00'
   updated_at: '2024-01-16 10:00:00'

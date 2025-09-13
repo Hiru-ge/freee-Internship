@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_09_123633) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_13_065415) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -85,4 +85,13 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_09_123633) do
     t.index ["employee_id"], name: "index_verification_codes_on_employee_id"
     t.index ["expires_at"], name: "index_verification_codes_on_expires_at"
   end
+
+  add_foreign_key "shift_additions", "employees", column: "requester_id", primary_key: "employee_id", on_delete: :restrict
+  add_foreign_key "shift_additions", "employees", column: "target_employee_id", primary_key: "employee_id", on_delete: :restrict
+  add_foreign_key "shift_exchanges", "employees", column: "approver_id", primary_key: "employee_id", on_delete: :restrict
+  add_foreign_key "shift_exchanges", "employees", column: "requester_id", primary_key: "employee_id", on_delete: :restrict
+  add_foreign_key "shift_exchanges", "shifts", on_delete: :restrict
+  add_foreign_key "shifts", "employees", column: "original_employee_id", primary_key: "employee_id", on_delete: :restrict
+  add_foreign_key "shifts", "employees", primary_key: "employee_id", on_delete: :restrict
+  add_foreign_key "verification_codes", "employees", primary_key: "employee_id", on_delete: :restrict
 end

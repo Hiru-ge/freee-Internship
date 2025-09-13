@@ -380,45 +380,45 @@ shifts (1) ←→ (N) shift_exchanges
 line_users (1) ←→ (N) verification_codes
 ```
 
-### 4.2. 外部キー制約
+### 4.2. 外部キー制約（実装済み）
+
+**Phase 6-3で実装された外部キー制約:**
+
 ```sql
--- 外部キー制約の設定
-ALTER TABLE line_users ADD CONSTRAINT fk_line_users_employee_id 
-  FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE CASCADE;
+-- shiftsテーブルの外部キー制約
+ALTER TABLE shifts ADD CONSTRAINT fk_rails_5274ef45fe 
+  FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE RESTRICT;
 
-ALTER TABLE shifts ADD CONSTRAINT fk_shifts_employee_id 
-  FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE CASCADE;
+ALTER TABLE shifts ADD CONSTRAINT fk_rails_original_employee_id 
+  FOREIGN KEY (original_employee_id) REFERENCES employees(employee_id) ON DELETE RESTRICT;
 
-ALTER TABLE shift_exchanges ADD CONSTRAINT fk_shift_exchanges_requester_id 
-  FOREIGN KEY (requester_id) REFERENCES employees(employee_id) ON DELETE CASCADE;
+-- shift_exchangesテーブルの外部キー制約
+ALTER TABLE shift_exchanges ADD CONSTRAINT fk_rails_requester_id 
+  FOREIGN KEY (requester_id) REFERENCES employees(employee_id) ON DELETE RESTRICT;
 
-ALTER TABLE shift_exchanges ADD CONSTRAINT fk_shift_exchanges_approver_id 
-  FOREIGN KEY (approver_id) REFERENCES employees(employee_id) ON DELETE CASCADE;
+ALTER TABLE shift_exchanges ADD CONSTRAINT fk_rails_approver_id 
+  FOREIGN KEY (approver_id) REFERENCES employees(employee_id) ON DELETE RESTRICT;
 
-ALTER TABLE shift_exchanges ADD CONSTRAINT fk_shift_exchanges_shift_id 
-  FOREIGN KEY (shift_id) REFERENCES shifts(id) ON DELETE CASCADE;
+ALTER TABLE shift_exchanges ADD CONSTRAINT fk_rails_4c15eca29f 
+  FOREIGN KEY (shift_id) REFERENCES shifts(id) ON DELETE RESTRICT;
 
-ALTER TABLE shift_additions ADD CONSTRAINT fk_shift_additions_target_employee_id 
-  FOREIGN KEY (target_employee_id) REFERENCES employees(employee_id) ON DELETE CASCADE;
+-- shift_additionsテーブルの外部キー制約
+ALTER TABLE shift_additions ADD CONSTRAINT fk_rails_target_employee_id 
+  FOREIGN KEY (target_employee_id) REFERENCES employees(employee_id) ON DELETE RESTRICT;
 
-ALTER TABLE verification_codes ADD CONSTRAINT fk_verification_codes_line_user_id 
-  FOREIGN KEY (line_user_id) REFERENCES line_users(line_user_id) ON DELETE CASCADE;
+ALTER TABLE shift_additions ADD CONSTRAINT fk_rails_requester_id 
+  FOREIGN KEY (requester_id) REFERENCES employees(employee_id) ON DELETE RESTRICT;
 
-ALTER TABLE verification_codes ADD CONSTRAINT fk_verification_codes_employee_id 
-  FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE CASCADE;
-
-ALTER TABLE attendance_records ADD CONSTRAINT fk_attendance_records_employee_id 
-  FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE CASCADE;
-
-ALTER TABLE salary_calculations ADD CONSTRAINT fk_salary_calculations_employee_id 
-  FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE CASCADE;
-
-ALTER TABLE notification_logs ADD CONSTRAINT fk_notification_logs_employee_id 
-  FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE CASCADE;
-
-ALTER TABLE employee_cache ADD CONSTRAINT fk_employee_cache_employee_id 
-  FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE CASCADE;
+-- verification_codesテーブルの外部キー制約
+ALTER TABLE verification_codes ADD CONSTRAINT fk_rails_employee_id 
+  FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE RESTRICT;
 ```
+
+**実装効果:**
+- データ整合性の保証
+- 不正なデータの挿入を防止
+- データ削除時の依存関係の制御
+- セキュリティの向上
 
 ## 5. データ移行計画
 

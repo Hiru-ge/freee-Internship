@@ -160,7 +160,8 @@ class WageServiceTest < ActiveSupport::TestCase
     month = Date.current.month
     year = Date.current.year
     
-    # シフトを削除
+    # 外部キー制約を考慮して、関連するshift_exchangesを先に削除
+    ShiftExchange.destroy_all
     Shift.destroy_all
     
     wage_info = @wage_service.get_employee_wage_info('3316120', month, year)

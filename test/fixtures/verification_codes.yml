@@ -1,15 +1,15 @@
 # Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
-  line_user_id: MyString
-  employee_id: MyString
-  code: MyString
+  line_user_id: 'test_line_user_1'
+  employee_id: '3316120'
+  code: '123456'
   expires_at: 2025-09-09 17:59:42
   used_at: 2025-09-09 17:59:42
 
 two:
-  line_user_id: MyString
-  employee_id: MyString
-  code: MyString
+  line_user_id: 'test_line_user_2'
+  employee_id: '3317741'
+  code: '789012'
   expires_at: 2025-09-09 17:59:42
   used_at: 2025-09-09 17:59:42
