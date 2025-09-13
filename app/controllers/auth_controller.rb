@@ -14,6 +14,7 @@ class AuthController < ApplicationController
       if result[:success]
         session[:employee_id] = employee_id
         session[:authenticated] = true
+        session[:created_at] = Time.current.to_i
         redirect_to dashboard_path, notice: result[:message]
       else
         if result[:needs_password_setup]
@@ -232,8 +233,7 @@ class AuthController < ApplicationController
   end
   
   def logout
-    session[:employee_id] = nil
-    session[:authenticated] = nil
+    clear_session
     redirect_to login_path, notice: 'ログアウトしました'
   end
   

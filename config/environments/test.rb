@@ -25,7 +25,8 @@ Rails.application.configure do
   # Render exception templates for rescuable exceptions and raise for other exceptions.
   config.action_dispatch.show_exceptions = :rescuable
 
-  # Disable request forgery protection in test environment.
+  # Disable request forgery protection in test environment for easier testing.
+  # CSRF protection is tested separately in csrf_protection_test.rb
   config.action_controller.allow_forgery_protection = false
 
   # Store uploaded files on the local file system in a temporary directory.
@@ -41,6 +42,9 @@ Rails.application.configure do
 
   # Print deprecation notices to the stderr.
   config.active_support.deprecation = :stderr
+
+  # Set log level to debug for testing
+  config.log_level = :debug
 
   # Raises error for missing translations.
   # config.i18n.raise_on_missing_translations = true

@@ -2,16 +2,35 @@ class ApplicationController < ActionController::Base
   # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
   allow_browser versions: :modern
   
+  # セッションタイムアウト設定（24時間）
+  SESSION_TIMEOUT_HOURS = 24
+  
+  # セキュリティヘッダー設定
+  SECURITY_HEADERS = {
+    'X-Frame-Options' => 'DENY',
+    'X-Content-Type-Options' => 'nosniff',
+    'X-XSS-Protection' => '1; mode=block',
+    'Content-Security-Policy' => "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'"
+  }.freeze
+  
   # 認証機能
   before_action :require_login
   before_action :set_header_variables
   
+  # セキュリティヘッダーの設定
+  before_action :set_security_headers
+  
   private
   
   def require_login
-    return if session[:authenticated] && session[:employee_id]
+    return if session[:authenticated] && session[:employee_id] && !session_expired?
     
-    redirect_to login_path, alert: 'ログインが必要です'
+    if session_expired?
+      clear_session
+      redirect_to login_path, alert: 'セッションがタイムアウトしました。再度ログインしてください。'
+    else
+      redirect_to login_path, alert: 'ログインが必要です'
+    end
   end
   
   def current_employee
@@ -64,6 +83,26 @@ class ApplicationController < ActionController::Base
     rescue => error
       Rails.logger.error "Failed to get employee name: #{error.message}"
       'Unknown'
+    end
+  end
+
+  def session_expired?
+    return false unless session[:created_at]
+    
+    session_created_at = Time.at(session[:created_at])
+    session_created_at < SESSION_TIMEOUT_HOURS.hours.ago
+  end
+
+  def clear_session
+    session[:authenticated] = nil
+    session[:employee_id] = nil
+    session[:created_at] = nil
+  end
+
+  def set_security_headers
+    # セキュリティヘッダーを設定
+    SECURITY_HEADERS.each do |header, value|
+      response.headers[header] = value
     end
   end
 
