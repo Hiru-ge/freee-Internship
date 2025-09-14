@@ -1,37 +1,23 @@
-# fly.toml app configuration file generated for freee-internship on 2025-01-27T05:00:00Z
+# fly.toml app configuration file generated for freee-internship on 2025-09-14T09:03:32Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = "freee-internship"
-primary_region = "nrt"
+app = 'freee-internship'
+primary_region = 'hkg'
+console_command = '/rails/bin/rails console'
 
 [build]
 
-[env]
-  RAILS_ENV = "production"
-  RAILS_SERVE_STATIC_FILES = "true"
-  RAILS_LOG_TO_STDOUT = "true"
-
 [http_service]
-  internal_port = 80
+  internal_port = 8080
   force_https = true
-  auto_stop_machines = true
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
-  processes = ["app"]
-
-  [[http_service.checks]]
-    grace_period = "10s"
-    interval = "30s"
-    method = "GET"
-    timeout = "5s"
-    path = "/"
+  processes = ['app']
 
 [[vm]]
-  cpu_kind = "shared"
+  cpu_kind = 'shared'
   cpus = 1
   memory_mb = 256
-
-[deploy]
-  release_command = "bundle exec rails db:migrate"
