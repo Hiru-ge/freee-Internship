@@ -2,7 +2,7 @@
 
 ## 1. 概要
 
-Google Apps Scriptベースの勤怠管理システムをRuby on Rails + Herokuに完全移行するための包括的なガイドです。
+Google Apps Scriptベースの勤怠管理システムをRuby on Rails + Fly.ioに完全移行するための包括的なガイドです。
 
 ## 2. 移行の背景
 
@@ -13,7 +13,7 @@ Google Apps Scriptベースの勤怠管理システムをRuby on Rails + Heroku�
 - **レスポンス時間**: 不安定な応答時間
 
 ### 2.2. Rails移行の利点
-- **安定したWebhook処理**: Herokuでの安定したLINE Webhook処理
+- **安定したWebhook処理**: Fly.ioでの安定したLINE Webhook処理
 - **タイムアウト問題の解決**: 6分制限の解消
 - **スケーラビリティ**: 将来的な機能拡張に対応可能
 - **既存スキル活用**: Django/Rails経験を最大限活用

@@ -58,7 +58,7 @@
 - **Database**: PostgreSQL
 - **Bot**: LINE Bot API
 - **External APIs**: freee API, Google Sheets API
-- **Deployment**: Heroku
+- **Deployment**: Fly.io
 
 ## セットアップ
 
@@ -158,8 +158,9 @@ git push heroku main
 - ✅ 勤怠管理システム完全移行
 - ✅ 給与管理システム完全移行
 - ✅ freee API連携完了
-- ✅ メール通知システム完了
+- ✅ メール通知システム完了（Gmail SMTP対応）
 - ✅ UI/UXデザイン改善完了
+- ✅ Fly.ioデプロイ完了
 - 🔄 LINE Bot連携（将来実装予定）
 
 ## ドキュメント

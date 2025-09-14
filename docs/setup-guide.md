@@ -18,7 +18,7 @@
 
 - **freee API**: 従業員・給与データ取得用
 - **Gmail**: メール送信用
-- **Heroku**: 本番環境デプロイ用（オプション）
+- **Fly.io**: 本番環境デプロイ用（推奨）
 
 ## 開発環境セットアップ
 
@@ -176,59 +176,59 @@ ActionMailer::Base.mail(
 ).deliver_now
 ```
 
-## 本番環境デプロイ（Heroku）
+## 本番環境デプロイ（Fly.io）
 
-### 1. Heroku CLIのインストール
+### 1. Fly.io CLIのインストール
 
 **Ubuntu/Debian:**
 ```bash
-curl https://cli-assets.heroku.com/install.sh | sh
+curl -L https://fly.io/install.sh | sh
 ```
 
 **macOS:**
 ```bash
-brew tap heroku/brew && brew install heroku
+brew install flyctl
 ```
 
 **Windows:**
-[Heroku CLI公式サイト](https://devcenter.heroku.com/articles/heroku-cli)からインストーラーをダウンロード
+[Fly.io CLI公式サイト](https://fly.io/docs/hands-on/install-flyctl/)からインストーラーをダウンロード
 
-### 2. Herokuアプリの作成
+### 2. Fly.ioアプリの作成
 
 ```bash
-# Herokuにログイン
-heroku login
+# Fly.ioにログイン
+fly auth login
 
 # アプリの作成
-heroku create your-app-name
+fly launch
 
-# PostgreSQLアドオンの追加
-heroku addons:create heroku-postgresql:hobby-dev
+# PostgreSQLデータベースの作成
+fly postgres create --name your-app-db
 ```
 
 ### 3. 環境変数の設定
 
 ```bash
-# 環境変数の設定
-heroku config:set FREEE_ACCESS_TOKEN=your_freee_access_token
-heroku config:set FREEE_COMPANY_ID=your_freee_company_id
-heroku config:set GMAIL_USERNAME=your_gmail_address@gmail.com
-heroku config:set GMAIL_APP_PASSWORD=your_gmail_app_password
-heroku config:set RAILS_ENV=production
-heroku config:set SECRET_KEY_BASE=your_secret_key_base
+# Fly.io CLIで環境変数を設定
+fly secrets set RAILS_ENV=production
+fly secrets set RAILS_MASTER_KEY=$(cat config/master.key)
+fly secrets set FREEE_ACCESS_TOKEN=your_freee_access_token
+fly secrets set FREEE_COMPANY_ID=your_freee_company_id
+fly secrets set GMAIL_USERNAME=your_gmail_address@gmail.com
+fly secrets set GMAIL_APP_PASSWORD=your_gmail_app_password
 ```
 
 ### 4. デプロイの実行
 
 ```bash
 # 本番環境へのデプロイ
-git push heroku main
+fly deploy
 
 # データベースマイグレーション
-heroku run rails db:migrate
+fly ssh console -C "rails db:migrate"
 
 # アプリの起動確認
-heroku open
+fly open
 ```
 
 ## トラブルシューティング
