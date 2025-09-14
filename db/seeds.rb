@@ -73,6 +73,12 @@ shift_data_hash = {
 
 # 各従業員のシフトを作成
 shift_data_hash.each do |employee_id, shifts|
+  # 従業員が存在するかチェック
+  unless Employee.exists?(employee_id: employee_id)
+    puts "従業員ID #{employee_id} が見つかりません。シフト作成をスキップします。"
+    next
+  end
+  
   shifts.each do |day, start_time, end_time|
     # 日付が月の範囲内かチェック
     max_day = Date.new(year, month, -1).day
