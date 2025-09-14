@@ -7,7 +7,7 @@ class HomeController < ApplicationController
       redirect_to dashboard_path
     else
       # 認証されていない場合はログインページにリダイレクト
-      redirect_to login_auth_path
+      redirect_to login_path
     end
   end
 end
