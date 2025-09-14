@@ -17,6 +17,9 @@ console_command = '/rails/bin/rails console'
   min_machines_running = 0
   processes = ['app']
 
+[deploy]
+  release_command = "bundle exec rails db:seed"
+
 [[vm]]
   cpu_kind = 'shared'
   cpus = 1

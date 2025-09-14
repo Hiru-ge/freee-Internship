@@ -291,9 +291,66 @@ git push origin main
 # Fly.ioが自動的にデプロイを実行
 ```
 
-## 6. トラブルシューティング
+## 6. アプリケーションの再作成
 
-### 6.1 よくある問題
+### 6.1 アプリケーション削除・再作成の手順
+
+**問題**: デプロイ時に「failed to get lease on VM」エラーが発生
+```bash
+Error: failed to acquire leases: Unrecoverable error: failed to get lease on VM
+```
+
+**解決手順**:
+1. **既存アプリケーションの削除**:
+   ```bash
+   fly apps destroy your-app-name --yes
+   ```
+
+2. **新規アプリケーションの作成**:
+   ```bash
+   fly apps create your-app-name
+   ```
+
+3. **環境変数の再設定**:
+   ```bash
+   # freee API設定
+   fly secrets set FREEE_ACCESS_TOKEN=your_token -a your-app-name
+   fly secrets set FREEE_COMPANY_ID=your_company_id -a your-app-name
+   
+   # Gmail SMTP設定
+   fly secrets set GMAIL_USERNAME=your_email -a your-app-name
+   fly secrets set GMAIL_APP_PASSWORD=your_app_password -a your-app-name
+   
+   # Rails設定
+   fly secrets set RAILS_MASTER_KEY=your_master_key -a your-app-name
+   ```
+
+4. **デプロイ**:
+   ```bash
+   fly deploy
+   ```
+
+**注意点**:
+- アプリケーション削除後、環境変数は全てリセットされます
+- 必ず環境変数を再設定してからデプロイしてください
+- `fly secrets set`コマンドは自動的にアプリケーションを再起動します
+
+### 6.2 デプロイ時のシードデータ実行
+
+**fly.toml の設定**:
+```toml
+[deploy]
+  release_command = "bundle exec rails db:seed"
+```
+
+**設定の効果**:
+- デプロイ時に自動的に`rails db:seed`が実行されます
+- 従業員レコードやシフトデータが自動的に作成されます
+- 冪等性を保つため、重複実行してもエラーになりません
+
+## 7. トラブルシューティング
+
+### 7.1 よくある問題
 
 **問題**: `Permission denied - bind(2) for "0.0.0.0" port 80`
 **解決**: ポート3000を使用する
@@ -327,7 +384,7 @@ fly ssh console -a your-app-name -C "echo \$FREEE_ACCESS_TOKEN"
 fly secrets set FREEE_ACCESS_TOKEN=your_actual_token -a your-app-name
 ```
 
-### 6.2 ログの確認
+### 7.2 ログの確認
 
 ```bash
 # リアルタイムログ
@@ -337,7 +394,7 @@ fly logs -a your-app-name
 fly logs -a your-app-name --region hkg
 ```
 
-### 6.3 マシンの管理
+### 7.3 マシンの管理
 
 ```bash
 # マシン一覧
@@ -350,25 +407,25 @@ fly machines start <machine-id> -a your-app-name
 fly machines stop <machine-id> -a your-app-name
 ```
 
-## 7. パフォーマンス最適化
+## 8. パフォーマンス最適化
 
-### 7.1 無料枠での制限
+### 8.1 無料枠での制限
 
 - **CPU**: 1 shared CPU
 - **メモリ**: 256MB
 - **ストレージ**: 1GB
 - **ネットワーク**: 160GB/月
 
-### 7.2 最適化のポイント
+### 8.2 最適化のポイント
 
 1. **アセットのプリコンパイル**: 本番環境で実行
 2. **SQLiteの使用**: PostgreSQLより軽量
 3. **auto_stop_machines**: アイドル時の自動停止
 4. **min_machines_running = 0**: 必要時のみ起動
 
-## 8. セキュリティ
+## 9. セキュリティ
 
-### 8.1 環境変数の管理
+### 9.1 環境変数の管理
 
 ```bash
 # 機密情報は secrets で管理
@@ -376,16 +433,16 @@ fly secrets set DATABASE_URL=your_database_url
 fly secrets set SECRET_KEY_BASE=your_secret_key
 ```
 
-### 8.2 HTTPS の強制
+### 9.2 HTTPS の強制
 
 ```toml
 [http_service]
   force_https = true
 ```
 
-## 9. 監視とメンテナンス
+## 10. 監視とメンテナンス
 
-### 9.1 ヘルスチェック
+### 10.1 ヘルスチェック
 
 ```toml
 [[http_service.checks]]
@@ -396,7 +453,7 @@ fly secrets set SECRET_KEY_BASE=your_secret_key
   path = "/"
 ```
 
-### 9.2 ログの監視
+### 10.2 ログの監視
 
 ```bash
 # エラーログの確認
@@ -406,7 +463,7 @@ fly logs -a your-app-name | grep ERROR
 fly logs -a your-app-name | grep "GET\|POST"
 ```
 
-## 10. 成功のポイント
+## 11. 成功のポイント
 
 1. **シンプルな設定**: 複雑な設定を避け、標準的な構成を使用
 2. **ポート3000の使用**: 権限問題を回避
@@ -417,7 +474,7 @@ fly logs -a your-app-name | grep "GET\|POST"
 7. **環境変数の定期的な確認**: API認証エラーの早期発見
 8. **自動再起動の理解**: `fly secrets set`は自動的にアプリを再起動
 
-## 11. 参考リンク
+## 12. 参考リンク
 
 - [Fly.io Documentation](https://fly.io/docs/)
 - [Rails on Fly.io](https://fly.io/docs/rails/)
