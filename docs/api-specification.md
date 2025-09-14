@@ -7,7 +7,7 @@
 ## ベースURL
 
 - 開発環境: `http://localhost:3000`
-- 本番環境: `https://your-app-name.herokuapp.com`
+- 本番環境: `https://your-app-name.fly.dev`
 
 ## 認証
 

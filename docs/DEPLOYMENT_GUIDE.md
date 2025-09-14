@@ -27,10 +27,22 @@ fly auth login
 
 ## 2. アプリケーション設定
 
-### 2.1 データベース設定（SQLite使用）
+### 2.1 データベース設定（全環境SQLite使用）
 
 **config/database.yml**:
 ```yaml
+development:
+  adapter: sqlite3
+  database: <%= Rails.root.join("db", "development.sqlite3") %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  timeout: 5000
+
+test:
+  adapter: sqlite3
+  database: <%= Rails.root.join("db", "test.sqlite3") %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  timeout: 5000
+
 production:
   primary: &primary_production
     adapter: sqlite3
@@ -49,21 +61,12 @@ production:
     <<: *primary_production
     database: <%= Rails.root.join("db", "production_cable.sqlite3") %>
     migrations_paths: db/cable_migrate
-
-test:
-  adapter: sqlite3
-  database: <%= Rails.root.join("db", "test.sqlite3") %>
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-  timeout: 5000
 ```
 
 ### 2.2 Gemfile の更新
 
 ```ruby
-# PostgreSQL（開発用）
-gem "pg", "~> 1.1"
-
-# SQLite（本番用 - 無料枠対応）
+# SQLite（全環境 - 統一性とシンプルさの向上）
 gem "sqlite3", "~> 2.1"
 ```
 
@@ -75,7 +78,7 @@ FROM ruby:3.2.2-slim
 
 # システムパッケージのインストール
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libjemalloc2 libvips postgresql-client sqlite3 && \
+    apt-get install --no-install-recommends -y curl libjemalloc2 libvips sqlite3 && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # 作業ディレクトリ
@@ -83,7 +86,7 @@ WORKDIR /rails
 
 # ビルド用パッケージのインストール
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential git libpq-dev libyaml-dev pkg-config sqlite3 libsqlite3-dev && \
+    apt-get install --no-install-recommends -y build-essential git libyaml-dev pkg-config sqlite3 libsqlite3-dev && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Gemfile のコピーとインストール
@@ -467,7 +470,7 @@ fly logs -a your-app-name | grep "GET\|POST"
 
 1. **シンプルな設定**: 複雑な設定を避け、標準的な構成を使用
 2. **ポート3000の使用**: 権限問題を回避
-3. **SQLiteの活用**: 無料枠での制約に対応
+3. **SQLiteの活用**: 全環境統一によるシンプルさと無料枠対応
 4. **冪等なシードデータ**: 再デプロイ時のエラーを防止
 5. **段階的なデプロイ**: 問題の切り分けを容易にする
 6. **環境変数の適切な管理**: `fly secrets`でセキュアに管理

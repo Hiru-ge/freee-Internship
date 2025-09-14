@@ -33,9 +33,9 @@
 
 - **フロントエンド**: 既存のHTML/CSS/JavaScript（UI変更なし）
 - **バックエンド**: Ruby on Rails 8.0.2
-- **データベース**: PostgreSQL（Heroku）
+- **データベース**: SQLite（全環境統一）
 - **バックグラウンド処理**: Sidekiq + Redis
-- **デプロイ**: Heroku
+- **デプロイ**: Fly.io（無料枠対応）
 
 ### 画面遷移図
 

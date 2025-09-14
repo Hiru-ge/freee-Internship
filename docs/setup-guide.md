@@ -8,9 +8,9 @@
 
 ### 必要なソフトウェア
 
-- **Ruby**: 3.3.0以上
+- **Ruby**: 3.2.2以上
 - **Rails**: 8.0.2
-- **PostgreSQL**: 12以上
+- **SQLite**: 3.0以上（全環境）
 - **Node.js**: 18以上（アセットパイプライン用）
 - **Git**: 2.0以上
 
@@ -33,7 +33,7 @@ cd freee-Internship
 
 ```bash
 ruby --version
-# => ruby 3.3.0p0 (2023-12-25 revision 5124f9ac75) [x86_64-linux]
+# => ruby 3.2.2p53 (2023-03-30 revision e51014f9c0) [x86_64-linux]
 ```
 
 ### 3. 依存関係のインストール
@@ -51,36 +51,46 @@ npm install
 
 ### 4. データベースの設定
 
-#### PostgreSQLのインストール
+#### SQLiteのインストール
 
 **Ubuntu/Debian:**
 ```bash
 sudo apt update
-sudo apt install postgresql postgresql-contrib
+sudo apt install sqlite3 libsqlite3-dev
 ```
 
 **macOS (Homebrew):**
 ```bash
-brew install postgresql
-brew services start postgresql
+brew install sqlite3
 ```
 
 **Windows:**
-[PostgreSQL公式サイト](https://www.postgresql.org/download/windows/)からインストーラーをダウンロード
+[SQLite公式サイト](https://www.sqlite.org/download.html)からインストーラーをダウンロード
 
-#### データベースの作成
+#### データベース設定
 
-```bash
-# PostgreSQLに接続
-sudo -u postgres psql
+全環境でSQLiteを使用します（開発・テスト・本番環境統一）。
 
-# データベースとユーザーの作成
-CREATE DATABASE freee_internship_development;
-CREATE DATABASE freee_internship_test;
-CREATE USER freee_user WITH PASSWORD 'your_password';
-GRANT ALL PRIVILEGES ON DATABASE freee_internship_development TO freee_user;
-GRANT ALL PRIVILEGES ON DATABASE freee_internship_test TO freee_user;
-\q
+**config/database.yml**:
+```yaml
+development:
+  adapter: sqlite3
+  database: <%= Rails.root.join("db", "development.sqlite3") %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  timeout: 5000
+
+test:
+  adapter: sqlite3
+  database: <%= Rails.root.join("db", "test.sqlite3") %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  timeout: 5000
+
+production:
+  primary: &primary_production
+    adapter: sqlite3
+    database: <%= Rails.root.join("db", "production.sqlite3") %>
+    pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+    timeout: 5000
 ```
 
 ### 5. 環境変数の設定
@@ -94,9 +104,6 @@ touch .env
 以下の内容を記述：
 
 ```bash
-# データベース設定
-DATABASE_URL=postgresql://freee_user:your_password@localhost/freee_internship_development
-
 # freee API設定
 FREEE_ACCESS_TOKEN=your_freee_access_token_here
 FREEE_COMPANY_ID=your_freee_company_id_here
@@ -107,22 +114,35 @@ GMAIL_APP_PASSWORD=your_gmail_app_password_here
 
 # アプリケーション設定
 RAILS_ENV=development
-SECRET_KEY_BASE=your_secret_key_base_here
-
-# セキュリティ設定
 RAILS_MASTER_KEY=your_master_key_here
 ```
+
+### 環境変数の取得方法
+
+#### freee API設定
+1. [freee API管理画面](https://secure.freee.co.jp/oauth/applications)にログイン
+2. 新しいアプリケーションを作成
+3. アクセストークンを生成
+4. 会社IDを確認
+
+#### Gmail SMTP設定
+1. Googleアカウントの2段階認証を有効化
+2. [アプリパスワード](https://myaccount.google.com/apppasswords)を生成
+3. 16文字のアプリパスワードを取得
+
+#### Rails設定
+1. `config/master.key`ファイルから`RAILS_MASTER_KEY`を取得
+2. または`rails credentials:show`で確認
 
 ### 6. データベースの初期化
 
 ```bash
-# データベースの作成
+# データベースの準備（作成・マイグレーション・シード）
+rails db:prepare
+
+# または個別に実行
 rails db:create
-
-# マイグレーションの実行
 rails db:migrate
-
-# シードデータの投入（オプション）
 rails db:seed
 ```
 
@@ -210,12 +230,21 @@ fly postgres create --name your-app-db
 
 ```bash
 # Fly.io CLIで環境変数を設定
-fly secrets set RAILS_ENV=production
-fly secrets set RAILS_MASTER_KEY=$(cat config/master.key)
-fly secrets set FREEE_ACCESS_TOKEN=your_freee_access_token
-fly secrets set FREEE_COMPANY_ID=your_freee_company_id
-fly secrets set GMAIL_USERNAME=your_gmail_address@gmail.com
-fly secrets set GMAIL_APP_PASSWORD=your_gmail_app_password
+fly secrets set RAILS_ENV=production -a your-app-name
+fly secrets set RAILS_MASTER_KEY=$(cat config/master.key) -a your-app-name
+fly secrets set FREEE_ACCESS_TOKEN=your_freee_access_token -a your-app-name
+fly secrets set FREEE_COMPANY_ID=your_freee_company_id -a your-app-name
+fly secrets set GMAIL_USERNAME=your_gmail_address@gmail.com -a your-app-name
+fly secrets set GMAIL_APP_PASSWORD=your_gmail_app_password -a your-app-name
+```
+
+**環境変数の確認**:
+```bash
+# 設定された環境変数の確認
+fly secrets list -a your-app-name
+
+# アプリケーション内での環境変数確認
+fly ssh console -a your-app-name -C "echo \$FREEE_ACCESS_TOKEN"
 ```
 
 ### 4. デプロイの実行
@@ -224,11 +253,22 @@ fly secrets set GMAIL_APP_PASSWORD=your_gmail_app_password
 # 本番環境へのデプロイ
 fly deploy
 
-# データベースマイグレーション
-fly ssh console -C "rails db:migrate"
+# データベースマイグレーション（SQLiteの場合、自動実行される）
+fly ssh console -a your-app-name -C "bundle exec rails db:migrate"
+
+# シードデータの投入（自動実行される）
+fly ssh console -a your-app-name -C "bundle exec rails db:seed"
 
 # アプリの起動確認
 fly open
+```
+
+**デプロイ時のシードデータ自動実行**:
+`fly.toml`に以下の設定を追加することで、デプロイ時に自動的にシードデータが実行されます：
+
+```toml
+[deploy]
+  release_command = "bundle exec rails db:seed"
 ```
 
 ## トラブルシューティング
@@ -238,11 +278,11 @@ fly open
 #### 1. データベース接続エラー
 
 ```bash
-# PostgreSQLサービスの確認
-sudo systemctl status postgresql
+# SQLiteデータベースファイルの確認
+ls -la db/
 
-# サービスの開始
-sudo systemctl start postgresql
+# データベースの再作成
+rails db:drop db:create db:migrate
 ```
 
 #### 2. 依存関係のインストールエラー
@@ -276,6 +316,47 @@ rails tmp:clear
 - Gmailアプリパスワードが正しいか確認
 - 2段階認証が有効か確認
 - SMTP設定が正しいか確認
+
+#### 6. Fly.ioデプロイエラー
+
+**問題**: `failed to get lease on VM`
+```bash
+Error: failed to acquire leases: Unrecoverable error: failed to get lease on VM
+```
+
+**解決手順**:
+1. アプリケーションの削除・再作成
+2. 環境変数の再設定
+3. デプロイの再実行
+
+```bash
+# アプリケーションの削除
+fly apps destroy your-app-name --yes
+
+# 新規アプリケーションの作成
+fly apps create your-app-name
+
+# 環境変数の再設定
+fly secrets set FREEE_ACCESS_TOKEN=your_token -a your-app-name
+fly secrets set FREEE_COMPANY_ID=your_company_id -a your-app-name
+# その他の環境変数も設定
+
+# デプロイの実行
+fly deploy
+```
+
+#### 7. 環境変数が空になる問題
+
+**問題**: アプリケーション内で環境変数が空になる
+
+**解決手順**:
+```bash
+# 環境変数の再設定
+fly secrets set FREEE_ACCESS_TOKEN=your_actual_token -a your-app-name
+
+# アプリケーションの再起動
+fly apps restart your-app-name
+```
 
 ## 開発時の注意点
 
@@ -335,18 +416,19 @@ rails runner "ActiveRecord::Base.connection.execute('SELECT 1')"
 # アプリケーションログの確認
 tail -f log/development.log
 
-# Herokuログの確認
-heroku logs --tail
+# Fly.ioログの確認
+fly logs -a your-app-name
 ```
 
 ### 3. バックアップ
 
 ```bash
-# データベースバックアップ
-pg_dump freee_internship_development > backup.sql
+# データベースバックアップ（SQLite）
+cp db/development.sqlite3 backup_development.sqlite3
+cp db/test.sqlite3 backup_test.sqlite3
 
-# Herokuバックアップ
-heroku pg:backups:capture
+# Fly.ioバックアップ（SQLiteの場合）
+fly ssh console -a your-app-name -C "cp db/production.sqlite3 /tmp/backup.sqlite3"
 ```
 
 このガイドに従ってセットアップを行うことで、勤怠管理システムを正常に動作させることができます。

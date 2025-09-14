@@ -1,7 +1,7 @@
 # 実装状況レポート
 
 ## 実装完了日: 2025年9月9日
-## 最終更新日: 2025年1月（リファクタリング完了）
+## 最終更新日: 2025年9月14日（Fly.ioデプロイ完了）
 
 ## Phase 2-1: 認証システム移行 ✅ **完了**
 
@@ -270,3 +270,5 @@
 - `authentication-system.md` - 認証システム仕様
 - `database-schema-design.md` - データベース設計
 - `requirement.md` - 要件定義
+- `../DEPLOYMENT_GUIDE.md` - Fly.ioデプロイガイド
+- `../README.md` - プロジェクト概要

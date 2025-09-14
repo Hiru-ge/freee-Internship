@@ -55,19 +55,20 @@
 ## 技術スタック
 
 - **Backend**: Ruby on Rails 8.0.2
-- **Database**: PostgreSQL
+- **Database**: SQLite (全環境)
 - **Bot**: LINE Bot API
 - **External APIs**: freee API, Google Sheets API
-- **Deployment**: Fly.io
+- **Deployment**: Fly.io (無料枠対応)
 
 ## セットアップ
 
 ### 前提条件
 
-- Ruby 3.3.0以上
-- PostgreSQL
+- Ruby 3.2.2以上
+- SQLite 3.0以上
 - LINE Bot アカウント
 - freee API アカウント
+- Fly.io アカウント (本番デプロイ用)
 
 ### インストール
 
@@ -133,20 +134,31 @@ rails server
 
 ## デプロイ
 
-Herokuへのデプロイ手順：
+Fly.ioへのデプロイ手順：
 
-1. Heroku CLIのインストール
-2. Herokuアプリの作成
+1. Fly.io CLIのインストール
+2. Fly.ioアプリの作成
 3. 環境変数の設定
 4. デプロイの実行
 
 ```bash
-heroku create your-app-name
-heroku config:set LINE_CHANNEL_SECRET=your_secret
-heroku config:set LINE_CHANNEL_TOKEN=your_token
-# その他の環境変数も設定
-git push heroku main
+# Fly.io CLIのインストール
+curl -L https://fly.io/install.sh | sh
+
+# アプリの作成
+fly apps create your-app-name
+
+# 環境変数の設定
+fly secrets set FREEE_ACCESS_TOKEN=your_token -a your-app-name
+fly secrets set FREEE_COMPANY_ID=your_company_id -a your-app-name
+fly secrets set GMAIL_USERNAME=your_email -a your-app-name
+fly secrets set GMAIL_APP_PASSWORD=your_app_password -a your-app-name
+
+# デプロイの実行
+fly deploy
 ```
+
+詳細なデプロイ手順は [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) を参照してください。
 
 ## 開発状況
 
@@ -165,6 +177,7 @@ git push heroku main
 
 ## ドキュメント
 
+- [デプロイガイド](DEPLOYMENT_GUIDE.md) - Fly.ioへのデプロイ手順とトラブルシューティング
 - [実装状況](docs/implementation-status.md) - 現在の実装状況と進捗
 - [セキュリティ強化](docs/security-enhancement.md) - セキュリティ機能の詳細
 - [パフォーマンス最適化](docs/performance-optimization.md) - N+1問題解決とAPI最適化
