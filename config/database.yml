@@ -55,8 +55,10 @@ development:
 # re-generated from your development database when you run "rake".
 # Do not set this db to the same as development or production.
 test:
-  <<: *default
-  database: freee_internship_test
+  adapter: sqlite3
+  database: <%= Rails.root.join("db", "test.sqlite3") %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  timeout: 5000
 
 # As with config/credentials.yml, you never want to store sensitive information,
 # like your database password, in your source code. If your source code is
@@ -80,19 +82,19 @@ test:
 #
 production:
   primary: &primary_production
-    <<: *default
-    database: freee_internship_production
-    username: freee_internship
-    password: <%= ENV["FREEE_INTERNSHIP_DATABASE_PASSWORD"] %>
+    adapter: sqlite3
+    database: <%= Rails.root.join("db", "production.sqlite3") %>
+    pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+    timeout: 5000
   cache:
     <<: *primary_production
-    database: freee_internship_production_cache
+    database: <%= Rails.root.join("db", "production_cache.sqlite3") %>
     migrations_paths: db/cache_migrate
   queue:
     <<: *primary_production
-    database: freee_internship_production_queue
+    database: <%= Rails.root.join("db", "production_queue.sqlite3") %>
     migrations_paths: db/queue_migrate
   cable:
     <<: *primary_production
-    database: freee_internship_production_cable
+    database: <%= Rails.root.join("db", "production_cable.sqlite3") %>
     migrations_paths: db/cable_migrate

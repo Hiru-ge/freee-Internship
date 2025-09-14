@@ -12,9 +12,11 @@ primary_region = "nrt"
   RAILS_ENV = "production"
   RAILS_SERVE_STATIC_FILES = "true"
   RAILS_LOG_TO_STDOUT = "true"
+  DISABLE_DATABASE_ENVIRONMENT_CHECK = "1"
+  PORT = "3000"
 
 [http_service]
-  internal_port = 80
+  internal_port = 3000
   force_https = true
   auto_stop_machines = true
   auto_start_machines = true
@@ -33,5 +35,5 @@ primary_region = "nrt"
   cpus = 1
   memory_mb = 256
 
-[deploy]
-  release_command = "bundle exec rails db:migrate"
+# [deploy]
+#   release_command = "bundle exec rails db:migrate"

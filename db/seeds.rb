@@ -2,6 +2,8 @@
 # development, test). The code here should be idempotent so that it can be executed at any point in every environment.
 # The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
 
+require 'bcrypt'
+
 # シフト情報の初期データ（GASのテストコードから移植）
 puts "シフト情報の初期データを作成中..."
 
@@ -12,6 +14,21 @@ month = current_date.month
 
 # 従業員IDのリスト（freee APIから取得した実際のID）
 employee_ids = ["3313254", "3316116", "3316120", "3317741"]
+
+# 従業員レコードを作成（存在しない場合のみ）
+puts "従業員レコードを作成中..."
+employee_ids.each do |employee_id|
+  unless Employee.exists?(employee_id: employee_id)
+    Employee.create!(
+      employee_id: employee_id,
+      password_hash: BCrypt::Password.create("password123"), # デフォルトパスワード
+      role: employee_id == "3313254" ? "owner" : "employee"
+    )
+    puts "従業員 #{employee_id} を作成しました"
+  else
+    puts "従業員 #{employee_id} は既に存在します"
+  end
+end
 
 # 既存のシフトデータを削除（同じ月のデータ）
 # 外部キー制約を考慮して、shift_exchangesを先に削除してからshiftsを削除
