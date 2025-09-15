@@ -35,6 +35,12 @@
 - **給与データ取得**: 最新の給与情報の取得
 - **組織情報取得**: 部署・役職情報の取得
 
+### LINE Bot連携
+- **ヘルプ表示**: 利用可能なコマンドの一覧表示
+- **認証機能**: 認証コード生成（準備中）
+- **シフト確認**: シフト情報の確認（準備中）
+- **勤怠確認**: 勤怠状況の確認（準備中）
+
 ### メール通知
 - **シフト依頼通知**: シフト交代・追加依頼の自動通知
 - **承認結果通知**: シフト承認/否認結果の通知
@@ -56,9 +62,10 @@
 
 - **Backend**: Ruby on Rails 8.0.2
 - **Database**: SQLite (全環境)
-- **Bot**: LINE Bot API
+- **Bot**: LINE Bot API (line-bot-api gem)
 - **External APIs**: freee API, Google Sheets API
 - **Deployment**: Fly.io (無料枠対応)
+- **Testing**: Minitest (TDD approach)
 
 ## セットアップ
 
@@ -173,7 +180,7 @@ fly deploy
 - ✅ メール通知システム完了（Gmail SMTP対応）
 - ✅ UI/UXデザイン改善完了
 - ✅ Fly.ioデプロイ完了
-- 🔄 LINE Bot連携（将来実装予定）
+- ✅ LINE Bot連携基本機能完了（Phase 9-0）
 
 ## ドキュメント
 
@@ -184,6 +191,9 @@ fly deploy
 - [データベース設計](docs/schema-database.md) - データベーススキーマと設計思想
 - [API仕様書](docs/api-specification.md) - 外部API連携の仕様
 - [セットアップガイド](docs/setup-guide.md) - 開発環境の構築手順
+- [LINE Bot連携](docs/line_bot_integration.md) - LINE Bot機能の詳細
+- [LINE Bot デプロイ手順](docs/line_bot_deployment.md) - LINE Botのデプロイと設定
+- [LINE Bot API仕様](docs/line_bot_api_spec.md) - LINE Bot APIの仕様書
 
 詳細な実装状況は `docs/` ディレクトリ内のドキュメントを参照してください。
 
