@@ -4,7 +4,8 @@ class LineBotService
     'help' => :help,
     '認証' => :auth,
     'シフト' => :shift,
-    '勤怠' => :attendance
+    '勤怠' => :attendance,
+    '全員シフト' => :all_shifts
   }.freeze
 
   def initialize
@@ -23,6 +24,8 @@ class LineBotService
       "シフト確認機能は準備中です。"
     when :attendance
       "勤怠確認機能は準備中です。"
+    when :all_shifts
+      "全員シフト確認機能は準備中です。"
     else
       generate_unknown_command_message
     end
@@ -34,6 +37,31 @@ class LineBotService
 
   def individual_message?(event)
     event['source']['type'] == 'user'
+  end
+
+  def extract_group_id(event)
+    return nil unless group_message?(event)
+    event['source']['groupId']
+  end
+
+  def extract_user_id(event)
+    event['source']['userId']
+  end
+
+  def find_employee_by_line_id(line_id)
+    nil
+  end
+
+  def link_employee_to_line(employee_id, line_id)
+    false
+  end
+
+  def unlink_employee_from_line(line_id)
+    false
+  end
+
+  def determine_command_context(event)
+    nil
   end
 
   def generate_help_message
