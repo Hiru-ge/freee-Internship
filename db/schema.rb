@@ -10,7 +10,16 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_15_103733) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_15_112837) do
+  create_table "conversation_states", force: :cascade do |t|
+    t.string "line_user_id"
+    t.text "state_data"
+    t.datetime "expires_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["line_user_id"], name: "index_conversation_states_on_line_user_id"
+  end
+
   create_table "employee_line_accounts", force: :cascade do |t|
     t.integer "employee_id", null: false
     t.string "line_user_id", null: false

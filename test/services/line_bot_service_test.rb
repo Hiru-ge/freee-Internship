@@ -90,8 +90,8 @@ class LineBotServiceTest < ActiveSupport::TestCase
     
     response = @line_bot_service.handle_message(event)
     
-    # 実装されたため、グループ内のシフト情報が見つからないメッセージが返されることを確認
-    assert_includes response, "グループ内のシフト情報が見つかりませんでした"
+    # 実装されたため、シフト情報のヘッダーが返されることを確認（シフトデータがない場合は空のヘッダーのみ）
+    assert_includes response, "【今月の全員シフト】"
   end
 
   test "should handle individual commands" do
@@ -101,21 +101,24 @@ class LineBotServiceTest < ActiveSupport::TestCase
     
     response = @line_bot_service.handle_message(event)
     
-    # 実装されたため、シフト情報が見つからないメッセージが返されることを確認
-    assert_includes response, "シフト情報が見つかりませんでした"
+    # 実装されたため、認証が必要なメッセージが返されることを確認
+    assert_includes response, "認証が必要です"
   end
 
   test "should determine command context based on message source" do
     # メッセージ送信元に基づくコマンドコンテキストの判定テスト
     group_event = mock_line_event(source_type: "group", group_id: @test_group_id, user_id: @test_user_id)
+    group_event['message']['text'] = 'ヘルプ'
+    
     individual_event = mock_line_event(source_type: "user", user_id: @test_user_id)
+    individual_event['message']['text'] = 'シフト'
     
     group_context = @line_bot_service.determine_command_context(group_event)
     individual_context = @line_bot_service.determine_command_context(individual_event)
     
-    # まだ実装していないため、nilが返されることを確認
-    assert_nil group_context
-    assert_nil individual_context
+    # 実装されたため、適切なコマンドコンテキストが返されることを確認
+    assert_equal :help, group_context
+    assert_equal :shift, individual_context
   end
 
   test "should handle authentication command" do
@@ -125,8 +128,8 @@ class LineBotServiceTest < ActiveSupport::TestCase
     
     response = @line_bot_service.handle_message(event)
     
-    # まだ実装していないため、準備中メッセージが返されることを確認
-    assert_includes response, "準備中"
+    # 実装されたため、認証手順の説明メッセージが返されることを確認
+    assert_includes response, "認証"
   end
 
   test "should generate verification code for line user" do
@@ -247,8 +250,8 @@ class LineBotServiceTest < ActiveSupport::TestCase
     
     result = @line_bot_service.get_group_shift_info(group_id)
     
-    # まだ実装していないため、nilが返されることを確認
-    assert_nil result
+    # 実装されたため、シフト情報のヘッダーが返されることを確認（シフトデータがない場合は空のヘッダーのみ）
+    assert_includes result, "【今月の全員シフト】"
   end
 
   test "should get daily shift information" do
@@ -286,8 +289,8 @@ class LineBotServiceTest < ActiveSupport::TestCase
     
     response = @line_bot_service.handle_message(event)
     
-    # 実装されたため、シフト情報が見つからないメッセージが返されることを確認
-    assert_includes response, "シフト情報が見つかりませんでした"
+    # 実装されたため、認証が必要なメッセージが返されることを確認
+    assert_includes response, "認証が必要です"
   end
 
   test "should handle all shifts command for group" do
@@ -297,8 +300,133 @@ class LineBotServiceTest < ActiveSupport::TestCase
     
     response = @line_bot_service.handle_message(event)
     
-    # 実装されたため、グループ内のシフト情報が見つからないメッセージが返されることを確認
-    assert_includes response, "グループ内のシフト情報が見つかりませんでした"
+    # 実装されたため、シフト情報のヘッダーが返されることを確認（シフトデータがない場合は空のヘッダーのみ）
+    assert_includes response, "【今月の全員シフト】"
+  end
+
+  # 認証コマンドのテスト
+  test "should handle authentication command with implementation" do
+    # 認証コマンドの処理テスト
+    event = mock_line_event(source_type: "user", user_id: @test_user_id)
+    event['message']['text'] = '認証'
+    
+    response = @line_bot_service.handle_message(event)
+    
+    # 実装されたため、認証手順の説明メッセージが返されることを確認
+    assert_includes response, "認証"
+  end
+
+  test "should handle employee name input for authentication" do
+    # 従業員名入力の処理テスト
+    line_user_id = "U1234567890abcdef"
+    employee_name = "田中太郎"
+    
+    result = @line_bot_service.handle_employee_name_input(line_user_id, employee_name)
+    
+    # 実装されたため、該当する従業員が見つからないメッセージが返されることを確認
+    assert_includes result, "該当する従業員が見つかりませんでした"
+  end
+
+  test "should search employees by name" do
+    # 従業員名検索機能のテスト
+    name = "田中"
+    
+    result = @line_bot_service.search_employees_by_name(name)
+    
+    # 実装されたため、空の配列が返されることを確認（freee APIが利用できないため）
+    assert_equal [], result
+  end
+
+  test "should handle multiple employee matches" do
+    # 複数の従業員がマッチした場合の処理テスト
+    line_user_id = "U1234567890abcdef"
+    employee_name = "田中"
+    matches = [
+      { id: "1", display_name: "田中太郎" },
+      { id: "2", display_name: "田中花子" }
+    ]
+    
+    result = @line_bot_service.handle_multiple_employee_matches(line_user_id, employee_name, matches)
+    
+    # 実装されたため、複数選択肢のメッセージが返されることを確認
+    assert_includes result, "複数見つかりました"
+    assert_includes result, "田中太郎"
+    assert_includes result, "田中花子"
+  end
+
+  test "should handle verification code input for authentication" do
+    # 認証コード入力の処理テスト
+    line_user_id = "U1234567890abcdef"
+    employee_id = "EMP001"
+    verification_code = "123456"
+    
+    result = @line_bot_service.handle_verification_code_input(line_user_id, employee_id, verification_code)
+    
+    # 実装されたため、認証コードが正しくないメッセージが返されることを確認
+    assert_includes result, "認証コードが正しくありません"
+  end
+
+  test "should check if employee is already linked to line" do
+    # 従業員が既にLINEアカウントに紐付けられているかのチェックテスト
+    line_user_id = "U1234567890abcdef"
+    
+    result = @line_bot_service.employee_already_linked?(line_user_id)
+    
+    # 実装されたため、falseが返されることを確認（データベースに該当レコードがないため）
+    assert_equal false, result
+  end
+
+  test "should get authentication status for line user" do
+    # LINEユーザーの認証状況取得テスト
+    line_user_id = "U1234567890abcdef"
+    
+    result = @line_bot_service.get_authentication_status(line_user_id)
+    
+    # 実装されたため、nilが返されることを確認（データベースに該当レコードがないため）
+    assert_nil result
+  end
+
+  # 会話状態管理のテスト
+  test "should get conversation state for line user" do
+    # 会話状態の取得テスト
+    line_user_id = "U1234567890abcdef"
+    
+    result = @line_bot_service.get_conversation_state(line_user_id)
+    
+    # 実装されたため、nilが返されることを確認（データベースに該当レコードがないため）
+    assert_nil result
+  end
+
+  test "should set conversation state for line user" do
+    # 会話状態の設定テスト
+    line_user_id = "U1234567890abcdef"
+    state = { step: "waiting_employee_name", data: {} }
+    
+    result = @line_bot_service.set_conversation_state(line_user_id, state)
+    
+    # 実装されたため、trueが返されることを確認
+    assert_equal true, result
+  end
+
+  test "should clear conversation state for line user" do
+    # 会話状態のクリアテスト
+    line_user_id = "U1234567890abcdef"
+    
+    result = @line_bot_service.clear_conversation_state(line_user_id)
+    
+    # 実装されたため、trueが返されることを確認
+    assert_equal true, result
+  end
+
+  test "should handle message with conversation state" do
+    # 会話状態を考慮したメッセージ処理テスト
+    line_user_id = "U1234567890abcdef"
+    message_text = "田中太郎"
+    
+    result = @line_bot_service.handle_message_with_state(line_user_id, message_text)
+    
+    # 実装されたため、未知のコマンドメッセージが返されることを確認
+    assert_includes result, "申し訳ございませんが、そのコマンドは認識できませんでした"
   end
 
   private
