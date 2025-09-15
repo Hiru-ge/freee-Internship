@@ -10,7 +10,21 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_13_065415) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_15_103733) do
+  create_table "employee_line_accounts", force: :cascade do |t|
+    t.integer "employee_id", null: false
+    t.string "line_user_id", null: false
+    t.string "group_id"
+    t.datetime "linked_at", null: false
+    t.boolean "is_active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employee_id", "is_active"], name: "index_employee_line_accounts_on_employee_id_and_is_active"
+    t.index ["employee_id"], name: "index_employee_line_accounts_on_employee_id"
+    t.index ["group_id"], name: "index_employee_line_accounts_on_group_id"
+    t.index ["line_user_id"], name: "index_employee_line_accounts_on_line_user_id", unique: true
+  end
+
   create_table "employees", force: :cascade do |t|
     t.string "employee_id"
     t.string "password_hash"
@@ -19,7 +33,22 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_13_065415) do
     t.datetime "password_updated_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "line_id"
     t.index ["employee_id"], name: "index_employees_on_employee_id", unique: true
+    t.index ["line_id"], name: "index_employees_on_line_id", unique: true
+  end
+
+  create_table "line_message_logs", force: :cascade do |t|
+    t.string "line_user_id", null: false
+    t.string "message_type", null: false
+    t.text "message_content"
+    t.string "direction", null: false
+    t.datetime "processed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["direction"], name: "index_line_message_logs_on_direction"
+    t.index ["line_user_id"], name: "index_line_message_logs_on_line_user_id"
+    t.index ["processed_at"], name: "index_line_message_logs_on_processed_at"
   end
 
   create_table "shift_additions", force: :cascade do |t|
@@ -83,6 +112,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_13_065415) do
     t.index ["expires_at"], name: "index_verification_codes_on_expires_at"
   end
 
+  add_foreign_key "employee_line_accounts", "employees"
   add_foreign_key "shift_additions", "employees", column: "requester_id", primary_key: "employee_id", on_delete: :restrict
   add_foreign_key "shift_additions", "employees", column: "target_employee_id", primary_key: "employee_id", on_delete: :restrict
   add_foreign_key "shift_exchanges", "employees", column: "approver_id", primary_key: "employee_id", on_delete: :restrict

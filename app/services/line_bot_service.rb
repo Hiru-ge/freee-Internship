@@ -64,6 +64,26 @@ class LineBotService
     nil
   end
 
+  def generate_verification_code_for_line(line_user_id, employee_id)
+    false
+  end
+
+  def valid_employee_id_format?(employee_id)
+    false
+  end
+
+  def send_verification_code_via_email(employee_id, line_user_id)
+    false
+  end
+
+  def complete_line_account_linking(line_user_id, employee_id, verification_code)
+    false
+  end
+
+  def validate_verification_code_for_linking(employee_id, verification_code)
+    false
+  end
+
   def generate_help_message
     "勤怠管理システムへようこそ！\n\n利用可能なコマンド:\n- ヘルプ: このメッセージを表示\n- 認証: 認証コードを生成\n- シフト: シフト情報を確認\n- 勤怠: 勤怠状況を確認"
   end

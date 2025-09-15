@@ -2,6 +2,7 @@ class Employee < ApplicationRecord
   # バリデーション
   validates :employee_id, presence: true, uniqueness: true
   validates :role, presence: true, inclusion: { in: %w[employee owner] }
+  validates :line_id, uniqueness: true, allow_nil: true
   
   # パスワードは初回ログイン時は未設定でもOK
   # validates :password_hash, presence: true
@@ -28,6 +29,18 @@ class Employee < ApplicationRecord
   
   def update_password!(new_password_hash)
     update!(password_hash: new_password_hash, password_updated_at: Time.current)
+  end
+
+  def linked_to_line?
+    line_id.present?
+  end
+  
+  def link_to_line(line_user_id)
+    update!(line_id: line_user_id)
+  end
+  
+  def unlink_from_line
+    update!(line_id: nil)
   end
 
   # freee APIから取得した従業員名を返す

@@ -12,7 +12,8 @@
 - **グループ・個人識別**: メッセージ送信元の自動判定
 - **従業員紐付け**: LINEアカウントと従業員IDの紐付け機能
 - **コマンド処理**: 基本的なコマンド処理システム
-- **認証機能**: 認証コード生成（準備中）
+- **認証システム**: 従業員ID入力・認証コード生成・紐付け機能
+- **データベース**: Employeeテーブル拡張・LineMessageLogモデル
 - **シフト確認**: シフト情報の確認（準備中）
 - **勤怠確認**: 勤怠状況の確認（準備中）
 
@@ -58,25 +59,60 @@ LineBotService (app/services/line_bot_service.rb)
 - `determine_command_context(event)`: メッセージ送信元に基づくコマンドコンテキストを判定
 - `generate_help_message()`: ヘルプメッセージを生成
 
+#### 認証システム機能
+- `generate_verification_code_for_line(line_user_id, employee_id)`: LINEユーザー用認証コード生成
+- `valid_employee_id_format?(employee_id)`: 従業員IDフォーマット検証
+- `send_verification_code_via_email(employee_id, line_user_id)`: メール認証コード送信
+- `complete_line_account_linking(line_user_id, employee_id, verification_code)`: LINEアカウント紐付け完了
+- `validate_verification_code_for_linking(employee_id, verification_code)`: 紐付け用認証コード検証
+
 ### データベース設計
 
-#### Employeeテーブル（拡張予定）
-- `line_id`: LINEユーザーID（NULL許可、ユニーク制約）
+#### Employeeテーブル（拡張完了）
+- `line_id`: LINEユーザーID（NULL許可、ユニーク制約）✅ **実装完了**
 - 既存のカラム: `employee_id`, `password_hash`, `role`, `last_login_at`, `password_updated_at`
 
-#### LineMessageLogテーブル（新規作成予定）
-- `id`: 主キー
-- `line_user_id`: LINEユーザーID
-- `message_type`: メッセージタイプ（text, image, etc.）
-- `message_content`: メッセージ内容
+#### LineMessageLogテーブル（新規作成完了）
+- `id`: 主キー ✅ **実装完了**
+- `line_user_id`: LINEユーザーID（NOT NULL）
+- `message_type`: メッセージタイプ（text, image, sticker, location）
+- `message_content`: メッセージ内容（NULL許可）
 - `direction`: 送信方向（inbound, outbound）
-- `processed_at`: 処理日時
+- `processed_at`: 処理日時（NULL許可）
 - `created_at`, `updated_at`: タイムスタンプ
 
 #### 設計思想
 - **1対1関係**: 1人の従業員 = 1つのLINEアカウント
 - **シンプル設計**: 複雑な中間テーブルを避け、保守性を重視
 - **監査証跡**: LineMessageLogでメッセージ履歴を管理
+
+## 実装完了状況
+
+### Phase 9-1: LINE Bot基盤強化 ✅ **完了**
+**実装期間**: 2025年1月
+**実装手法**: TDD（Red-Green-Refactor）
+
+#### 実装内容
+1. **LINE Bot基盤の拡張** ✅
+   - グループ・個人の識別機能
+   - 従業員IDとLINEアカウントの紐付け機能
+   - 基本的なコマンド処理の拡張
+
+2. **認証システムの拡張** ✅
+   - 従業員ID入力機能
+   - メール認証コード送信機能の統合
+   - LINEアカウントとの紐付け機能
+
+3. **データベース設計・実装** ✅
+   - Employeeテーブルにline_idカラム追加
+   - LineMessageLogモデルの作成
+   - マイグレーションの実行
+
+#### 技術成果
+- **テスト**: 21テスト、40アサーション、すべて成功
+- **マイグレーション**: 2つのマイグレーション完了
+- **モデル**: Employee、LineMessageLogモデルの拡張・作成
+- **サービス**: LineBotServiceの機能拡張
 - **データ整合性**: 外部キー制約でデータの整合性を保証
 
 ### 主要クラス

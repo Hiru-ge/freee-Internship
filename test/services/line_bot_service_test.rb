@@ -118,6 +118,86 @@ class LineBotServiceTest < ActiveSupport::TestCase
     assert_nil individual_context
   end
 
+  test "should handle authentication command" do
+    # 認証コマンドの処理テスト
+    event = mock_line_event(source_type: "user", user_id: @test_user_id)
+    event['message']['text'] = '認証'
+    
+    response = @line_bot_service.handle_message(event)
+    
+    # まだ実装していないため、準備中メッセージが返されることを確認
+    assert_includes response, "準備中"
+  end
+
+  test "should generate verification code for line user" do
+    # LINEユーザー用の認証コード生成テスト
+    line_user_id = "U1234567890abcdef"
+    employee_id = "EMP001"
+    
+    result = @line_bot_service.generate_verification_code_for_line(line_user_id, employee_id)
+    
+    # まだ実装していないため、falseが返されることを確認
+    assert_equal false, result
+  end
+
+  test "should verify employee id format" do
+    # 従業員IDフォーマットの検証テスト
+    valid_employee_id = "EMP001"
+    invalid_employee_id = "invalid_id"
+    
+    valid_result = @line_bot_service.valid_employee_id_format?(valid_employee_id)
+    invalid_result = @line_bot_service.valid_employee_id_format?(invalid_employee_id)
+    
+    # まだ実装していないため、falseが返されることを確認
+    assert_equal false, valid_result
+    assert_equal false, invalid_result
+  end
+
+  test "should send verification code via email" do
+    # メール認証コード送信機能のテスト
+    employee_id = "EMP001"
+    line_user_id = "U1234567890abcdef"
+    
+    result = @line_bot_service.send_verification_code_via_email(employee_id, line_user_id)
+    
+    # まだ実装していないため、falseが返されることを確認
+    assert_equal false, result
+  end
+
+  test "should handle email sending errors gracefully" do
+    # メール送信エラーのハンドリングテスト
+    employee_id = "INVALID_EMP"
+    line_user_id = "U1234567890abcdef"
+    
+    result = @line_bot_service.send_verification_code_via_email(employee_id, line_user_id)
+    
+    # エラー時もfalseが返されることを確認
+    assert_equal false, result
+  end
+
+  test "should complete line account linking process" do
+    # LINEアカウント紐付けプロセスの完了テスト
+    line_user_id = "U1234567890abcdef"
+    employee_id = "EMP001"
+    verification_code = "123456"
+    
+    result = @line_bot_service.complete_line_account_linking(line_user_id, employee_id, verification_code)
+    
+    # まだ実装していないため、falseが返されることを確認
+    assert_equal false, result
+  end
+
+  test "should validate verification code for linking" do
+    # 紐付け用認証コードの検証テスト
+    employee_id = "EMP001"
+    verification_code = "123456"
+    
+    result = @line_bot_service.validate_verification_code_for_linking(employee_id, verification_code)
+    
+    # まだ実装していないため、falseが返されることを確認
+    assert_equal false, result
+  end
+
   test "should generate help message" do
     # ヘルプメッセージの生成テスト
     message = @line_bot_service.generate_help_message
