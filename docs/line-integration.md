@@ -150,6 +150,7 @@
 - **メール認証コード方式**: 既存の認証システムを活用
 - **6桁の認証コード**: 10分間有効
 - **従業員ID**: 既存システムのIDを使用
+- **データベース設計**: Employeeテーブルにline_idカラムを追加、LineMessageLogテーブルでメッセージ履歴を管理
 
 ## 7. メッセージフォーマット・UI設計
 
@@ -261,6 +262,27 @@
 - シフト表の自動更新
 - リアルタイムでのデータ同期
 - グループ・個人での情報分離
+
+### 10.4. データベース設計
+
+#### Employeeテーブルの拡張
+- `line_id`: LINEユーザーID（NULL許可、ユニーク制約）
+- 1対1関係: 1人の従業員 = 1つのLINEアカウント
+- 既存のカラム: `employee_id`, `password_hash`, `role`, `last_login_at`, `password_updated_at`
+
+#### LineMessageLogテーブル（新規作成）
+- `id`: 主キー
+- `line_user_id`: LINEユーザーID
+- `message_type`: メッセージタイプ（text, image, etc.）
+- `message_content`: メッセージ内容
+- `direction`: 送信方向（inbound, outbound）
+- `processed_at`: 処理日時
+- `created_at`, `updated_at`: タイムスタンプ
+
+#### 設計思想
+- **シンプル設計**: 複雑な中間テーブルを避け、保守性を重視
+- **監査証跡**: LineMessageLogでメッセージ履歴を管理
+- **データ整合性**: 外部キー制約でデータの整合性を保証
 
 ## 11. 実装優先度
 

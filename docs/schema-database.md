@@ -68,30 +68,43 @@ CREATE INDEX idx_employee_cache_expires_at ON employee_cache(cache_expires_at);
 - API呼び出し回数の削減
 - パフォーマンス向上
 
-### 2.3. LINEユーザーテーブル (line_users)
+### 2.3. Employeeテーブルの拡張（LINE連携対応）
 ```sql
-CREATE TABLE line_users (
+-- Employeeテーブルにline_idカラムを追加
+ALTER TABLE employees ADD COLUMN line_id VARCHAR(255);
+CREATE UNIQUE INDEX idx_employees_line_id ON employees(line_id);
+```
+
+**設計変更理由:**
+- 1対1関係: 1人の従業員 = 1つのLINEアカウント
+- シンプル設計: 複雑な中間テーブルを避ける
+- 保守性向上: 既存のEmployeeモデルとの統合
+
+### 2.4. LINEメッセージログテーブル (line_message_logs)
+```sql
+CREATE TABLE line_message_logs (
   id SERIAL PRIMARY KEY,
-  line_user_id VARCHAR(100) UNIQUE NOT NULL,  -- LINEユーザーID
-  employee_id VARCHAR(7) REFERENCES employees(employee_id),  -- 従業員IDとの紐付け
-  display_name VARCHAR(100),                  -- LINE表示名
-  authenticated_at TIMESTAMP,                 -- 認証完了日時
-  is_group BOOLEAN DEFAULT FALSE,             -- グループLINEかどうか
+  line_user_id VARCHAR(255) NOT NULL,        -- LINEユーザーID
+  message_type VARCHAR(50) NOT NULL,         -- メッセージタイプ
+  message_content TEXT,                      -- メッセージ内容
+  direction VARCHAR(20) NOT NULL,            -- 送信方向
+  processed_at TIMESTAMP,                    -- 処理日時
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- インデックス
-CREATE INDEX idx_line_users_line_user_id ON line_users(line_user_id);
-CREATE INDEX idx_line_users_employee_id ON line_users(employee_id);
-CREATE INDEX idx_line_users_is_group ON line_users(is_group);
+CREATE INDEX idx_line_message_logs_line_user_id ON line_message_logs(line_user_id);
+CREATE INDEX idx_line_message_logs_processed_at ON line_message_logs(processed_at);
+CREATE INDEX idx_line_message_logs_direction ON line_message_logs(direction);
 ```
 
-**既存データとの対応:**
-- LINE認証フローで従業員IDと紐付け
-- グループLINEと個人LINEの識別
+**目的:**
+- メッセージ履歴の完全な記録
+- デバッグ・トラブルシューティングの支援
+- セキュリティ監査の実現
 
-### 2.4. シフトテーブル (shifts)
+### 2.5. シフトテーブル (shifts)
 ```sql
 CREATE TABLE shifts (
   id SERIAL PRIMARY KEY,
@@ -115,7 +128,7 @@ CREATE INDEX idx_shifts_date_range ON shifts(shift_date, start_time, end_time);
 - シフト表の全データを移行
 - 時間形式: "18-20" → start_time: 18:00, end_time: 20:00
 
-### 2.5. シフト交代管理テーブル (shift_exchanges)
+### 2.6. シフト交代管理テーブル (shift_exchanges)
 ```sql
 CREATE TABLE shift_exchanges (
   id SERIAL PRIMARY KEY,
@@ -143,7 +156,7 @@ CREATE INDEX idx_shift_exchanges_status ON shift_exchanges(status);
 - シフト交代管理シートの全データを移行
 - 申請ID、申請者ID、承認者ID、ステータス管理
 
-### 2.6. シフト追加管理テーブル (shift_additions)
+### 2.7. シフト追加管理テーブル (shift_additions)
 ```sql
 CREATE TABLE shift_additions (
   id SERIAL PRIMARY KEY,
@@ -170,7 +183,7 @@ CREATE INDEX idx_shift_additions_status ON shift_additions(status);
 **既存データとの対応:**
 - シフト追加管理シートの全データを移行
 
-### 2.7. 認証コードテーブル (verification_codes)
+### 2.8. 認証コードテーブル (verification_codes)
 ```sql
 CREATE TABLE verification_codes (
   id SERIAL PRIMARY KEY,
@@ -191,7 +204,7 @@ CREATE INDEX idx_verification_codes_expires_at ON verification_codes(expires_at)
 **既存データとの対応:**
 - 認証コード管理シートの全データを移行
 
-### 2.8. 勤怠記録テーブル (attendance_records)
+### 2.9. 勤怠記録テーブル (attendance_records)
 ```sql
 CREATE TABLE attendance_records (
   id SERIAL PRIMARY KEY,
@@ -220,7 +233,7 @@ CREATE INDEX idx_attendance_records_date_range ON attendance_records(work_date, 
 - freee APIから取得する勤怠データを保存
 - 103万の壁ゲージ計算用のデータ
 
-### 2.9. 給与計算テーブル (salary_calculations)
+### 2.10. 給与計算テーブル (salary_calculations)
 ```sql
 CREATE TABLE salary_calculations (
   id SERIAL PRIMARY KEY,
@@ -243,7 +256,7 @@ CREATE INDEX idx_salary_calculations_calculation_date ON salary_calculations(cal
 - 103万の壁ゲージ計算結果を保存
 - 時間帯別時給システムの計算結果
 
-### 2.10. 通知ログテーブル (notification_logs)
+### 2.11. 通知ログテーブル (notification_logs)
 ```sql
 CREATE TABLE notification_logs (
   id SERIAL PRIMARY KEY,
@@ -368,7 +381,7 @@ end
 
 ### 4.1. 主要リレーション
 ```
-employees (1) ←→ (1) line_users
+employees (1) ←→ (1) line_id (LINEユーザーID)
 employees (1) ←→ (N) shifts
 employees (1) ←→ (N) attendance_records
 employees (1) ←→ (N) salary_calculations
@@ -378,7 +391,8 @@ employees (1) ←→ (N) shift_additions (target)
 employees (1) ←→ (N) notification_logs
 employees (1) ←→ (N) employee_cache
 shifts (1) ←→ (N) shift_exchanges
-line_users (1) ←→ (N) verification_codes
+employees (1) ←→ (N) verification_codes
+line_message_logs (N) ←→ (1) line_user_id (LINEユーザーID)
 ```
 
 ### 4.2. 外部キー制約（実装済み）

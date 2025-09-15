@@ -480,6 +480,48 @@ end
 
 ---
 
+## LINE Bot連携機能
+
+### 概要
+
+フェーズ9-1で実装予定のLINE Bot連携機能について説明します。データベース設計の仕様変更により、Employeeテーブルにline_idカラムを追加し、LineMessageLogテーブルでメッセージ履歴を管理します。
+
+### 実装予定日時
+
+- **実装予定**: Phase 9-1
+- **見積時間**: 9時間
+- **実装手法**: t-wadaのTDD手法
+
+### データベース設計変更
+
+#### Employeeテーブルの拡張
+```sql
+-- Employeeテーブルにline_idカラムを追加
+ALTER TABLE employees ADD COLUMN line_id VARCHAR(255);
+CREATE UNIQUE INDEX idx_employees_line_id ON employees(line_id);
+```
+
+#### LineMessageLogテーブルの新規作成
+```sql
+CREATE TABLE line_message_logs (
+  id SERIAL PRIMARY KEY,
+  line_user_id VARCHAR(255) NOT NULL,
+  message_type VARCHAR(50) NOT NULL,
+  message_content TEXT,
+  direction VARCHAR(20) NOT NULL,
+  processed_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### 設計思想
+
+- **1対1関係**: 1人の従業員 = 1つのLINEアカウント
+- **シンプル設計**: 複雑な中間テーブルを避け、保守性を重視
+- **監査証跡**: LineMessageLogでメッセージ履歴を管理
+- **データ整合性**: 外部キー制約でデータの整合性を保証
+
 ## 関連ドキュメント
 
 - [要件定義](./requirement.md)
@@ -490,3 +532,5 @@ end
 - [実装状況](./implementation-status.md)
 - [テスト仕様](./testing.md)
 - [Rails移行ガイド](./rails-migration-complete-guide.md)
+- [LINE Bot連携](./line_bot_integration.md)
+- [LINE Bot データベース設計](./line_bot_database_design.md)

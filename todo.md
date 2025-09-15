@@ -680,12 +680,13 @@
   - **依存関係**: 既存のメール認証コード機能
 
 - [ ] データベース設計・実装
-  - EmployeeLineAccountモデルの作成
+  - Employeeテーブルにline_idカラムを追加
   - LineMessageLogモデルの作成
   - マイグレーションの実行
   - 見積時間: 2時間
   - **技術要件**: SQLite3でのテーブル設計
   - **依存関係**: 既存のEmployeeモデルとの関連付け
+  - **設計変更**: EmployeeLineAccountテーブル → Employeeテーブルへのline_id追加
 
 #### Phase 9-2: 基本機能実装（2-3週間）
 **期間**: 2-3週間
@@ -1056,3 +1057,5 @@ LINE連携機能により、既存のグループLINEでのシフト交代連携
 - 2025年9月: ドキュメント整備完了（DEPLOYMENT_GUIDE.md作成、README.md更新、todo.md更新）
 - 2025年9月: デプロイ前チェックリスト完了（全必須項目実装完了、本番環境稼働中）
 - 2025年9月: Phase 8-1, 8-2完了（本番環境設定、デプロイ・検証完了、Fly.io本番環境稼働中）
+- 2025年1月: Phase 9-1 データベース設計仕様変更（EmployeeLineAccountテーブル → Employeeテーブルへのline_id追加、LineMessageLogテーブル作成、各種ドキュメント更新）
+- 2025年1月: docsディレクトリ内全ドキュメント更新完了（line-integration.md、line_bot_api_spec.md、line_bot_deployment.md、schema-database.md、implementation-status.md、implementation-details.md）

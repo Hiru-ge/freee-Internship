@@ -36,6 +36,27 @@ LineBotService (app/services/line_bot_service.rb)
 各種ビジネスロジック
 ```
 
+### データベース設計
+
+#### Employeeテーブル（拡張予定）
+- `line_id`: LINEユーザーID（NULL許可、ユニーク制約）
+- 既存のカラム: `employee_id`, `password_hash`, `role`, `last_login_at`, `password_updated_at`
+
+#### LineMessageLogテーブル（新規作成予定）
+- `id`: 主キー
+- `line_user_id`: LINEユーザーID
+- `message_type`: メッセージタイプ（text, image, etc.）
+- `message_content`: メッセージ内容
+- `direction`: 送信方向（inbound, outbound）
+- `processed_at`: 処理日時
+- `created_at`, `updated_at`: タイムスタンプ
+
+#### 設計思想
+- **1対1関係**: 1人の従業員 = 1つのLINEアカウント
+- **シンプル設計**: 複雑な中間テーブルを避け、保守性を重視
+- **監査証跡**: LineMessageLogでメッセージ履歴を管理
+- **データ整合性**: 外部キー制約でデータの整合性を保証
+
 ### 主要クラス
 
 #### WebhookController
@@ -110,6 +131,7 @@ rails test
 - ユーザー認証
 - セッション管理
 - セキュリティ強化
+- データベース設計（Employeeテーブルにline_id追加、LineMessageLogテーブル作成）
 
 ### Phase 9-2: シフト管理
 - シフト確認

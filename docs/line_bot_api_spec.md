@@ -277,6 +277,7 @@ skip_before_action :require_login, if: -> { action_name == 'callback' }
 - ユーザー認証
 - セッション管理
 - 認証コード生成
+- データベース設計（Employeeテーブルにline_id追加、LineMessageLogテーブル作成）
 
 ### Phase 9-2: シフト管理
 

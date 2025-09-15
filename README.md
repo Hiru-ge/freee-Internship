@@ -40,6 +40,7 @@
 - **認証機能**: 認証コード生成（準備中）
 - **シフト確認**: シフト情報の確認（準備中）
 - **勤怠確認**: 勤怠状況の確認（準備中）
+- **データベース設計**: Employeeテーブルにline_id追加、LineMessageLogテーブル作成（準備中）
 
 ### メール通知
 - **シフト依頼通知**: シフト交代・追加依頼の自動通知
@@ -192,6 +193,7 @@ fly deploy
 - [API仕様書](docs/api-specification.md) - 外部API連携の仕様
 - [セットアップガイド](docs/setup-guide.md) - 開発環境の構築手順
 - [LINE Bot連携](docs/line_bot_integration.md) - LINE Bot機能の詳細
+- [LINE Bot データベース設計](docs/line_bot_database_design.md) - LINE Bot連携のデータベース設計
 - [LINE Bot デプロイ手順](docs/line_bot_deployment.md) - LINE Botのデプロイと設定
 - [LINE Bot API仕様](docs/line_bot_api_spec.md) - LINE Bot APIの仕様書
 

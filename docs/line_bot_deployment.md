@@ -44,6 +44,10 @@ fly secrets set LINE_CHANNEL_SECRET="your_channel_secret_here"
 
 # Channel Access Tokenの設定
 fly secrets set LINE_CHANNEL_TOKEN="your_channel_access_token_here"
+
+# データベースマイグレーション（Phase 9-1で追加）
+fly ssh console
+rails db:migrate
 ```
 
 ### 2.2 環境変数の確認
