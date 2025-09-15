@@ -18,7 +18,7 @@ console_command = '/rails/bin/rails console'
   processes = ['app']
 
 [deploy]
-  release_command = "bundle exec rails db:seed"
+  release_command = "sh -c 'bundle exec rails db:migrate && bundle exec rails db:seed'"
 
 [[vm]]
   cpu_kind = 'shared'
