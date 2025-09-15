@@ -14,7 +14,7 @@
 - **コマンド処理**: 基本的なコマンド処理システム
 - **認証システム**: 従業員ID入力・認証コード生成・紐付け機能
 - **データベース**: Employeeテーブル拡張・LineMessageLogモデル
-- **シフト確認**: シフト情報の確認（準備中）
+- **シフト確認**: シフト情報の確認（✅ 実装済み）
 - **勤怠確認**: 勤怠状況の確認（準備中）
 
 ### 対応コマンド
@@ -22,9 +22,9 @@
 | コマンド | 説明 | ステータス |
 |---------|------|-----------|
 | `ヘルプ` / `help` | 利用可能なコマンドを表示 | ✅ 実装済み |
-| `全員シフト` | グループ全体のシフト情報を確認 | ✅ 実装済み（準備中メッセージ） |
+| `全員シフト` | グループ全体のシフト情報を確認 | ✅ 実装済み |
 | `認証` | 認証コードを生成 | 🚧 準備中 |
-| `シフト` | シフト情報を確認 | 🚧 準備中 |
+| `シフト` | シフト情報を確認 | ✅ 実装済み |
 | `勤怠` | 勤怠状況を確認 | 🚧 準備中 |
 
 ## アーキテクチャ
@@ -65,6 +65,14 @@ LineBotService (app/services/line_bot_service.rb)
 - `send_verification_code_via_email(employee_id, line_user_id)`: メール認証コード送信
 - `complete_line_account_linking(line_user_id, employee_id, verification_code)`: LINEアカウント紐付け完了
 - `validate_verification_code_for_linking(employee_id, verification_code)`: 紐付け用認証コード検証
+
+#### シフト確認機能 ✅ **実装完了**
+- `get_personal_shift_info(line_user_id)`: 個人のシフト情報を取得
+- `get_group_shift_info(group_id)`: グループ全体のシフト情報を取得
+- `get_daily_shift_info(group_id, date)`: 指定日のシフト情報を取得
+- `format_shift_info(shift_data)`: シフト情報を表示用にフォーマット
+- `handle_shift_command(event)`: 個人シフトコマンドの処理
+- `handle_all_shifts_command(event)`: 全員シフトコマンドの処理
 
 ### データベース設計
 
@@ -114,6 +122,34 @@ LineBotService (app/services/line_bot_service.rb)
 - **モデル**: Employee、LineMessageLogモデルの拡張・作成
 - **サービス**: LineBotServiceの機能拡張
 - **データ整合性**: 外部キー制約でデータの整合性を保証
+
+### Phase 9-2: 基本機能実装 ✅ **完了**
+**実装期間**: 2025年1月
+**実装手法**: TDD（Red-Green-Refactor）
+
+#### 実装内容
+1. **シフト確認機能の実装** ✅
+   - 個人シフト確認機能
+   - グループ全体シフト確認機能
+   - 日別シフト表示機能
+   - シフト情報の表示フォーマット機能
+
+2. **コマンド処理システムの実装** ✅
+   - 実装済みコマンド:
+     - ヘルプ/help: 利用可能なコマンド表示
+     - シフト: 個人のシフト確認
+     - 全員シフト: グループ全体のシフト確認
+   - 準備中コマンド:
+     - 認証: 認証コード生成
+     - 勤怠: 勤怠状況確認
+     - 給与: 給与情報確認
+   - エラーハンドリング機能
+
+#### 技術成果
+- **テスト**: 27テスト、52アサーション、すべて成功
+- **機能**: シフト確認機能の完全実装
+- **統合**: 既存のShiftモデル・ShiftsControllerとの連携
+- **ユーザビリティ**: 直感的なコマンド処理とエラーメッセージ
 
 ### 主要クラス
 

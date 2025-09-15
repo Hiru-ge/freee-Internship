@@ -90,8 +90,8 @@ class LineBotServiceTest < ActiveSupport::TestCase
     
     response = @line_bot_service.handle_message(event)
     
-    # まだ実装していないため、準備中メッセージが返されることを確認
-    assert_includes response, "準備中"
+    # 実装されたため、グループ内のシフト情報が見つからないメッセージが返されることを確認
+    assert_includes response, "グループ内のシフト情報が見つかりませんでした"
   end
 
   test "should handle individual commands" do
@@ -101,8 +101,8 @@ class LineBotServiceTest < ActiveSupport::TestCase
     
     response = @line_bot_service.handle_message(event)
     
-    # まだ実装していないため、準備中メッセージが返されることを確認
-    assert_includes response, "準備中"
+    # 実装されたため、シフト情報が見つからないメッセージが返されることを確認
+    assert_includes response, "シフト情報が見つかりませんでした"
   end
 
   test "should determine command context based on message source" do
@@ -227,6 +227,78 @@ class LineBotServiceTest < ActiveSupport::TestCase
     response = @line_bot_service.handle_message(event)
     
     assert_includes response, "申し訳ございませんが"
+  end
+
+  # シフト確認機能のテスト
+  test "should get personal shift information" do
+    # 個人シフト確認機能のテスト
+    line_user_id = "U1234567890abcdef"
+    employee_id = "EMP001"
+    
+    result = @line_bot_service.get_personal_shift_info(line_user_id)
+    
+    # まだ実装していないため、nilが返されることを確認
+    assert_nil result
+  end
+
+  test "should get group shift information" do
+    # グループ全体シフト確認機能のテスト
+    group_id = "G1234567890abcdef"
+    
+    result = @line_bot_service.get_group_shift_info(group_id)
+    
+    # まだ実装していないため、nilが返されることを確認
+    assert_nil result
+  end
+
+  test "should get daily shift information" do
+    # 日別シフト表示機能のテスト
+    group_id = "G1234567890abcdef"
+    date = Date.current
+    
+    result = @line_bot_service.get_daily_shift_info(group_id, date)
+    
+    # まだ実装していないため、nilが返されることを確認
+    assert_nil result
+  end
+
+  test "should format shift information for display" do
+    # シフト情報の表示フォーマット機能のテスト
+    shift_data = {
+      employee_name: "テスト従業員",
+      date: Date.current,
+      start_time: Time.parse("09:00"),
+      end_time: Time.parse("18:00")
+    }
+    
+    result = @line_bot_service.format_shift_info(shift_data)
+    
+    # 実装されたため、フォーマットされた文字列が返されることを確認
+    assert_not_nil result
+    assert_includes result, "テスト従業員さん"
+    assert_includes result, "09:00-18:00"
+  end
+
+  test "should handle shift command for individual user" do
+    # 個人ユーザーのシフトコマンド処理テスト
+    event = mock_line_event(source_type: "user", user_id: @test_user_id)
+    event['message']['text'] = 'シフト'
+    
+    response = @line_bot_service.handle_message(event)
+    
+    # 実装されたため、シフト情報が見つからないメッセージが返されることを確認
+    assert_includes response, "シフト情報が見つかりませんでした"
+  end
+
+  test "should handle all shifts command for group" do
+    # グループの全員シフトコマンド処理テスト
+    event = mock_line_event(source_type: "group", group_id: @test_group_id, user_id: @test_user_id)
+    event['message']['text'] = '全員シフト'
+    
+    response = @line_bot_service.handle_message(event)
+    
+    # 実装されたため、グループ内のシフト情報が見つからないメッセージが返されることを確認
+    assert_includes response, "グループ内のシフト情報が見つかりませんでした"
   end
 
   private
