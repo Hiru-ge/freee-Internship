@@ -21,7 +21,7 @@ gem "jbuilder"
 gem "bcrypt", "~> 3.1.7"
 
 # LINE Bot API
-gem "line-bot-api"
+gem "line-bot-api", "~> 2.0"
 
 # HTTP client for API calls
 gem "httparty"

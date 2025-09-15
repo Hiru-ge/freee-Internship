@@ -359,7 +359,7 @@ DEPENDENCIES
   importmap-rails
   jbuilder
   kamal
-  line-bot-api
+  line-bot-api (~> 2.0)
   propshaft
   puma (>= 5.0)
   rails (~> 8.0.2, >= 8.0.2.1)
