@@ -12,20 +12,21 @@
 - **グループ・個人識別**: メッセージ送信元の自動判定
 - **従業員紐付け**: LINEアカウントと従業員IDの紐付け機能
 - **コマンド処理**: 基本的なコマンド処理システム
-- **認証システム**: 従業員ID入力・認証コード生成・紐付け機能
+- **認証システム**: 従業員名入力・認証コード生成・紐付け機能（✅ 実装完了）
 - **データベース**: Employeeテーブル拡張・LineMessageLogモデル
-- **シフト確認**: シフト情報の確認（準備中）
+- **シフト確認**: シフト情報の確認（✅ 実装済み）
 - **勤怠確認**: 勤怠状況の確認（準備中）
 
 ### 対応コマンド
 
-| コマンド | 説明 | ステータス |
-|---------|------|-----------|
-| `ヘルプ` / `help` | 利用可能なコマンドを表示 | ✅ 実装済み |
-| `全員シフト` | グループ全体のシフト情報を確認 | ✅ 実装済み（準備中メッセージ） |
-| `認証` | 認証コードを生成 | 🚧 準備中 |
-| `シフト` | シフト情報を確認 | 🚧 準備中 |
-| `勤怠` | 勤怠状況を確認 | 🚧 準備中 |
+| コマンド | 説明 | ステータス | 認証 |
+|---------|------|-----------|------|
+| `ヘルプ` / `help` | 利用可能なコマンドを表示 | ✅ 実装済み | 不要 |
+| `認証` | 従業員名入力による認証 | ✅ 実装済み | 不要（個人チャットのみ） |
+| `シフト` | 個人のシフト情報を確認 | ✅ 実装済み | 必要 |
+| `全員シフト` | 全従業員のシフト情報を確認 | ✅ 実装済み | 必要 |
+| `勤怠` | 勤怠状況を確認 | 🚧 準備中 | 必要 |
+| `給与` | 給与情報を確認 | 🚧 準備中 | 必要 |
 
 ## アーキテクチャ
 
@@ -59,12 +60,47 @@ LineBotService (app/services/line_bot_service.rb)
 - `determine_command_context(event)`: メッセージ送信元に基づくコマンドコンテキストを判定
 - `generate_help_message()`: ヘルプメッセージを生成
 
-#### 認証システム機能
-- `generate_verification_code_for_line(line_user_id, employee_id)`: LINEユーザー用認証コード生成
-- `valid_employee_id_format?(employee_id)`: 従業員IDフォーマット検証
-- `send_verification_code_via_email(employee_id, line_user_id)`: メール認証コード送信
-- `complete_line_account_linking(line_user_id, employee_id, verification_code)`: LINEアカウント紐付け完了
-- `validate_verification_code_for_linking(employee_id, verification_code)`: 紐付け用認証コード検証
+#### 認証システム機能 ✅ **実装完了**
+- `handle_auth_command(event)`: 認証コマンドの処理（個人チャットのみ）
+- `handle_employee_name_input(line_user_id, employee_name)`: 従業員名入力の処理
+- `handle_verification_code_input(line_user_id, employee_id, verification_code)`: 認証コード入力の処理
+- `search_employees_by_name(name)`: 従業員名検索機能（部分一致・大文字小文字区別なし）
+- `handle_multiple_employee_matches(line_user_id, employee_name, matches)`: 複数マッチ時の処理
+- `generate_verification_code_for_employee(line_user_id, employee)`: 認証コード生成・メール送信
+- `employee_already_linked?(line_user_id)`: 既存の紐付けチェック
+- `get_authentication_status(line_user_id)`: 認証状況の取得
+- `determine_role_from_freee(employee_id)`: freee APIからの役割判定
+
+**認証フロー**:
+1. ユーザーが「認証」コマンドを実行（個人チャットのみ）
+2. 従業員名を入力（苗字と名前の間に半角スペース必要）
+3. freee APIで従業員を検索
+4. 認証コードをメール送信
+5. 認証コードを入力
+6. 認証完了、LINEアカウントと従業員アカウントを紐付け
+
+#### 会話状態管理機能 ✅ **実装完了**
+- `get_conversation_state(line_user_id)`: 会話状態の取得
+- `set_conversation_state(line_user_id, state)`: 会話状態の設定
+- `clear_conversation_state(line_user_id)`: 会話状態のクリア
+- `handle_message_with_state(line_user_id, message_text)`: 状態を考慮したメッセージ処理
+- `handle_stateful_message(line_user_id, message_text, state)`: 状態に基づくメッセージ処理
+- `handle_command_message(line_user_id, message_text)`: 通常のコマンド処理
+
+#### シフト確認機能 ✅ **実装完了**
+- `get_personal_shift_info(line_user_id)`: 個人のシフト情報を取得（認証必要）
+- `get_group_shift_info(group_id)`: 全従業員のシフト情報を取得（認証必要）
+- `get_daily_shift_info(group_id, date)`: 指定日のシフト情報を取得
+- `format_shift_info(shift_data)`: シフト情報を表示用にフォーマット
+- `handle_shift_command(event)`: 個人シフトコマンドの処理（認証チェック付き）
+- `handle_all_shifts_command(event)`: 全員シフトコマンドの処理（認証チェック付き）
+
+**シフト確認フロー**:
+1. ユーザーがシフトコマンドを実行
+2. 認証状態をチェック
+3. 未認証の場合：認証が必要な旨を通知
+4. 認証済みの場合：シフト情報を取得・表示
+5. グループ・個人チャット両方で利用可能（全員シフト）
 
 ### データベース設計
 
@@ -114,6 +150,51 @@ LineBotService (app/services/line_bot_service.rb)
 - **モデル**: Employee、LineMessageLogモデルの拡張・作成
 - **サービス**: LineBotServiceの機能拡張
 - **データ整合性**: 外部キー制約でデータの整合性を保証
+
+### Phase 9-2: 基本機能実装 ✅ **完了**
+**実装期間**: 2025年1月
+**実装手法**: TDD（Red-Green-Refactor）
+
+#### 実装内容
+1. **シフト確認機能の実装** ✅
+   - 個人シフト確認機能（認証必要）
+   - 全従業員シフト確認機能（認証必要）
+   - グループ・個人チャット両対応
+   - シフト情報の表示フォーマット機能
+   - 認証チェック機能
+
+2. **認証コマンドの実装** ✅
+   - 従業員名入力による認証機能
+   - 会話状態管理システム（ConversationStateモデル）
+   - 複数ターンにまたがる認証フロー
+   - 従業員検索機能（部分一致・大文字小文字区別なし）
+   - 複数マッチ時の選択肢提示
+   - 認証コードメール送信機能
+   - 個人チャットでのみ認証可能
+
+3. **コマンド処理システムの実装** ✅
+   - 実装済みコマンド:
+     - ヘルプ/help: 利用可能なコマンド表示（コンテキスト対応）
+     - 認証: 従業員名入力による認証コード生成・LINEアカウント紐付け（個人チャットのみ）
+     - シフト: 個人のシフト確認（認証必要）
+     - 全員シフト: 全従業員のシフト確認（認証必要、グループ・個人両対応）
+   - 準備中コマンド:
+     - 勤怠: 勤怠状況確認（認証必要）
+     - 給与: 給与情報確認（認証必要）
+   - セキュリティ機能:
+     - 認証チェック機能
+     - グループ・個人チャットの適切な分離
+     - エラーハンドリング機能
+
+#### 技術成果
+- **テスト**: 40テスト、77アサーション、すべて成功（最新版）
+- **機能**: シフト確認機能・認証機能（従業員名入力・会話状態管理）の完全実装
+- **統合**: 既存のShiftモデル・ShiftsController・AuthServiceとの連携
+- **ユーザビリティ**: 直感的なコマンド処理とエラーメッセージ、従業員名入力による認証
+- **セキュリティ**: 認証コードによる安全なアカウント紐付け、認証チェック機能
+- **メール機能**: LINE認証用メールテンプレートの実装
+- **会話管理**: 複数ターンにまたがる認証フローの実現
+- **アクセス制御**: グループ・個人チャットの適切な分離、認証必須機能の実装
 
 ### 主要クラス
 

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .code {
+      background-color: #e9ecef;
+      padding: 20px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+      letter-spacing: 3px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    .warning {
+      background-color: #fff3cd;
+      border: 1px solid #ffeaa7;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    .footer {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #dee2e6;
+      font-size: 14px;
+      color: #6c757d;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>LINE連携認証コード</h1>
+  </div>
+
+  <p><%= @name %>さん</p>
+
+  <p>勤怠管理システムのLINE連携認証コードをお送りします。</p>
+
+  <div class="code">
+    <%= @code %>
+  </div>
+
+  <p>この認証コードをLINE Botに入力して、アカウントの紐付けを完了してください。</p>
+
+  <div class="warning">
+    <strong>注意事項：</strong>
+    <ul>
+      <li>この認証コードは<%= @expires_at.strftime('%Y年%m月%d日 %H:%M') %>まで有効です</li>
+      <li>認証コードは他の人に教えないでください</li>
+      <li>心当たりのない場合は、このメールを無視してください</li>
+    </ul>
+  </div>
+
+  <div class="footer">
+    <p>このメールは自動送信されています。返信はできません。</p>
+    <p>勤怠管理システム</p>
+  </div>
+</body>
+</html>

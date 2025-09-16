@@ -171,9 +171,20 @@ class WebhookController < ApplicationController
 
   def handle_text_message(event)
     Rails.logger.info "Handling text message: #{event.message['text'] rescue 'unknown'}"
+    Rails.logger.info "Event source type: #{event['source']['type'] rescue 'unknown'}"
+    Rails.logger.info "Event source: #{event['source'].inspect rescue 'unknown'}"
     
     line_bot_service = LineBotService.new
-    reply_text = line_bot_service.handle_message(event)
+    
+    # グループメッセージの場合は直接handle_messageを使用
+    if event['source']['type'] == 'group'
+      reply_text = line_bot_service.handle_message(event)
+    else
+      # 個人メッセージの場合は会話状態管理を使用
+      line_user_id = event['source']['userId']
+      message_text = event.message['text']
+      reply_text = line_bot_service.handle_message_with_state(line_user_id, message_text)
+    end
     
     Rails.logger.info "Generated reply: #{reply_text}"
 
