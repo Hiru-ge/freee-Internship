@@ -83,6 +83,12 @@ class WebhookController < ApplicationController
               event.define_singleton_method(:source) { event_data['source'] }
               event.define_singleton_method(:replyToken) { event_data['replyToken'] }
               event.define_singleton_method(:type) { 'message' }
+            # Postbackイベントの場合
+            elsif event_data['type'] == 'postback'
+              event.define_singleton_method(:postback) { event_data['postback'] }
+              event.define_singleton_method(:source) { event_data['source'] }
+              event.define_singleton_method(:replyToken) { event_data['replyToken'] }
+              event.define_singleton_method(:type) { 'postback' }
             end
             
             event
@@ -112,6 +118,24 @@ class WebhookController < ApplicationController
 
           response = http.request(request)
           Rails.logger.info "Fallback reply response: #{response.code} #{response.message}"
+          
+          # Flex Messageでエラーが発生した場合はテキストメッセージにフォールバック
+          if response.code == '400' && message[:type] == 'flex'
+            Rails.logger.warn "Flex Message failed, falling back to text message"
+            fallback_message = {
+              type: 'text',
+              text: message[:altText] || 'シフト交代依頼を表示できませんでした。'
+            }
+            
+            request.body = {
+              replyToken: token,
+              messages: [fallback_message]
+            }.to_json
+            
+            response = http.request(request)
+            Rails.logger.info "Fallback text response: #{response.code} #{response.message}"
+          end
+          
           response.code == '200'
         rescue => e
           Rails.logger.error "Fallback reply failed: #{e.message}"
@@ -154,6 +178,9 @@ class WebhookController < ApplicationController
       else
         Rails.logger.info "Non-text message event: #{event.message['type'] rescue 'unknown'}"
       end
+    elsif event.respond_to?(:type) && event.type == 'postback'
+      Rails.logger.info "Postback event detected (fallback)"
+      handle_postback_message(event)
     # 通常のLINE Bot SDKイベントの処理
     elsif defined?(Line::Bot::Event::Message) && event.is_a?(Line::Bot::Event::Message)
       Rails.logger.info "Message event detected (official SDK)"
@@ -164,6 +191,9 @@ class WebhookController < ApplicationController
       else
         Rails.logger.info "Non-text message event: #{event.type}"
       end
+    elsif defined?(Line::Bot::Event::Postback) && event.is_a?(Line::Bot::Event::Postback)
+      Rails.logger.info "Postback event detected (official SDK)"
+      handle_postback_message(event)
     else
       Rails.logger.info "Non-message event: #{event.class}"
     end
@@ -171,37 +201,76 @@ class WebhookController < ApplicationController
 
   def handle_text_message(event)
     Rails.logger.info "Handling text message: #{event.message['text'] rescue 'unknown'}"
-    Rails.logger.info "Event source type: #{event['source']['type'] rescue 'unknown'}"
-    Rails.logger.info "Event source: #{event['source'].inspect rescue 'unknown'}"
+    Rails.logger.info "Event source type: #{event.source['type'] rescue 'unknown'}"
+    Rails.logger.info "Event source: #{event.source.inspect rescue 'unknown'}"
     
     line_bot_service = LineBotService.new
     
     # グループメッセージの場合は直接handle_messageを使用
-    if event['source']['type'] == 'group'
+    if event.source['type'] == 'group'
       reply_text = line_bot_service.handle_message(event)
     else
       # 個人メッセージの場合は会話状態管理を使用
-      line_user_id = event['source']['userId']
+      line_user_id = event.source['userId']
       message_text = event.message['text']
       reply_text = line_bot_service.handle_message_with_state(line_user_id, message_text)
     end
     
     Rails.logger.info "Generated reply: #{reply_text}"
 
-    client.reply_message(event['replyToken'], {
+    # Flex Messageの場合はそのまま送信、テキストの場合はtext形式で送信
+    if reply_text.is_a?(Hash) && reply_text[:type] == 'flex'
+      client.reply_message(event.replyToken, reply_text)
+    else
+      client.reply_message(event.replyToken, {
+        type: 'text',
+        text: reply_text
+      })
+    end
+    
+    Rails.logger.info "Reply message sent successfully"
+  rescue StandardError => e
+    Rails.logger.error "コマンド処理エラー: #{e.message}"
+    Rails.logger.error "Error backtrace: #{e.backtrace.join('\n')}"
+    
+    begin
+      client.reply_message(event.replyToken, {
+        type: 'text',
+        text: "申し訳ございませんが、そのコマンドは認識できませんでした。\n'ヘルプ'と入力すると利用可能なコマンドが表示されます。"
+      })
+      Rails.logger.info "Error message sent successfully"
+    rescue => reply_error
+      Rails.logger.error "Failed to send error message: #{reply_error.message}"
+    end
+  end
+
+  def handle_postback_message(event)
+    Rails.logger.info "Handling postback message: #{event.postback['data'] rescue 'unknown'}"
+    Rails.logger.info "Event source type: #{event.source['type'] rescue 'unknown'}"
+    Rails.logger.info "Event source: #{event.source.inspect rescue 'unknown'}"
+    
+    line_bot_service = LineBotService.new
+    
+    # postbackイベントを処理
+    reply_text = line_bot_service.handle_message(event)
+    
+    Rails.logger.info "Generated reply: #{reply_text}"
+
+    # テキストメッセージとして返信
+    client.reply_message(event.replyToken, {
       type: 'text',
       text: reply_text
     })
     
     Rails.logger.info "Reply message sent successfully"
   rescue StandardError => e
-    Rails.logger.error "LINE Bot message handling error: #{e.message}"
+    Rails.logger.error "Postback処理エラー: #{e.message}"
     Rails.logger.error "Error backtrace: #{e.backtrace.join('\n')}"
     
     begin
-      client.reply_message(event['replyToken'], {
+      client.reply_message(event.replyToken, {
         type: 'text',
-        text: "エラーが発生しました。しばらく時間をおいてから再度お試しください。"
+        text: "申し訳ございませんが、処理中にエラーが発生しました。"
       })
       Rails.logger.info "Error message sent successfully"
     rescue => reply_error

@@ -68,10 +68,13 @@
       
       <div class="shift-info">
         <p>■対象日時</p>
-        <div class="time"><%= Date.parse(@shift_date).strftime('%m月%d日') %> <%= @start_time %>～<%= @end_time %></div>
+        <div class="time"><%= @shift_date.strftime('%m月%d日') %> <%= @start_time.strftime('%H:%M') %>～<%= @end_time.strftime('%H:%M') %></div>
       </div>
       
       <p>シフト表が更新されましたので、ご確認ください。</p>
+      <p>📱 <strong>シフト確認方法：</strong><br>
+      LINEで「シフト」と入力すると個人のシフトを確認できます<br>
+      LINEで「全員シフト」と入力すると全従業員のシフトを確認できます</p>
     </div>
     
     <div class="footer">

@@ -38,6 +38,10 @@
 ### LINE Bot連携 ✅ **実装完了**
 - **認証システム**: 従業員名入力による認証コード生成・LINEアカウント紐付け
 - **シフト確認**: 個人・全従業員のシフト情報確認（認証必要）
+- **シフト交代機能**: Flex Message形式のシフトカード表示と交代依頼
+- **シフト交代承認**: Flex Message形式の承認待ちリクエスト表示と承認・拒否処理
+- **シフト交代状況確認**: 自分のシフト交代リクエストの状況確認
+- **承認後通知**: 承認・拒否時に申請者にプッシュメッセージ送信
 - **ヘルプ表示**: コンテキスト対応の利用可能コマンド表示
 - **会話状態管理**: 複数ターンにまたがる認証フローの管理
 - **セキュリティ**: 認証チェック機能、グループ・個人チャットの適切な分離
@@ -133,7 +137,7 @@ rails server
 - `GMAIL_USERNAME`: Gmail送信用のメールアドレス
 - `GMAIL_APP_PASSWORD`: Gmail送信用のアプリパスワード
 
-### LINE Bot用（将来実装予定）
+### LINE Bot用 ✅ **実装完了**
 - `LINE_CHANNEL_SECRET`: LINE Bot チャンネルシークレット
 - `LINE_CHANNEL_TOKEN`: LINE Bot チャンネルトークン
 
@@ -183,6 +187,8 @@ fly deploy
 - ✅ UI/UXデザイン改善完了
 - ✅ Fly.ioデプロイ完了
 - ✅ LINE Bot連携基本機能完了（Phase 9-0）
+- ✅ LINE Bot連携コマンドシステム完了（Phase 9-1）
+- ✅ LINE Bot連携シフト交代機能完了（Phase 9-2）
 
 ## ドキュメント
 
@@ -193,7 +199,7 @@ fly deploy
 - [データベース設計](docs/schema-database.md) - データベーススキーマと設計思想
 - [API仕様書](docs/api-specification.md) - 外部API連携の仕様
 - [セットアップガイド](docs/setup-guide.md) - 開発環境の構築手順
-- [LINE Bot連携](docs/line_bot_integration.md) - LINE Bot機能の詳細
+- [LINE Bot連携](docs/line-integration.md) - LINE Bot機能の詳細
 - [LINE Bot データベース設計](docs/line_bot_database_design.md) - LINE Bot連携のデータベース設計
 - [LINE Bot デプロイ手順](docs/line_bot_deployment.md) - LINE Botのデプロイと設定
 - [LINE Bot API仕様](docs/line_bot_api_spec.md) - LINE Bot APIの仕様書

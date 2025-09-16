@@ -5,14 +5,34 @@ class LineBotService
     '認証' => :auth,
     'シフト' => :shift,
     '勤怠' => :attendance,
-    '全員シフト' => :all_shifts
+    '全員シフト' => :all_shifts,
+    'シフト交代' => :shift_exchange,
+    'リクエスト確認' => :request_check,
+    '交代状況' => :exchange_status,
+    '依頼キャンセル' => :cancel_request
   }.freeze
 
   def initialize
   end
 
   def handle_message(event)
-    message_text = event.message['text']
+    # Postbackイベントの処理
+    if event['type'] == 'postback'
+      return handle_postback_event(event)
+    end
+
+    message_text = event['message']['text']
+    line_user_id = extract_user_id(event)
+    
+    # グループメッセージの場合は会話状態をチェックしない
+    unless group_message?(event)
+      # 会話状態をチェック
+      state = get_conversation_state(line_user_id)
+      if state
+        return handle_stateful_message(line_user_id, message_text, state)
+      end
+    end
+    
     command = COMMANDS[message_text]
     
     case command
@@ -26,9 +46,288 @@ class LineBotService
       "勤怠確認機能は準備中です。"
     when :all_shifts
       handle_all_shifts_command(event)
+    when :shift_exchange
+      handle_shift_exchange_command(event)
+    when :request_check
+      handle_request_check_command(event)
+    when :exchange_status
+      handle_exchange_status_command(event)
+    when :cancel_request
+      handle_cancel_request_command(event)
     else
       generate_unknown_command_message
     end
+  end
+
+  # Postbackイベントの処理
+  def handle_postback_event(event)
+    line_user_id = extract_user_id(event)
+    postback_data = event['postback']['data']
+    
+    # 認証チェック
+    unless employee_already_linked?(line_user_id)
+      return "認証が必要です。「認証」と入力して認証を行ってください。"
+    end
+    
+    # シフト選択のPostback処理
+    if postback_data.match?(/^shift_\d+$/)
+      return handle_shift_selection_input(line_user_id, postback_data)
+    elsif postback_data.match?(/^approve_\d+$/)
+      return handle_approval_postback(line_user_id, postback_data, 'approve')
+    elsif postback_data.match?(/^reject_\d+$/)
+      return handle_approval_postback(line_user_id, postback_data, 'reject')
+    end
+    
+    "不明なPostbackイベントです。"
+  end
+
+  def handle_approval_postback(line_user_id, postback_data, action)
+    request_id = postback_data.split('_')[1]
+    exchange_request = ShiftExchange.find_by(id: request_id)
+    
+    unless exchange_request
+      return "シフト交代リクエストが見つかりません。"
+    end
+    
+    # 権限チェック（承認者は交代先のシフトの担当者である必要がある）
+    employee = Employee.find_by(line_id: line_user_id)
+    unless exchange_request.approver_id == employee.employee_id
+      return "このリクエストを承認する権限がありません。"
+    end
+    
+    if action == 'approve'
+      # シフト交代を実行
+      shift = exchange_request.shift
+      if shift
+        # シフト情報を保存（削除前に）
+        original_employee_id = shift.employee_id
+        shift_date = shift.shift_date
+        start_time = shift.start_time
+        end_time = shift.end_time
+        
+        # 承認者の既存シフトを確認
+        existing_shift = Shift.find_by(
+          employee_id: employee.employee_id,
+          shift_date: shift_date
+        )
+        
+        if existing_shift
+          # 既存シフトがある場合はマージ
+          new_shift_data = Shift.new(
+            employee_id: employee.employee_id,
+            shift_date: shift_date,
+            start_time: start_time,
+            end_time: end_time,
+            is_modified: true,
+            original_employee_id: original_employee_id
+          )
+          
+          # 申請者のシフトが既存シフトに完全に含まれているかチェック
+          if shift_fully_contained?(existing_shift, new_shift_data)
+            # 完全に含まれている場合は既存シフトを変更しない
+            merged_shift = existing_shift
+          else
+            # 含まれていない場合はマージ
+            merged_shift = merge_shifts(existing_shift, new_shift_data)
+          end
+        else
+          # 既存シフトがない場合は新規作成
+          merged_shift = Shift.create!(
+            employee_id: employee.employee_id,
+            shift_date: shift_date,
+            start_time: start_time,
+            end_time: end_time,
+            is_modified: true,
+            original_employee_id: original_employee_id
+          )
+        end
+        
+        # 関連するShiftExchangeのshift_idをnilに更新（外部キー制約を回避）
+        ShiftExchange.where(shift_id: shift.id).update_all(shift_id: nil)
+        
+        # 元のシフトを削除
+        shift.destroy!
+      end
+      
+      # リクエストを承認
+      exchange_request.approve!
+      
+      # 他の承認者へのリクエストを拒否（同じrequester_idとshift_idの組み合わせ）
+      ShiftExchange.where(
+        requester_id: exchange_request.requester_id,
+        shift_id: exchange_request.shift_id,
+        status: 'pending'
+      ).where.not(id: exchange_request.id).each do |other_request|
+        other_request.reject!
+      end
+      
+      # 申請者に通知を送信
+      send_approval_notification_to_requester(exchange_request, 'approved', shift_date, start_time, end_time)
+      
+      # メール通知を送信
+      send_shift_exchange_approved_email_notification(exchange_request)
+      
+      "✅ シフト交代リクエストを承認しました！\n" +
+      "📅 #{shift_date.strftime('%m/%d')}のシフトを担当します"
+      
+    elsif action == 'reject'
+      # リクエストを拒否
+      exchange_request.reject!
+      
+      # 申請者に通知を送信
+      shift = exchange_request.shift
+      if shift
+        send_approval_notification_to_requester(exchange_request, 'rejected', shift.shift_date, shift.start_time, shift.end_time)
+      end
+      
+      # メール通知を送信
+      send_shift_exchange_denied_email_notification(exchange_request)
+      
+      "❌ シフト交代リクエストを拒否しました"
+    else
+      "不明なアクションです。"
+    end
+  end
+
+  def send_approval_notification_to_requester(exchange_request, action, shift_date, start_time, end_time)
+    # 申請者の情報を取得
+    requester = Employee.find_by(employee_id: exchange_request.requester_id)
+    return unless requester&.line_id
+    
+    # 承認者の情報を取得
+    approver = Employee.find_by(employee_id: exchange_request.approver_id)
+    approver_name = approver&.display_name || "ID: #{exchange_request.approver_id}"
+    
+    # 通知メッセージを作成
+    day_of_week = %w[日 月 火 水 木 金 土][shift_date.wday]
+    
+    if action == 'approved'
+      message_text = "🎉 シフト交代リクエストが承認されました！\n\n" +
+                    "📅 #{shift_date.strftime('%m/%d')} (#{day_of_week})\n" +
+                    "⏰ #{start_time.strftime('%H:%M')}-#{end_time.strftime('%H:%M')}\n" +
+                    "👤 承認者: #{approver_name}"
+    elsif action == 'rejected'
+      message_text = "❌ シフト交代リクエストが拒否されました\n\n" +
+                    "📅 #{shift_date.strftime('%m/%d')} (#{day_of_week})\n" +
+                    "⏰ #{start_time.strftime('%H:%M')}-#{end_time.strftime('%H:%M')}\n" +
+                    "👤 承認者: #{approver_name}"
+    end
+    
+    # LINE Bot APIでプッシュメッセージを送信
+    begin
+      line_bot_client.push_message(requester.line_id, {
+        type: 'text',
+        text: message_text
+      })
+    rescue Net::TimeoutError => e
+      Rails.logger.error "通知送信タイムアウトエラー: #{e.message}"
+    rescue Net::HTTPError => e
+      Rails.logger.error "通知送信HTTPエラー: #{e.message}"
+    rescue => e
+      Rails.logger.error "通知送信エラー: #{e.message}"
+      Rails.logger.error "エラーバックトレース: #{e.backtrace.join('\n')}"
+    end
+  end
+
+  def send_shift_exchange_request_notification(exchange_request)
+    # 承認者の情報を取得
+    approver = Employee.find_by(employee_id: exchange_request.approver_id)
+    return unless approver&.line_id
+    
+    # 申請者の情報を取得
+    requester = Employee.find_by(employee_id: exchange_request.requester_id)
+    requester_name = requester&.display_name || "ID: #{exchange_request.requester_id}"
+    
+    # シフト情報を取得
+    shift = exchange_request.shift
+    return unless shift
+    
+    # 通知メッセージを作成
+    day_of_week = %w[日 月 火 水 木 金 土][shift.shift_date.wday]
+    
+    message_text = "📋 シフト交代依頼が届きました！\n\n" +
+                  "👤 申請者: #{requester_name}\n" +
+                  "📅 #{shift.shift_date.strftime('%m/%d')} (#{day_of_week})\n" +
+                  "⏰ #{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}\n\n" +
+                  "💬 「リクエスト確認」と入力して承認・拒否を行ってください"
+    
+    # LINE Bot APIでプッシュメッセージを送信
+    begin
+      line_bot_client.push_message(approver.line_id, {
+        type: 'text',
+        text: message_text
+      })
+    rescue Net::TimeoutError => e
+      Rails.logger.error "シフト交代依頼通知送信タイムアウトエラー: #{e.message}"
+    rescue Net::HTTPError => e
+      Rails.logger.error "シフト交代依頼通知送信HTTPエラー: #{e.message}"
+    rescue => e
+      Rails.logger.error "シフト交代依頼通知送信エラー: #{e.message}"
+      Rails.logger.error "エラーバックトレース: #{e.backtrace.join('\n')}"
+    end
+  end
+
+  def line_bot_client
+    @line_bot_client ||= begin
+      if Rails.env.production?
+        # 本番環境では実際のLINE Bot APIクライアントを使用
+        # ここでは簡易的な実装
+        Class.new do
+          def push_message(user_id, message)
+            Rails.logger.info "LINE Bot push message to #{user_id}: #{message}"
+            # 実際の実装では、LINE Bot APIを呼び出す
+          end
+        end.new
+      else
+        # テスト環境ではモッククライアントを使用
+        Class.new do
+          def push_message(user_id, message)
+            Rails.logger.info "Mock LINE Bot push message to #{user_id}: #{message}"
+          end
+        end.new
+      end
+    end
+  end
+
+  # シフトをマージする
+  def merge_shifts(existing_shift, new_shift)
+    return new_shift unless existing_shift
+    
+    # 既存シフトと新しいシフトの時間を比較してマージ
+    # 時間のみを比較するため、同じ日付のTimeオブジェクトを作成
+    existing_start_time = Time.zone.parse("#{existing_shift.shift_date} #{existing_shift.start_time.strftime('%H:%M')}")
+    existing_end_time = Time.zone.parse("#{existing_shift.shift_date} #{existing_shift.end_time.strftime('%H:%M')}")
+    new_start_time = Time.zone.parse("#{new_shift.shift_date} #{new_shift.start_time.strftime('%H:%M')}")
+    new_end_time = Time.zone.parse("#{new_shift.shift_date} #{new_shift.end_time.strftime('%H:%M')}")
+    
+    merged_start_time = [existing_start_time, new_start_time].min
+    merged_end_time = [existing_end_time, new_end_time].max
+    
+    # 時間のみを抽出してTime型で保存
+    merged_start_time_only = Time.zone.parse(merged_start_time.strftime('%H:%M'))
+    merged_end_time_only = Time.zone.parse(merged_end_time.strftime('%H:%M'))
+    
+    # 既存シフトを更新
+    existing_shift.update!(
+      start_time: merged_start_time_only,
+      end_time: merged_end_time_only,
+      is_modified: true,
+      original_employee_id: new_shift.original_employee_id || new_shift.employee_id
+    )
+    
+    existing_shift
+  end
+
+  # 申請者のシフトが承認者のシフトに完全に含まれているかチェック
+  def shift_fully_contained?(existing_shift, new_shift)
+    # 時間のみを比較するため、同じ日付のTimeオブジェクトを作成
+    existing_start_time = Time.zone.parse("#{existing_shift.shift_date} #{existing_shift.start_time.strftime('%H:%M')}")
+    existing_end_time = Time.zone.parse("#{existing_shift.shift_date} #{existing_shift.end_time.strftime('%H:%M')}")
+    new_start_time = Time.zone.parse("#{new_shift.shift_date} #{new_shift.start_time.strftime('%H:%M')}")
+    new_end_time = Time.zone.parse("#{new_shift.shift_date} #{new_shift.end_time.strftime('%H:%M')}")
+    
+    # 申請者のシフトが既存シフトに完全に含まれているかチェック
+    new_start_time >= existing_start_time && new_end_time <= existing_end_time
   end
 
   def group_message?(event)
@@ -74,6 +373,14 @@ class LineBotService
       :attendance
     when '全員シフト'
       :all_shifts
+    when 'シフト交代'
+      :shift_exchange
+    when '承認'
+      :approve
+    when '否認'
+      :reject
+    when '交代状況'
+      :exchange_status
     else
       :unknown
     end
@@ -101,9 +408,9 @@ class LineBotService
 
   def generate_help_message(event = nil)
     if event && group_message?(event)
-      "勤怠管理システムへようこそ！\n\n【グループで利用可能なコマンド】\n- ヘルプ: このメッセージを表示\n- 全員シフト: 全従業員のシフト情報を確認（認証必要）\n\n【個人チャットで利用可能なコマンド】\n- 認証: LINEアカウントと従業員アカウントを紐付け\n- シフト: 個人のシフト情報を確認（認証必要）\n- 全員シフト: 全従業員のシフト情報を確認（認証必要）\n- 勤怠: 勤怠状況を確認（準備中）\n\n※シフト確認機能を利用するには、このボットと個人チャットを開始して「認証」を行ってください。"
+      "👋 勤怠管理システムへようこそ！\n\n【グループで利用可能なコマンド】\n📋 ヘルプ: このメッセージを表示\n👥 全員シフト: 全従業員のシフト情報を確認（認証必要）\n\n【個人チャットで利用可能なコマンド】\n🔐 認証: LINEアカウントと従業員アカウントを紐付け\n📅 シフト: 個人のシフト情報を確認（認証必要）\n👥 全員シフト: 全従業員のシフト情報を確認（認証必要）\n🔄 シフト交代: シフト交代依頼（認証必要）\n📋 リクエスト確認: 承認待ちのシフト交代リクエスト確認（認証必要）\n📊 交代状況: シフト交代状況確認（認証必要）\n⏰ 勤怠: 勤怠状況を確認（準備中）\n\n💡 シフト確認機能を利用するには、このボットと個人チャットを開始して「認証」を行ってください"
     else
-      "勤怠管理システムへようこそ！\n\n【利用可能なコマンド】\n- ヘルプ: このメッセージを表示\n- 認証: LINEアカウントと従業員アカウントを紐付け\n- シフト: 個人のシフト情報を確認（認証必要）\n- 全員シフト: 全従業員のシフト情報を確認（認証必要）\n- 勤怠: 勤怠状況を確認（準備中）\n\n※シフト確認機能を利用するには認証が必要です。"
+      "👋 勤怠管理システムへようこそ！\n\n【利用可能なコマンド】\n📋 ヘルプ: このメッセージを表示\n🔐 認証: LINEアカウントと従業員アカウントを紐付け\n📅 シフト: 個人のシフト情報を確認（認証必要）\n👥 全員シフト: 全従業員のシフト情報を確認（認証必要）\n🔄 シフト交代: シフト交代依頼（認証必要）\n📋 リクエスト確認: 承認待ちのシフト交代リクエスト確認（認証必要）\n📊 交代状況: シフト交代状況確認（認証必要）\n⏰ 勤怠: 勤怠状況を確認（準備中）\n\n💡 シフト確認機能を利用するには認証が必要です"
     end
   end
 
@@ -234,6 +541,274 @@ class LineBotService
     else
       "シフト情報が見つかりませんでした。"
     end
+  end
+
+  # シフト交代コマンド処理
+  def handle_shift_exchange_command(event)
+    line_user_id = extract_user_id(event)
+    
+    # 認証チェック
+    unless employee_already_linked?(line_user_id)
+      if group_message?(event)
+        return "シフト交代には認証が必要です。\n" +
+               "このボットと個人チャットを開始して「認証」を行ってください。"
+      else
+        return "認証が必要です。「認証」と入力して認証を行ってください。"
+      end
+    end
+    
+    # グループメッセージの場合は会話状態を設定しない
+    unless group_message?(event)
+      set_conversation_state(line_user_id, { step: 'waiting_shift_date' })
+    end
+    
+    # 日付入力の案内を返す
+    "📋 シフト交代依頼\n\n" +
+    "交代したいシフトの日付を入力してください。\n\n" +
+    "📝 入力例: 09/16\n" +
+    "⚠️ 過去の日付は選択できません"
+  end
+
+  def handle_request_check_command(event)
+    line_user_id = extract_user_id(event)
+    
+    # 認証チェック
+    unless employee_already_linked?(line_user_id)
+      if group_message?(event)
+        return "リクエスト確認には認証が必要です。\n" +
+               "このボットと個人チャットを開始して「認証」を行ってください。"
+      else
+        return "認証が必要です。「認証」と入力して認証を行ってください。"
+      end
+    end
+    
+    # 承認待ちのシフト交代リクエストを取得
+    employee = Employee.find_by(line_id: line_user_id)
+    return "従業員情報が見つかりません。" unless employee
+    
+    pending_requests = ShiftExchange.where(
+      approver_id: employee.employee_id,
+      status: 'pending'
+    ).includes(:shift)
+    
+    if pending_requests.empty?
+      return "承認待ちのシフト交代リクエストはありません"
+    end
+    
+    # Flex Message形式で承認待ちリクエストを表示
+    generate_approval_requests_flex_message(pending_requests)
+  end
+
+  def generate_approval_requests_flex_message(pending_requests)
+    bubbles = pending_requests.map do |request|
+      shift = request.shift
+      requester = Employee.find_by(employee_id: request.requester_id)
+      requester_name = requester&.display_name || "ID: #{request.requester_id}"
+      
+      day_of_week = %w[日 月 火 水 木 金 土][shift.shift_date.wday]
+      
+      {
+        type: "bubble",
+        body: {
+          type: "box",
+          layout: "vertical",
+          contents: [
+            { type: "text", text: "シフト交代承認", weight: "bold", size: "xl", color: "#1DB446" },
+            { type: "separator", margin: "md" },
+            {
+              type: "box", layout: "vertical", margin: "md", spacing: "sm", contents: [
+                {
+                  type: "box", layout: "baseline", spacing: "sm", contents: [
+                    { type: "text", text: "👤", size: "sm", color: "#666666" },
+                    { type: "text", text: "申請者: #{requester_name}", wrap: true, color: "#666666", size: "sm", flex: 0 }
+                  ]
+                },
+                {
+                  type: "box", layout: "baseline", spacing: "sm", contents: [
+                    { type: "text", text: "📅", size: "sm", color: "#666666" },
+                    { type: "text", text: "#{shift.shift_date.strftime('%m/%d')} (#{day_of_week})", wrap: true, color: "#666666", size: "sm", flex: 0 }
+                  ]
+                },
+                {
+                  type: "box", layout: "baseline", spacing: "sm", contents: [
+                    { type: "text", text: "⏰", size: "sm", color: "#666666" },
+                    { type: "text", text: "#{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}", wrap: true, color: "#666666", size: "sm", flex: 0 }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        footer: {
+          type: "box", layout: "vertical", spacing: "sm", contents: [
+            {
+              type: "button", style: "primary", height: "sm", action: {
+                type: "postback",
+                label: "承認",
+                data: "approve_#{request.id}",
+                displayText: "#{shift.shift_date.strftime('%m/%d')}のシフト交代を承認します"
+              }
+            },
+            {
+              type: "button", style: "secondary", height: "sm", action: {
+                type: "postback",
+                label: "拒否",
+                data: "reject_#{request.id}",
+                displayText: "#{shift.shift_date.strftime('%m/%d')}のシフト交代を拒否します"
+              }
+            }
+          ]
+        }
+      }
+    end
+
+    {
+      type: "flex",
+      altText: "承認待ちのシフト交代リクエスト",
+      contents: {
+        type: "carousel",
+        contents: bubbles
+      }
+    }
+  end
+
+
+  def handle_exchange_status_command(event)
+    line_user_id = extract_user_id(event)
+    
+    # 認証チェック
+    unless employee_already_linked?(line_user_id)
+      if group_message?(event)
+        return "シフト交代状況確認には認証が必要です。\n" +
+               "このボットと個人チャットを開始して「認証」を行ってください。"
+      else
+        return "認証が必要です。「認証」と入力して認証を行ってください。"
+      end
+    end
+    
+    # 申請者のシフト交代リクエストを取得
+    employee = Employee.find_by(line_id: line_user_id)
+    return "従業員情報が見つかりません。" unless employee
+    
+    my_requests = ShiftExchange.where(requester_id: employee.employee_id)
+                              .includes(:shift)
+                              .order(created_at: :desc)
+    
+    if my_requests.empty?
+      return "シフト交代リクエストはありません"
+    end
+    
+    # 状況別にリクエストを分類
+    pending_requests = my_requests.select { |r| r.status == 'pending' }
+    approved_requests = my_requests.select { |r| r.status == 'approved' }
+    rejected_requests = my_requests.select { |r| r.status == 'rejected' }
+    cancelled_requests = my_requests.select { |r| r.status == 'cancelled' }
+    
+    # 状況を表示
+    status_message = "📊 シフト交代状況\n\n"
+    
+    if pending_requests.any?
+      status_message += "⏳ 承認待ち (#{pending_requests.count}件)\n"
+      pending_requests.each do |request|
+        shift = request.shift
+        approver = Employee.find_by(employee_id: request.approver_id)
+        approver_name = approver&.display_name || "ID: #{request.approver_id}"
+        day_of_week = %w[日 月 火 水 木 金 土][shift.shift_date.wday]
+        status_message += "  📅 #{shift.shift_date.strftime('%m/%d')} (#{day_of_week}) #{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}\n"
+        status_message += "  👤 承認者: #{approver_name}\n\n"
+      end
+    end
+    
+    if approved_requests.any?
+      status_message += "✅ 承認済み (#{approved_requests.count}件)\n"
+      approved_requests.each do |request|
+        shift = request.shift
+        approver = Employee.find_by(employee_id: request.approver_id)
+        approver_name = approver&.display_name || "ID: #{request.approver_id}"
+        day_of_week = %w[日 月 火 水 木 金 土][shift.shift_date.wday]
+        status_message += "  📅 #{shift.shift_date.strftime('%m/%d')} (#{day_of_week}) #{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}\n"
+        status_message += "  👤 承認者: #{approver_name}\n\n"
+      end
+    end
+    
+    if rejected_requests.any?
+      status_message += "❌ 拒否済み (#{rejected_requests.count}件)\n"
+      rejected_requests.each do |request|
+        shift = request.shift
+        approver = Employee.find_by(employee_id: request.approver_id)
+        approver_name = approver&.display_name || "ID: #{request.approver_id}"
+        day_of_week = %w[日 月 火 水 木 金 土][shift.shift_date.wday]
+        status_message += "  📅 #{shift.shift_date.strftime('%m/%d')} (#{day_of_week}) #{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}\n"
+        status_message += "  👤 承認者: #{approver_name}\n\n"
+      end
+    end
+    
+    if cancelled_requests.any?
+      status_message += "🚫 キャンセル済み (#{cancelled_requests.count}件)\n"
+      cancelled_requests.each do |request|
+        shift = request.shift
+        approver = Employee.find_by(employee_id: request.approver_id)
+        approver_name = approver&.display_name || "ID: #{request.approver_id}"
+        day_of_week = %w[日 月 火 水 木 金 土][shift.shift_date.wday]
+        status_message += "  📅 #{shift.shift_date.strftime('%m/%d')} (#{day_of_week}) #{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}\n"
+        status_message += "  👤 承認者: #{approver_name}\n\n"
+      end
+    end
+    
+    status_message
+  end
+
+  # 依頼キャンセルコマンド処理
+  def handle_cancel_request_command(event)
+    line_user_id = extract_user_id(event)
+    
+    # 認証チェック
+    unless employee_already_linked?(line_user_id)
+      if group_message?(event)
+        return "依頼キャンセルには認証が必要です。\n" +
+               "このボットと個人チャットを開始して「認証」を行ってください。"
+      else
+        return "認証が必要です。「認証」と入力して認証を行ってください。"
+      end
+    end
+    
+    # 申請者のpendingリクエストを取得
+    employee = Employee.find_by(line_id: line_user_id)
+    return "従業員情報が見つかりません。" unless employee
+    
+    pending_requests = ShiftExchange.where(
+      requester_id: employee.employee_id,
+      status: 'pending'
+    ).includes(:shift).order(created_at: :desc)
+    
+    if pending_requests.empty?
+      return "キャンセル可能なシフト交代依頼はありません。"
+    end
+    
+    # キャンセル可能なリクエスト一覧を表示
+    cancel_message = "📋 キャンセル可能なシフト交代依頼\n\n"
+    
+    pending_requests.each_with_index do |request, index|
+      shift = request.shift
+      approver = Employee.find_by(employee_id: request.approver_id)
+      approver_name = approver&.display_name || "ID: #{request.approver_id}"
+      day_of_week = %w[日 月 火 水 木 金 土][shift.shift_date.wday]
+      
+      cancel_message += "#{index + 1}. 📅 #{shift.shift_date.strftime('%m/%d')} (#{day_of_week})\n"
+      cancel_message += "   ⏰ #{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}\n"
+      cancel_message += "   👤 承認者: #{approver_name}\n"
+      cancel_message += "   🆔 リクエストID: #{request.id}\n\n"
+    end
+    
+    cancel_message += "キャンセルしたいリクエストのIDを入力してください。\n"
+    cancel_message += "例: #{pending_requests.first.id}"
+    
+    # 会話状態を設定（キャンセル待ち）
+    unless group_message?(event)
+      set_conversation_state(line_user_id, { step: 'waiting_cancel_confirmation' })
+    end
+    
+    cancel_message
   end
 
   # 認証コマンド処理
@@ -407,6 +982,10 @@ class LineBotService
       "これで以下の機能をご利用いただけます:\n" +
       "• シフト: 個人のシフト確認\n" +
       "• 全員シフト: グループ全体のシフト確認\n" +
+      "• シフト交代: シフト交代依頼の送信\n" +
+      "• リクエスト確認: 承認待ちのシフト交代リクエスト確認\n" +
+      "• 交代状況: シフト交代状況確認\n" +
+      "• 依頼キャンセル: 未承認のシフト交代依頼のキャンセル\n" +
       "• ヘルプ: 利用可能なコマンド一覧"
     rescue => e
       Rails.logger.error "認証コード検証エラー: #{e.message}"
@@ -487,11 +1066,29 @@ class LineBotService
   end
 
   def handle_stateful_message(line_user_id, message_text, state)
+    # コマンドの場合は会話状態をクリアして通常処理
+    if COMMANDS.key?(message_text)
+      clear_conversation_state(line_user_id)
+      return handle_command_message(line_user_id, message_text)
+    end
+
     case state['step']
     when 'waiting_employee_name'
       handle_employee_name_input(line_user_id, message_text)
     when 'waiting_verification_code'
       handle_verification_code_input(line_user_id, state['employee_id'], message_text)
+    when 'waiting_shift_date'
+      handle_shift_date_input(line_user_id, message_text)
+    when 'waiting_shift_time'
+      handle_shift_time_input(line_user_id, message_text, state)
+    when 'waiting_employee_selection'
+      handle_employee_selection_input(line_user_id, message_text, state)
+    when 'waiting_confirmation'
+      handle_confirmation_input(line_user_id, message_text, state)
+    when 'waiting_shift_selection'
+      handle_shift_selection_input(line_user_id, message_text)
+    when 'waiting_cancel_confirmation'
+      handle_cancel_confirmation_input(line_user_id, message_text)
     else
       # 不明な状態の場合は状態をクリアして通常処理
       clear_conversation_state(line_user_id)
@@ -513,6 +1110,7 @@ class LineBotService
     event = Object.new
     event.define_singleton_method(:source) { { 'type' => 'user', 'userId' => line_user_id } }
     event.define_singleton_method(:message) { { 'text' => message_text } }
+    event.define_singleton_method(:type) { 'message' }
     event.define_singleton_method(:[]) { |key| send(key) }
     event
   end
@@ -533,6 +1131,636 @@ class LineBotService
     rescue => e
       Rails.logger.error "役割判定エラー: #{e.message}"
       'employee' # デフォルトは従業員
+    end
+  end
+
+  # シフト交代フローのハンドラーメソッド
+  def handle_shift_date_input(line_user_id, message_text)
+    # 日付の形式をチェック
+    begin
+      date = Date.parse(message_text)
+      if date < Date.current
+        return "⚠️ 過去の日付のシフト交代依頼はできません\n📅 今日以降の日付を入力してください"
+      end
+      
+      # 申請者の指定日付のシフトを取得
+      employee = Employee.find_by(line_id: line_user_id)
+      unless employee
+        return "従業員情報が見つかりません。"
+      end
+      
+      shifts = Shift.where(
+        employee_id: employee.employee_id,
+        shift_date: date
+      ).order(:start_time)
+      
+      if shifts.empty?
+        return "指定された日付のシフトが見つかりません。\n再度日付を入力してください。\n\n例: 09/16"
+      end
+      
+      # シフトカードを生成して返す
+      generate_shift_flex_message_for_date(shifts)
+    rescue Date::Error
+      return "日付の形式が正しくありません。\n例: 09/16"
+    end
+  end
+
+  def handle_shift_time_input(line_user_id, message_text, state)
+    # 時間の形式をチェック
+    if message_text.match?(/^\d{2}:\d{2}-\d{2}:\d{2}$/)
+      # 利用可能な従業員を取得
+      available_employees = get_available_employees_for_exchange(state['shift_date'], message_text)
+      
+      if available_employees.empty?
+        return "⚠️ 指定された時間にシフトが入っていない従業員はいません\n" +
+               "💡 別の時間を選択してください"
+      end
+      
+      # 次のステップに進む
+      set_conversation_state(line_user_id, { 
+        step: 'waiting_employee_selection',
+        shift_date: state['shift_date'],
+        shift_time: message_text
+      })
+      
+      # 利用可能な従業員リストを表示
+      employee_list = "👥 利用可能な従業員一覧\n\n"
+      available_employees.each_with_index do |employee, index|
+        employee_list += "#{index + 1}. #{employee[:display_name]}\n"
+      end
+      employee_list += "\n📝 従業員名を入力してください\n" +
+                       "💡 複数選択の場合は「,」で区切って入力"
+      
+      employee_list
+    else
+      "⚠️ 時間の形式が正しくありません\n" +
+      "📝 HH:MM-HH:MM形式で入力してください（例: 09:00-18:00）"
+    end
+  end
+
+  def handle_employee_selection_input(line_user_id, message_text, state)
+    # 従業員選択の処理（名前のみ）
+    selection_result = parse_employee_selection(message_text)
+    
+    if selection_result[:error]
+      return selection_result[:error]
+    end
+    
+    selected_employees = selection_result[:employee_ids]
+    
+    if selected_employees.empty?
+      return "❌ 従業員が見つかりませんでした\n\n" +
+             "📝 従業員名を入力してください"
+    end
+    
+    # 選択された従業員の重複チェック
+    overlap_results = []
+    selected_employees.each do |employee_id|
+      overlap_result = check_employee_shift_overlap(employee_id, state['shift_date'], state['shift_time'])
+      overlap_results << { employee_id: employee_id, result: overlap_result }
+    end
+    
+    # 重複がある従業員をチェック
+    overlapping_employees = overlap_results.select { |r| r[:result][:has_overlap] }
+    
+    if overlapping_employees.any?
+      overlap_message = "⚠️ 以下の従業員は指定された時間にシフトが入っています:\n\n"
+      overlapping_employees.each do |overlap|
+        employee = Employee.find_by(employee_id: overlap[:employee_id])
+        employee_name = employee&.display_name || "ID: #{overlap[:employee_id]}"
+        overlap_message += "👤 #{employee_name}\n" +
+                          "⏰ 重複時間: #{overlap[:result][:overlap_time]}\n\n"
+      end
+      overlap_message += "💡 別の従業員を選択してください"
+      return overlap_message
+    end
+    
+    # 選択された従業員IDで依頼を送信
+    set_conversation_state(line_user_id, { 
+      step: 'waiting_confirmation',
+      shift_date: state['shift_date'],
+      shift_time: state['shift_time'],
+      selected_employee_ids: selected_employees
+    })
+    
+    # 確認メッセージの生成
+    confirmation_message = "✅ シフト交代依頼の確認\n\n"
+    confirmation_message += "📅 日付: #{state['shift_date']}\n"
+    confirmation_message += "⏰ 時間: #{state['shift_time']}\n"
+    confirmation_message += "👥 交代先: "
+    
+    if selected_employees.length == 1
+      employee = Employee.find_by(employee_id: selected_employees.first)
+      employee_name = employee&.display_name || "ID: #{selected_employees.first}"
+      confirmation_message += employee_name
+    else
+      employee_names = selected_employees.map do |employee_id|
+        employee = Employee.find_by(employee_id: employee_id)
+        employee&.display_name || "ID: #{employee_id}"
+      end
+      confirmation_message += employee_names.join(", ")
+    end
+    
+    confirmation_message += "\n\n📤 この内容で依頼を送信しますか？\n"
+    confirmation_message += "💬 「はい」または「いいえ」で回答してください"
+    
+    confirmation_message
+  end
+
+  # 従業員選択の解析（名前のみ）
+  def parse_employee_selection(message_text)
+    # カンマ区切りで分割
+    selections = message_text.split(',').map(&:strip)
+    employee_ids = []
+    ambiguous_names = []
+    not_found_names = []
+    
+    selections.each do |selection|
+      # 名前での検索のみ
+      found_employees = find_employees_by_name(selection)
+      
+      if found_employees.empty?
+        not_found_names << selection
+      elsif found_employees.length > 1
+        ambiguous_names << selection
+      else
+        # 1つ見つかった場合は追加
+        employee_ids << found_employees.first.employee_id
+      end
+    end
+    
+    # エラーメッセージの生成
+    error_messages = []
+    
+    if ambiguous_names.any?
+      error_messages << "⚠️ 複数の従業員が見つかりました: #{ambiguous_names.join(', ')}\n💡 より具体的な名前を入力してください"
+    end
+    
+    if not_found_names.any?
+      error_messages << "❌ 従業員が見つかりません: #{not_found_names.join(', ')}"
+    end
+    
+    if error_messages.any?
+      return { error: error_messages.join("\n"), employee_ids: [] }
+    end
+    
+    { error: nil, employee_ids: employee_ids.uniq }
+  end
+
+  # 名前での従業員検索
+  def find_employees_by_name(name)
+    # 全従業員を取得してdisplay_nameでフィルタリング
+    Employee.all.select do |employee|
+      display_name = employee.display_name
+      display_name.include?(name)
+    end
+  end
+
+  def handle_confirmation_input(line_user_id, message_text, state)
+    if message_text == 'はい'
+      # シフト交代依頼を作成
+      result = create_shift_exchange_request(line_user_id, state)
+      
+      if result[:success]
+        # 会話状態をクリア
+        clear_conversation_state(line_user_id)
+        result[:message]
+      else
+        result[:message]
+      end
+    elsif message_text == 'いいえ'
+      # 会話状態をクリア
+      clear_conversation_state(line_user_id)
+      "✅ シフト交代依頼をキャンセルしました"
+    else
+      "💬 「はい」または「いいえ」で回答してください"
+    end
+  end
+
+  def handle_cancel_confirmation_input(line_user_id, message_text)
+    # リクエストIDが数字かチェック
+    if message_text.match?(/^\d+$/)
+      request_id = message_text.to_i
+      
+      # キャンセル処理を実行
+      result = cancel_shift_exchange_request(line_user_id, request_id)
+      
+      # 会話状態をクリア
+      clear_conversation_state(line_user_id)
+      
+      result[:message]
+    else
+      "リクエストIDを数字で入力してください。"
+    end
+  end
+
+  # 利用可能な従業員を取得
+  def get_available_employees_for_exchange(shift_date, shift_time)
+    return [] if shift_date.nil? || shift_time.nil?
+    
+    start_time, end_time = parse_shift_time(shift_time)
+    date = Date.parse(shift_date)
+    
+    # 全従業員を取得
+    all_employees = Employee.all
+    
+    available_employees = []
+    all_employees.each do |employee|
+      # シフト重複チェック
+      overlap_result = check_employee_shift_overlap(employee.employee_id, shift_date, shift_time)
+      unless overlap_result[:has_overlap]
+        available_employees << {
+          employee_id: employee.employee_id,
+          display_name: employee.display_name
+        }
+      end
+    end
+    
+    available_employees
+  end
+
+  # 従業員のシフト重複チェック
+  def check_employee_shift_overlap(employee_id, shift_date, shift_time)
+    start_time, end_time = parse_shift_time(shift_time)
+    date = Date.parse(shift_date)
+    
+    # 既存のシフトを取得
+    existing_shifts = Shift.where(
+      employee_id: employee_id,
+      shift_date: date
+    )
+    
+    overlapping_shift = existing_shifts.find do |shift|
+      shift_overlaps?(shift, start_time, end_time)
+    end
+    
+    if overlapping_shift
+      {
+        has_overlap: true,
+        overlap_time: "#{overlapping_shift.start_time.strftime('%H:%M')}-#{overlapping_shift.end_time.strftime('%H:%M')}"
+      }
+    else
+      { has_overlap: false }
+    end
+  end
+
+  # シフト時間をパース
+  def parse_shift_time(shift_time)
+    start_time_str, end_time_str = shift_time.split('-')
+    [Time.zone.parse(start_time_str), Time.zone.parse(end_time_str)]
+  end
+
+  # 2つのシフト時間が重複しているかチェック
+  def shift_overlaps?(existing_shift, new_start_time, new_end_time)
+    # 既存シフトの時間をTimeオブジェクトに変換
+    existing_start = Time.zone.parse("#{existing_shift.shift_date} #{existing_shift.start_time.strftime('%H:%M')}")
+    existing_end = Time.zone.parse("#{existing_shift.shift_date} #{existing_shift.end_time.strftime('%H:%M')}")
+    
+    # 新しいシフトの時間をTimeオブジェクトに変換
+    new_start = Time.zone.parse("#{existing_shift.shift_date} #{new_start_time.strftime('%H:%M')}")
+    new_end = Time.zone.parse("#{existing_shift.shift_date} #{new_end_time.strftime('%H:%M')}")
+    
+    # 重複チェック: 新しいシフトの開始時間が既存シフトの終了時間より前で、
+    # 新しいシフトの終了時間が既存シフトの開始時間より後
+    new_start < existing_end && new_end > existing_start
+  end
+
+  # シフト交代依頼を作成
+  def create_shift_exchange_request(line_user_id, state)
+    begin
+      employee = Employee.find_by(line_id: line_user_id)
+      return { success: false, message: "従業員情報が見つかりません。" } unless employee
+      
+      # 申請者のシフトを取得
+      shift = Shift.where(
+        employee_id: employee.employee_id,
+        shift_date: Date.parse(state['shift_date'])
+      ).first
+      
+      return { success: false, message: "申請者のシフトが見つかりません。" } unless shift
+      
+      # 期限切れチェック：過去の日付のシフト交代依頼は不可
+      if shift.shift_date < Date.current
+        return { success: false, message: "過去の日付のシフト交代依頼はできません。" }
+      end
+      
+      # 選択された従業員IDを取得（単一または複数）
+      selected_employee_ids = state['selected_employee_ids'] || [state['selected_employee_id']]
+      
+      # 重複チェック：同じシフトに対して同じ承認者へのpendingリクエストが存在しないか確認
+      existing_requests = ShiftExchange.where(
+        requester_id: employee.employee_id,
+        approver_id: selected_employee_ids,
+        shift_id: shift.id,
+        status: 'pending'
+      )
+      
+      if existing_requests.any?
+        existing_approver_names = existing_requests.map do |req|
+          approver = Employee.find_by(employee_id: req.approver_id)
+          approver&.display_name || "ID: #{req.approver_id}"
+        end
+        return { success: false, message: "以下の従業員には既にシフト交代依頼が存在します: #{existing_approver_names.join(', ')}" }
+      end
+      
+      # 各承認者に対してShiftExchangeレコードを作成
+      created_requests = []
+      selected_employee_ids.each do |approver_id|
+        exchange_request = ShiftExchange.create!(
+          request_id: generate_request_id,
+          requester_id: employee.employee_id,
+          approver_id: approver_id,
+          shift_id: shift.id,
+          status: 'pending'
+        )
+        created_requests << exchange_request
+        
+        # 承認者に通知を送信
+        send_shift_exchange_request_notification(exchange_request)
+        
+        # メール通知を送信
+        send_shift_exchange_request_email_notification(exchange_request)
+      end
+      
+      approver_names = selected_employee_ids.map do |approver_id|
+        approver = Employee.find_by(employee_id: approver_id)
+        approver&.display_name || "ID: #{approver_id}"
+      end
+      
+      { success: true, message: "✅ シフト交代依頼を送信しました！\n👥 承認者: #{approver_names.join(', ')}" }
+    rescue ActiveRecord::RecordInvalid => e
+      Rails.logger.error "シフト交代依頼作成バリデーションエラー: #{e.message}"
+      { success: false, message: "入力データに問題があります。内容を確認して再度お試しください。" }
+    rescue ActiveRecord::RecordNotFound => e
+      Rails.logger.error "シフト交代依頼作成レコード未発見エラー: #{e.message}"
+      { success: false, message: "関連するデータが見つかりません。管理者にお問い合わせください。" }
+    rescue ActiveRecord::StatementInvalid => e
+      Rails.logger.error "シフト交代依頼作成データベースエラー: #{e.message}"
+      { success: false, message: "データベースエラーが発生しました。しばらく時間をおいてから再度お試しください。" }
+    rescue => e
+      Rails.logger.error "シフト交代依頼作成予期しないエラー: #{e.message}"
+      Rails.logger.error "エラーバックトレース: #{e.backtrace.join('\n')}"
+      { success: false, message: "予期しないエラーが発生しました。管理者にお問い合わせください。" }
+    end
+  end
+
+  # シフト交代依頼をキャンセル
+  def cancel_shift_exchange_request(line_user_id, request_id)
+    begin
+      employee = Employee.find_by(line_id: line_user_id)
+      return { success: false, message: "従業員情報が見つかりません。" } unless employee
+      
+      # リクエストを取得
+      exchange_request = ShiftExchange.find_by(id: request_id)
+      return { success: false, message: "シフト交代リクエストが見つかりません。" } unless exchange_request
+      
+      # 権限チェック（申請者のみキャンセル可能）
+      unless exchange_request.requester_id == employee.employee_id
+        return { success: false, message: "このリクエストをキャンセルする権限がありません。" }
+      end
+      
+      # ステータスチェック（pendingのみキャンセル可能）
+      case exchange_request.status
+      when 'approved'
+        return { success: false, message: "承認済みのリクエストはキャンセルできません。" }
+      when 'rejected'
+        return { success: false, message: "既に処理済みのリクエストはキャンセルできません。" }
+      when 'cancelled'
+        return { success: false, message: "既にキャンセル済みのリクエストです。" }
+      end
+      
+      # リクエストをキャンセル
+      exchange_request.cancel!
+      
+      { success: true, message: "✅ シフト交代依頼をキャンセルしました" }
+    rescue ActiveRecord::RecordNotFound => e
+      Rails.logger.error "シフト交代依頼キャンセルレコード未発見エラー: #{e.message}"
+      { success: false, message: "キャンセル対象のリクエストが見つかりません。" }
+    rescue ActiveRecord::RecordInvalid => e
+      Rails.logger.error "シフト交代依頼キャンセルバリデーションエラー: #{e.message}"
+      { success: false, message: "キャンセル処理でデータの整合性エラーが発生しました。" }
+    rescue ActiveRecord::StatementInvalid => e
+      Rails.logger.error "シフト交代依頼キャンセルデータベースエラー: #{e.message}"
+      { success: false, message: "データベースエラーが発生しました。しばらく時間をおいてから再度お試しください。" }
+    rescue => e
+      Rails.logger.error "シフト交代依頼キャンセル予期しないエラー: #{e.message}"
+      Rails.logger.error "エラーバックトレース: #{e.backtrace.join('\n')}"
+      { success: false, message: "予期しないエラーが発生しました。管理者にお問い合わせください。" }
+    end
+  end
+
+  # リクエストIDを生成
+  def generate_request_id
+    "REQ_#{Time.current.strftime('%Y%m%d_%H%M%S')}_#{SecureRandom.hex(4)}"
+  end
+
+  # シフト交代依頼のメール通知を送信
+  def send_shift_exchange_request_email_notification(exchange_request)
+    # テスト環境ではメール送信をスキップ
+    return nil if Rails.env.test?
+    
+    begin
+      email_service = EmailNotificationService.new
+      email_service.send_shift_exchange_request(
+        exchange_request.requester_id,
+        [exchange_request.approver_id],
+        exchange_request.shift.shift_date,
+        exchange_request.shift.start_time,
+        exchange_request.shift.end_time
+      )
+    rescue => e
+      Rails.logger.error "シフト交代依頼メール送信エラー: #{e.message}"
+      nil
+    end
+  end
+
+  # シフト交代承認のメール通知を送信
+  def send_shift_exchange_approved_email_notification(exchange_request)
+    # テスト環境ではメール送信をスキップ
+    return nil if Rails.env.test?
+    
+    begin
+      email_service = EmailNotificationService.new
+      email_service.send_shift_exchange_approved(
+        exchange_request.requester_id,
+        exchange_request.approver_id,
+        exchange_request.shift.shift_date,
+        exchange_request.shift.start_time,
+        exchange_request.shift.end_time
+      )
+    rescue => e
+      Rails.logger.error "シフト交代承認メール送信エラー: #{e.message}"
+      nil
+    end
+  end
+
+  # シフト交代否認のメール通知を送信
+  def send_shift_exchange_denied_email_notification(exchange_request)
+    # テスト環境ではメール送信をスキップ
+    return nil if Rails.env.test?
+    
+    begin
+      email_service = EmailNotificationService.new
+      email_service.send_shift_exchange_denied(
+        exchange_request.requester_id
+      )
+    rescue => e
+      Rails.logger.error "シフト交代否認メール送信エラー: #{e.message}"
+      nil
+    end
+  end
+
+
+  # 指定日付のシフト用Flex Message形式のシフトカードを生成
+  def generate_shift_flex_message_for_date(shifts)
+    # カルーセル形式のFlex Messageを生成
+    bubbles = shifts.map do |shift|
+      day_of_week = %w[日 月 火 水 木 金 土][shift.shift_date.wday]
+      
+      {
+        type: "bubble",
+        body: {
+          type: "box",
+          layout: "vertical",
+          contents: [
+            {
+              type: "text",
+              text: "シフト交代依頼",
+              weight: "bold",
+              size: "xl",
+              color: "#1DB446"
+            },
+            {
+              type: "separator",
+              margin: "md"
+            },
+            {
+              type: "box",
+              layout: "vertical",
+              margin: "md",
+              spacing: "sm",
+              contents: [
+                {
+                  type: "box",
+                  layout: "baseline",
+                  spacing: "sm",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "📅",
+                      size: "sm",
+                      color: "#666666"
+                    },
+                    {
+                      type: "text",
+                      text: "#{shift.shift_date.strftime('%m/%d')} (#{day_of_week})",
+                      wrap: true,
+                      color: "#666666",
+                      size: "sm",
+                      flex: 0
+                    }
+                  ]
+                },
+                {
+                  type: "box",
+                  layout: "baseline",
+                  spacing: "sm",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "⏰",
+                      size: "sm",
+                      color: "#666666"
+                    },
+                    {
+                      type: "text",
+                      text: "#{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}",
+                      wrap: true,
+                      color: "#666666",
+                      size: "sm",
+                      flex: 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        footer: {
+          type: "box",
+          layout: "vertical",
+          spacing: "sm",
+          contents: [
+            {
+              type: "button",
+              style: "primary",
+              height: "sm",
+              action: {
+                type: "postback",
+                label: "交代を依頼",
+                data: "shift_#{shift.id}",
+                displayText: "#{shift.shift_date.strftime('%m/%d')}のシフト交代を依頼します"
+              }
+            }
+          ]
+        }
+      }
+    end
+
+    # カルーセル形式のFlex Message
+    {
+      type: "flex",
+      altText: "シフト交代依頼 - 交代したいシフトを選択してください",
+      contents: {
+        type: "carousel",
+        contents: bubbles
+      }
+    }
+  end
+
+
+  # シフト選択の処理
+  def handle_shift_selection_input(line_user_id, message_text)
+    # shift_XXX形式のメッセージを処理
+    if message_text.match?(/^shift_\d+$/)
+      shift_id = message_text.split('_')[1]
+      shift = Shift.find_by(id: shift_id)
+      
+      unless shift
+        return "選択されたシフトが見つかりません。もう一度選択してください。"
+      end
+      
+      # シフト情報を会話状態に保存して従業員選択に進む
+      set_conversation_state(line_user_id, { 
+        step: 'waiting_employee_selection',
+        shift_id: shift_id,
+        shift_date: shift.shift_date.strftime('%Y-%m-%d'),
+        shift_time: "#{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}"
+      })
+      
+      # 利用可能な従業員を取得
+      available_employees = get_available_employees_for_exchange(shift.shift_date.strftime('%Y-%m-%d'), "#{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}")
+      
+      if available_employees.empty?
+        return "⚠️ 指定された時間にシフトが入っていない従業員はいません\n" +
+               "💡 別の時間を選択してください"
+      end
+      
+      # 利用可能な従業員リストを表示
+      employee_list = "選択されたシフト:\n" +
+                     "📅 #{shift.shift_date.strftime('%m/%d')} (#{%w[日 月 火 水 木 金 土][shift.shift_date.wday]})\n" +
+                     "⏰ #{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}\n\n" +
+                     "👥 利用可能な従業員一覧\n\n"
+      available_employees.each_with_index do |employee, index|
+        employee_list += "#{index + 1}. #{employee[:display_name]}\n"
+      end
+      employee_list += "\n📝 従業員名を入力してください\n" +
+                       "💡 複数選択の場合は「,」で区切って入力"
+      
+      employee_list
+    else
+      "シフト選択が正しくありません。\n" +
+      "「shift_XXX」形式で選択してください。"
     end
   end
 end

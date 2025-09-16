@@ -68,11 +68,14 @@
       
       <div class="shift-info">
         <p>■対象日時</p>
-        <div class="time"><%= Date.parse(@shift_date).strftime('%m月%d日') %> <%= @start_time %>～<%= @end_time %></div>
+        <div class="time"><%= @shift_date.strftime('%m月%d日') %> <%= @start_time.strftime('%H:%M') %>～<%= @end_time.strftime('%H:%M') %></div>
       </div>
       
-      <p>以下のリンクから、リクエスト一覧を確認・承認できます。</p>
-      <p><a href="<%= @approval_url %>"><%= @approval_url %></a></p>
+      <p>以下の方法でリクエストを確認・承認できます：</p>
+      <p>📱 <strong>LINEから承認する場合：</strong><br>
+      LINEで「リクエスト確認」と入力してください</p>
+      <p>🌐 <strong>Webから承認する場合：</strong><br>
+      <a href="<%= @approval_url %>"><%= @approval_url %></a></p>
     </div>
     
     <div class="footer">

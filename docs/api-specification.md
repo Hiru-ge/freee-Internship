@@ -250,6 +250,297 @@ FreeeApiService.get_employee_salary(employee_id, year, month)
 
 現在、レート制限は実装されていません。本番環境では適切なレート制限の実装を推奨します。
 
+## LINE Bot連携API
+
+### Webhook関連
+
+#### POST /webhooks/line
+LINE BotのWebhookエンドポイント
+
+**リクエスト**
+```json
+{
+  "events": [
+    {
+      "type": "message",
+      "replyToken": "string",
+      "source": {
+        "type": "user|group",
+        "userId": "string",
+        "groupId": "string"
+      },
+      "message": {
+        "type": "text",
+        "text": "string"
+      }
+    }
+  ]
+}
+```
+
+**レスポンス**
+- 成功時: 200 OK
+- 失敗時: 400 Bad Request
+
+**認証**
+- LINE Botの署名検証を使用
+- `X-Line-Signature`ヘッダーで検証
+
+### シフト交代関連
+
+#### シフト交代依頼フロー
+1. **シフトカード表示**: `シフト交代`コマンドでFlex Message形式のシフトカードを表示
+2. **シフト選択**: Postbackイベントでシフト選択
+3. **従業員選択**: 交代先の従業員を選択
+4. **リクエスト作成**: ShiftExchangeレコードを作成
+
+#### シフト交代承認フロー
+1. **承認待ちリクエスト表示**: `リクエスト確認`コマンドでFlex Message形式の承認待ちリクエストを表示
+2. **承認・拒否**: Postbackイベントで承認・拒否処理
+3. **シフト更新**: 承認時にシフトを更新
+4. **通知送信**: 申請者にプッシュメッセージで通知
+
+#### シフト交代状況確認
+- **コマンド**: `交代状況`
+- **機能**: 自分のシフト交代リクエストの状況を表示
+- **表示内容**: 承認待ち、承認済み、拒否済みの分類表示
+
+### Flex Message仕様
+
+#### シフトカード形式
+```json
+{
+  "type": "flex",
+  "altText": "シフト交代依頼 - 交代したいシフトを選択してください",
+  "contents": {
+    "type": "carousel",
+    "contents": [
+      {
+        "type": "bubble",
+        "body": {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "text",
+              "text": "シフト交代依頼",
+              "weight": "bold",
+              "size": "xl",
+              "color": "#1DB446"
+            },
+            {
+              "type": "separator",
+              "margin": "md"
+            },
+            {
+              "type": "box",
+              "layout": "vertical",
+              "margin": "md",
+              "spacing": "sm",
+              "contents": [
+                {
+                  "type": "box",
+                  "layout": "baseline",
+                  "spacing": "sm",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "📅",
+                      "size": "sm",
+                      "color": "#666666"
+                    },
+                    {
+                      "type": "text",
+                      "text": "12/25 (水)",
+                      "wrap": true,
+                      "color": "#666666",
+                      "size": "sm",
+                      "flex": 0
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "layout": "baseline",
+                  "spacing": "sm",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "⏰",
+                      "size": "sm",
+                      "color": "#666666"
+                    },
+                    {
+                      "type": "text",
+                      "text": "09:00-18:00",
+                      "wrap": true,
+                      "color": "#666666",
+                      "size": "sm",
+                      "flex": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "footer": {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "sm",
+          "contents": [
+            {
+              "type": "button",
+              "style": "primary",
+              "height": "sm",
+              "action": {
+                "type": "postback",
+                "label": "交代を依頼",
+                "data": "shift_123",
+                "displayText": "12/25のシフト交代を依頼します"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
+#### 承認待ちリクエスト形式
+```json
+{
+  "type": "flex",
+  "altText": "承認待ちのシフト交代リクエスト",
+  "contents": {
+    "type": "carousel",
+    "contents": [
+      {
+        "type": "bubble",
+        "body": {
+          "type": "box",
+          "layout": "vertical",
+          "contents": [
+            {
+              "type": "text",
+              "text": "シフト交代承認",
+              "weight": "bold",
+              "size": "xl",
+              "color": "#1DB446"
+            },
+            {
+              "type": "separator",
+              "margin": "md"
+            },
+            {
+              "type": "box",
+              "layout": "vertical",
+              "margin": "md",
+              "spacing": "sm",
+              "contents": [
+                {
+                  "type": "box",
+                  "layout": "baseline",
+                  "spacing": "sm",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "👤",
+                      "size": "sm",
+                      "color": "#666666"
+                    },
+                    {
+                      "type": "text",
+                      "text": "申請者: 田中太郎",
+                      "wrap": true,
+                      "color": "#666666",
+                      "size": "sm",
+                      "flex": 0
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "layout": "baseline",
+                  "spacing": "sm",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "📅",
+                      "size": "sm",
+                      "color": "#666666"
+                    },
+                    {
+                      "type": "text",
+                      "text": "12/25 (水)",
+                      "wrap": true,
+                      "color": "#666666",
+                      "size": "sm",
+                      "flex": 0
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "layout": "baseline",
+                  "spacing": "sm",
+                  "contents": [
+                    {
+                      "type": "text",
+                      "text": "⏰",
+                      "size": "sm",
+                      "color": "#666666"
+                    },
+                    {
+                      "type": "text",
+                      "text": "09:00-18:00",
+                      "wrap": true,
+                      "color": "#666666",
+                      "size": "sm",
+                      "flex": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "footer": {
+          "type": "box",
+          "layout": "vertical",
+          "spacing": "sm",
+          "contents": [
+            {
+              "type": "button",
+              "style": "primary",
+              "height": "sm",
+              "action": {
+                "type": "postback",
+                "label": "承認",
+                "data": "approve_123",
+                "displayText": "12/25のシフト交代を承認します"
+              }
+            },
+            {
+              "type": "button",
+              "style": "secondary",
+              "height": "sm",
+              "action": {
+                "type": "postback",
+                "label": "拒否",
+                "data": "reject_123",
+                "displayText": "12/25のシフト交代を拒否します"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## バージョニング
 
 現在のAPIバージョン: v1
