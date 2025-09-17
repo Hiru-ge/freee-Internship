@@ -351,7 +351,64 @@ Error: failed to acquire leases: Unrecoverable error: failed to get lease on VM
 - 従業員レコードやシフトデータが自動的に作成されます
 - 冪等性を保つため、重複実行してもエラーになりません
 
-## 7. トラブルシューティング
+## 7. 打刻忘れアラートの定期実行設定
+
+### 7.1 Fly.ioでのcron設定
+
+**fly.toml の設定**:
+```toml
+# 打刻忘れアラートの定期実行設定（15分間隔）
+[[cron]]
+  schedule = "*/15 * * * *"  # 15分間隔で実行
+  command = "bundle exec rails clock_reminder:check_all"
+```
+
+**設定の効果**:
+- 15分間隔で打刻忘れチェックが自動実行されます
+- 出勤・退勤両方の打刻忘れをチェックします
+- 退勤打刻リマインダーが15分間隔で正しく動作します
+- 条件に合致する従業員にメール通知が送信されます
+
+### 7.2 スケジュール設定のカスタマイズ
+
+**より頻繁な実行（15分間隔）**:
+```toml
+[[cron]]
+  schedule = "*/15 * * * *"  # 15分間隔で実行
+  command = "bundle exec rails clock_reminder:check_all"
+```
+
+**出勤・退勤を分けて実行**:
+```toml
+# 出勤チェック（毎時0分）
+[[cron]]
+  schedule = "0 * * * *"
+  command = "bundle exec rails clock_reminder:check_clock_ins"
+
+# 退勤チェック（毎時15分）
+[[cron]]
+  schedule = "15 * * * *"
+  command = "bundle exec rails clock_reminder:check_clock_outs"
+```
+
+### 7.3 cron設定の確認
+
+**デプロイ後の確認**:
+```bash
+# cronジョブの確認
+fly cron list -a your-app-name
+
+# ログの確認
+fly logs -a your-app-name
+```
+
+**手動実行でのテスト**:
+```bash
+# 本番環境で手動実行
+fly ssh console -a your-app-name -C "bundle exec rails clock_reminder:check_all"
+```
+
+## 8. トラブルシューティング
 
 ### 7.1 よくある問題
 

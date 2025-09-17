@@ -25,6 +25,7 @@
 - **勤怠状況確認**: 日別・月別勤怠記録の表示
 - **勤怠統計**: 勤務時間の集計と表示
 - **タイムゾーン対応**: Asia/Tokyoタイムゾーンでの正確な時刻処理
+- **打刻忘れアラート**: 出勤・退勤打刻忘れの自動検知とメール通知
 
 ### 給与管理
 - **103万の壁ゲージ**: 年収103万円の壁を視覚的に表示
@@ -172,7 +173,33 @@ fly secrets set GMAIL_APP_PASSWORD=your_app_password -a your-app-name
 fly deploy
 ```
 
-詳細なデプロイ手順は [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) を参照してください。
+詳細なデプロイ手順は [DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) を参照してください。
+
+## テスト実装
+
+テストの実装方法やベストプラクティスについては [テスト実装ベストプラクティス](docs/testing-best-practices.md) を参照してください。
+
+- 外部APIのモック実装
+- 時間操作とテスト
+- メール送信のテスト
+- エラーハンドリングのテスト
+
+### 打刻忘れアラートの定期実行
+
+本番環境では、`fly.toml`に設定されたcronジョブにより、打刻忘れアラートが自動実行されます：
+
+```toml
+# 15分間隔で打刻忘れチェックを実行
+[[cron]]
+  schedule = "*/15 * * * *"
+  command = "bundle exec rails clock_reminder:check_all"
+```
+
+**手動実行**:
+```bash
+# 本番環境で手動実行
+fly ssh console -a your-app-name -C "bundle exec rails clock_reminder:check_all"
+```
 
 ## 開発状況
 

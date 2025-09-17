@@ -133,14 +133,21 @@ CREATE TABLE verification_codes (
 #### 3. 打刻リマインダーメール
 
 **出勤打刻アラート**
-- 送信タイミング: シフト開始時刻から5分経過後
+- 送信タイミング: シフト開始時刻から15分経過後
 - 送信先: 対象従業員のメールアドレス
 - 内容: 出勤打刻の催促
+- 実装: `ClockReminderService.check_forgotten_clock_ins`
 
 **退勤打刻リマインダー**
-- 送信タイミング: 退勤予定時刻から15分間隔
+- 送信タイミング: 退勤予定時刻から2時間以内、15分間隔
 - 送信先: 対象従業員のメールアドレス
 - 内容: 退勤打刻の催促
+- 実装: `ClockReminderService.check_forgotten_clock_outs`
+
+**スケジューリング**
+- Rakeタスク: `rails clock_reminder:check_all`
+- 個別実行: `rails clock_reminder:check_clock_ins`, `rails clock_reminder:check_clock_outs`
+- 定期実行: cronやスケジューラーで設定可能
 
 ### 設定
 

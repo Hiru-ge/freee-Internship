@@ -21,12 +21,8 @@ class ClockReminderService
     service.check_forgotten_clock_outs
   end
 
-  private
-
   def check_forgotten_clock_ins
     now = Time.current
-    today = now.day
-    current_hour = now.hour
 
     # 全従業員を取得
     employees = Employee.all
@@ -40,11 +36,8 @@ class ClockReminderService
       )
       next unless today_shift
 
-      # シフト開始時刻を取得
-      shift_start_hour = today_shift.start_time.hour
-
-      # シフト開始時刻から1時間以内かチェック
-      if current_hour >= shift_start_hour && current_hour < shift_start_hour + 1
+      # シフト開始時刻から15分経過後かチェック
+      if after_shift_start_with_delay?(now, today_shift.start_time)
         # 今日の打刻記録を取得
         time_clocks = get_time_clocks_for_today(employee.employee_id)
         has_clock_in = time_clocks.any? { |record| record['type'] == 'clock_in' }
@@ -59,8 +52,6 @@ class ClockReminderService
 
   def check_forgotten_clock_outs
     now = Time.current
-    current_hour = now.hour
-    current_minute = now.min
 
     # 全従業員を取得
     employees = Employee.all
@@ -74,17 +65,10 @@ class ClockReminderService
       )
       next unless today_shift
 
-      # シフト終了時刻を取得
-      shift_end_hour = today_shift.end_time.hour
-
       # シフト終了時刻から2時間以内かチェック
-      if (current_hour > shift_end_hour || (current_hour == shift_end_hour && current_minute >= 0)) &&
-         current_hour < shift_end_hour + 2
-
+      if within_shift_end_window?(now, today_shift.end_time)
         # 15分間隔でリマインダーを送信
-        should_send_reminder = (current_minute % 15 == 0)
-
-        if should_send_reminder
+        if should_send_reminder?(now)
           # 今日の打刻記録を取得
           time_clocks = get_time_clocks_for_today(employee.employee_id)
           has_clock_out = time_clocks.any? { |record| record['type'] == 'clock_out' }
@@ -156,8 +140,33 @@ class ClockReminderService
     end
   end
 
+  private
+
   # シフト時間をフォーマット
   def format_shift_time(shift)
     "#{shift.start_time.strftime('%H:%M')}～#{shift.end_time.strftime('%H:%M')}"
+  end
+
+  # シフト開始時刻から15分経過後かチェック
+  def after_shift_start_with_delay?(current_time, shift_start_time)
+    current_minutes = current_time.hour * 60 + current_time.min
+    shift_start_minutes = shift_start_time.hour * 60
+    delay_minutes = 15  # 15分の遅延
+    
+    current_minutes >= (shift_start_minutes + delay_minutes)
+  end
+
+  # シフト終了時刻の2時間以内かチェック
+  def within_shift_end_window?(current_time, shift_end_time)
+    current_minutes = current_time.hour * 60 + current_time.min
+    shift_end_minutes = shift_end_time.hour * 60
+    reminder_end_minutes = (shift_end_time.hour + 2) * 60
+    
+    current_minutes >= shift_end_minutes && current_minutes < reminder_end_minutes
+  end
+
+  # 15分間隔でリマインダーを送信するかチェック
+  def should_send_reminder?(current_time)
+    current_time.min % 15 == 0
   end
 end
