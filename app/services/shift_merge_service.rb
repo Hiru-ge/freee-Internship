@@ -42,41 +42,56 @@ class ShiftMergeService
 
   # シフト交代承認時のシフト処理
   def self.process_shift_exchange_approval(approver_employee_id, shift_to_approve)
-    # 承認者の既存シフトを確認
-    existing_shift = Shift.find_by(
+    new_shift_data = {
       employee_id: approver_employee_id,
-      shift_date: shift_to_approve.shift_date
+      shift_date: shift_to_approve.shift_date,
+      start_time: shift_to_approve.start_time,
+      end_time: shift_to_approve.end_time,
+      is_modified: true,
+      original_employee_id: shift_to_approve.employee_id
+    }
+    
+    process_shift_approval(approver_employee_id, new_shift_data)
+  end
+
+  # シフト追加承認時のシフト処理
+  def self.process_shift_addition_approval(employee_id, new_shift_data)
+    shift_data = {
+      employee_id: employee_id,
+      shift_date: new_shift_data[:shift_date],
+      start_time: new_shift_data[:start_time],
+      end_time: new_shift_data[:end_time],
+      is_modified: false
+    }
+    
+    process_shift_approval(employee_id, shift_data)
+  end
+
+  private
+
+  # 共通のシフト承認処理
+  def self.process_shift_approval(employee_id, shift_data)
+    # 既存シフトを確認
+    existing_shift = Shift.find_by(
+      employee_id: employee_id,
+      shift_date: shift_data[:shift_date]
     )
     
     if existing_shift
       # 既存シフトがある場合はマージ
-      new_shift_data = Shift.new(
-        employee_id: approver_employee_id,
-        shift_date: shift_to_approve.shift_date,
-        start_time: shift_to_approve.start_time,
-        end_time: shift_to_approve.end_time,
-        is_modified: true,
-        original_employee_id: shift_to_approve.employee_id
-      )
+      new_shift = Shift.new(shift_data)
       
       # 申請者のシフトが既存シフトに完全に含まれているかチェック
-      if shift_fully_contained?(existing_shift, new_shift_data)
+      if shift_fully_contained?(existing_shift, new_shift)
         # 完全に含まれている場合は既存シフトを変更しない
         merged_shift = existing_shift
       else
         # 含まれていない場合はマージ
-        merged_shift = merge_shifts(existing_shift, new_shift_data)
+        merged_shift = merge_shifts(existing_shift, new_shift)
       end
     else
       # 既存シフトがない場合は新規作成
-      merged_shift = Shift.create!(
-        employee_id: approver_employee_id,
-        shift_date: shift_to_approve.shift_date,
-        start_time: shift_to_approve.start_time,
-        end_time: shift_to_approve.end_time,
-        is_modified: true,
-        original_employee_id: shift_to_approve.employee_id
-      )
+      merged_shift = Shift.create!(shift_data)
     end
     
     merged_shift

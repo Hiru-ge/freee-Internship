@@ -88,14 +88,13 @@ class ShiftApprovalsController < ApplicationController
           redirect_to shift_approvals_path and return
         end
         
-        # 新しいシフトを作成
-        Shift.create!(
-          employee_id: current_employee_id,
+        # シフト追加承認処理（既存シフトとの結合を考慮）
+        new_shift_data = {
           shift_date: shift_addition.shift_date,
           start_time: shift_addition.start_time,
-          end_time: shift_addition.end_time,
-          is_modified: false
-        )
+          end_time: shift_addition.end_time
+        }
+        ShiftMergeService.process_shift_addition_approval(current_employee_id, new_shift_data)
         
         # リクエストを承認
         shift_addition.approve!

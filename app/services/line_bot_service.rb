@@ -120,13 +120,13 @@ class LineBotService
 
   def approve_shift_addition(addition_request, employee)
     begin
-      # 新しいシフトを作成
-      Shift.create!(
-        employee_id: employee.employee_id,
+      # シフト追加承認処理（既存シフトとの結合を考慮）
+      new_shift_data = {
         shift_date: addition_request.shift_date,
         start_time: addition_request.start_time,
         end_time: addition_request.end_time
-      )
+      }
+      ShiftMergeService.process_shift_addition_approval(employee.employee_id, new_shift_data)
       
       # リクエストのステータスを承認に更新
       addition_request.update!(status: 'approved')
