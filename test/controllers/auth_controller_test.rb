@@ -131,6 +131,11 @@ class AuthControllerTest < ActionDispatch::IntegrationTest
       password: 'password123'
     }
     
+    # ログインが成功したことを確認
+    assert_redirected_to dashboard_url
+    follow_redirect!
+    
+    # ダッシュボードにアクセス
     get dashboard_url
     assert_response :success
   end
