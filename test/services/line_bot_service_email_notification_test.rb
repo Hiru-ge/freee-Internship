@@ -206,7 +206,8 @@ class LineBotServiceEmailNotificationTest < ActiveSupport::TestCase
     )
     
     assert result[:success]
-    assert_equal "シフト交代依頼を送信しました。", result[:message]
+    assert_includes result[:message], "✅ シフト交代依頼を送信しました！"
+    assert_includes result[:message], "👥 承認者:"
     
     # テストデータのクリーnアップ
     ShiftExchange.where(requester_id: requester.employee_id).destroy_all

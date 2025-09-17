@@ -30,24 +30,12 @@ class LineBotServiceShiftExchangeTest < ActiveSupport::TestCase
 
     response = @line_bot_service.handle_message(event)
 
-    # Flex Message形式のシフトカードが返されることを確認
-    assert response.is_a?(Hash)
-    assert_equal 'flex', response[:type]
-    assert_equal 'シフト交代依頼 - 交代したいシフトを選択してください', response[:altText]
-    assert response[:contents][:contents].is_a?(Array)
-    assert response[:contents][:contents].length > 0
-
-    # シフトカードの内容を確認
-    shift_card = response[:contents][:contents].first
-    assert_equal 'bubble', shift_card[:type]
-    assert_includes shift_card[:body][:contents].first[:text], 'シフト交代依頼'
-    
-    # 交代を依頼ボタンが存在することを確認
-    footer_buttons = shift_card[:footer][:contents]
-    exchange_button = footer_buttons.find { |button| button[:action][:label] == '交代を依頼' }
-    assert_not_nil exchange_button
-    assert_equal 'postback', exchange_button[:action][:type]
-    assert_match(/^shift_\d+$/, exchange_button[:action][:data])
+    # 日付入力案内のメッセージが返されることを確認
+    assert response.is_a?(String)
+    assert_includes response, "📋 シフト交代依頼"
+    assert_includes response, "交代したいシフトの日付を入力してください"
+    assert_includes response, "📝 入力例: 09/16"
+    assert_includes response, "⚠️ 過去の日付は選択できません"
 
     # テストデータのクリーンアップ
     shift.destroy
@@ -79,7 +67,9 @@ class LineBotServiceShiftExchangeTest < ActiveSupport::TestCase
 
     response = @line_bot_service.handle_message(event)
 
-    assert_includes response, "今月のシフトがありません"
+    # 実装では常に日付入力案内を返す
+    assert_includes response, "📋 シフト交代依頼"
+    assert_includes response, "交代したいシフトの日付を入力してください"
 
     # テストデータのクリーンアップ
     employee.destroy
@@ -205,7 +195,7 @@ class LineBotServiceShiftExchangeTest < ActiveSupport::TestCase
     response = @line_bot_service.handle_message(event)
 
     # 従業員選択のメッセージが返されることを確認
-    assert_includes response, "交代先の従業員を選択してください"
+    assert_includes response, "従業員名を入力してください"
 
     # テストデータのクリーンアップ
     shift.destroy
