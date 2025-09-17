@@ -77,10 +77,93 @@ class LineBotService
       return handle_approval_postback(line_user_id, postback_data, 'approve')
     elsif postback_data.match?(/^reject_\d+$/)
       return handle_approval_postback(line_user_id, postback_data, 'reject')
+    elsif postback_data.match?(/^approve_addition_\d+$/)
+      return handle_shift_addition_approval_postback(line_user_id, postback_data, 'approve')
+    elsif postback_data.match?(/^reject_addition_\d+$/)
+      return handle_shift_addition_approval_postback(line_user_id, postback_data, 'reject')
     end
     
     "不明なPostbackイベントです。"
   end
+
+  def handle_shift_addition_approval_postback(line_user_id, postback_data, action)
+    request_id = extract_request_id_from_postback(postback_data, 'addition')
+    addition_request = ShiftAddition.find_by(id: request_id)
+    
+    return "シフト追加リクエストが見つかりません。" unless addition_request
+    
+    # 権限チェック（承認者は対象従業員である必要がある）
+    employee = Employee.find_by(line_id: line_user_id)
+    unless addition_request.target_employee_id == employee.employee_id
+      return "このリクエストを承認する権限がありません。"
+    end
+    
+    if action == 'approve'
+      approve_shift_addition(addition_request, employee)
+    else
+      reject_shift_addition(addition_request)
+    end
+  end
+
+  private
+
+  def extract_request_id_from_postback(postback_data, type)
+    case type
+    when 'addition'
+      postback_data.split('_')[2]  # approve_addition_4 -> 4
+    when 'exchange'
+      postback_data.split('_')[1]  # approve_4 -> 4
+    else
+      postback_data.split('_')[1]
+    end
+  end
+
+  def approve_shift_addition(addition_request, employee)
+    begin
+      # 新しいシフトを作成
+      Shift.create!(
+        employee_id: employee.employee_id,
+        shift_date: addition_request.shift_date,
+        start_time: addition_request.start_time,
+        end_time: addition_request.end_time
+      )
+      
+      # リクエストのステータスを承認に更新
+      addition_request.update!(status: 'approved')
+      
+      generate_shift_addition_response(addition_request, 'approved')
+      
+    rescue => e
+      Rails.logger.error "シフト追加承認エラー: #{e.message}"
+      "❌ シフト追加の承認に失敗しました。"
+    end
+  end
+
+  def reject_shift_addition(addition_request)
+    # リクエストのステータスを拒否に更新
+    addition_request.update!(status: 'rejected')
+    
+    generate_shift_addition_response(addition_request, 'rejected')
+  end
+
+  def generate_shift_addition_response(addition_request, status)
+    date_str = addition_request.shift_date.strftime('%m/%d')
+    day_of_week = %w[日 月 火 水 木 金 土][addition_request.shift_date.wday]
+    time_str = "#{addition_request.start_time.strftime('%H:%M')}-#{addition_request.end_time.strftime('%H:%M')}"
+    
+    if status == 'approved'
+      "✅ シフト追加を承認しました。\n" +
+      "📅 #{date_str} (#{day_of_week})\n" +
+      "⏰ #{time_str}\n" +
+      "シフトが追加されました。"
+    else
+      "❌ シフト追加を拒否しました。\n" +
+      "📅 #{date_str} (#{day_of_week})\n" +
+      "⏰ #{time_str}"
+    end
+  end
+
+  public
 
   def handle_approval_postback(line_user_id, postback_data, action)
     request_id = postback_data.split('_')[1]
