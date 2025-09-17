@@ -55,7 +55,8 @@ class LineBotService
     when :cancel_request
       handle_cancel_request_command(event)
     else
-      generate_unknown_command_message
+      # コマンド以外のメッセージは無視する（nilを返す）
+      nil
     end
   end
 
@@ -946,6 +947,11 @@ class LineBotService
     matches = search_employees_by_name(employee_name)
     
     if matches.empty?
+      # 明らかに従業員名でない文字列（長すぎる、特殊文字が多い等）の場合は無視
+      if employee_name.length > 20 || employee_name.match?(/[^\p{Hiragana}\p{Katakana}\p{Han}\s]/)
+        return nil
+      end
+      
       return "「#{employee_name}」に該当する従業員が見つかりませんでした。\n\n" +
              "※苗字と名前の間に半角スペースを入れてください\n" +
              "※例: 田中 太郎、佐藤 花子\n\n" +

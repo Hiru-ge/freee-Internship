@@ -218,6 +218,9 @@ class WebhookController < ApplicationController
     
     Rails.logger.info "Generated reply: #{reply_text}"
 
+    # reply_textがnilの場合は何も送信しない（メッセージを無視）
+    return if reply_text.nil?
+
     # Flex Messageの場合はそのまま送信、テキストの場合はtext形式で送信
     if reply_text.is_a?(Hash) && reply_text[:type] == 'flex'
       client.reply_message(event.replyToken, reply_text)

@@ -223,14 +223,48 @@ class LineBotServiceTest < ActiveSupport::TestCase
   end
 
   test "should handle unknown command" do
-    # 未知のコマンドの処理テスト
+    # 未知のコマンドの処理テスト（コマンド以外のメッセージは無視される）
     event = mock_line_event(source_type: "user", user_id: @test_user_id)
     event['message']['text'] = 'unknown_command'
     
     response = @line_bot_service.handle_message(event)
     
-    assert_includes response, "申し訳ございませんが"
+    assert_nil response, "未知のコマンドは無視されるべき"
   end
+
+  test "should ignore non-command messages in group chat" do
+    # グループチャットでコマンド以外のメッセージは無視する
+    event = mock_line_event(source_type: "group", group_id: @test_group_id, user_id: @test_user_id, message_text: "おはようございます")
+    
+    response = @line_bot_service.handle_message(event)
+    
+    assert_nil response, "グループチャットでコマンド以外のメッセージは無視されるべき"
+  end
+
+  test "should ignore non-command messages in individual chat" do
+    # 個人チャットでコマンド以外のメッセージは無視する
+    event = mock_line_event(source_type: "user", user_id: @test_user_id, message_text: "こんにちは")
+    
+    response = @line_bot_service.handle_message(event)
+    
+    assert_nil response, "個人チャットでコマンド以外のメッセージは無視されるべき"
+  end
+
+  test "should still respond to valid commands after ignoring non-commands" do
+    # コマンド以外のメッセージを無視した後も、有効なコマンドには応答する
+    # まず無効なメッセージを送信
+    invalid_event = mock_line_event(source_type: "group", group_id: @test_group_id, user_id: @test_user_id, message_text: "ただの会話")
+    invalid_response = @line_bot_service.handle_message(invalid_event)
+    assert_nil invalid_response, "無効なメッセージは無視されるべき"
+    
+    # 次に有効なコマンドを送信
+    valid_event = mock_line_event(source_type: "group", group_id: @test_group_id, user_id: @test_user_id, message_text: "ヘルプ")
+    valid_response = @line_bot_service.handle_message(valid_event)
+    
+    assert_not_nil valid_response, "有効なコマンドには応答するべき"
+    assert_includes valid_response, "利用可能なコマンド"
+  end
+
 
   # シフト確認機能のテスト
   test "should get personal shift information" do
@@ -457,19 +491,19 @@ class LineBotServiceTest < ActiveSupport::TestCase
     
     result = @line_bot_service.handle_message_with_state(line_user_id, message_text)
     
-    # 実装されたため、未知のコマンドメッセージが返されることを確認
-    assert_includes result, "申し訳ございませんが、そのコマンドは認識できませんでした"
+    # コマンド以外のメッセージは無視される（nilが返される）
+    assert_nil result, "コマンド以外のメッセージは無視されるべき"
   end
 
   private
 
-  def mock_line_event(source_type:, user_id:, group_id: nil)
+  def mock_line_event(source_type:, user_id:, group_id: nil, message_text: 'テストメッセージ')
     source = { 'type' => source_type, 'userId' => user_id }
     source['groupId'] = group_id if group_id
     
     event = {
       'source' => source,
-      'message' => { 'text' => 'テストメッセージ' },
+      'message' => { 'text' => message_text },
       'replyToken' => 'test_reply_token'
     }
     
