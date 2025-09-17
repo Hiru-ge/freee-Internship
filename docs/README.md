@@ -1,116 +1,61 @@
-# 勤怠管理システム
+# ドキュメント一覧
 
-## 概要
+勤怠管理システムのドキュメント一覧です。
 
-突発的なシフト交代が頻発する小規模飲食店を救う勤怠管理システムです。既存のグループLINEでのシフト交代連携を維持しながら、システムとの自動連携を実現するLINE Bot機能を提供します。
+## システム概要
+- [README.md](../README.md) - プロジェクト概要とセットアップガイド
+- [DEPLOYMENT_GUIDE.md](../DEPLOYMENT_GUIDE.md) - Fly.ioデプロイガイド
 
-## 主な機能
+## 実装・開発関連
+- [implementation-status.md](implementation-status.md) - 全体の実装状況レポート
+- [implementation-details.md](implementation-details.md) - 実装詳細
+- [timezone-fix-documentation.md](timezone-fix-documentation.md) - タイムゾーン修正ドキュメント
+- [refactoring-completion-report.md](refactoring-completion-report.md) - リファクタリング完了報告
 
-### Webアプリケーション
-- **認証システム**: freee API連携による従業員認証
-- **シフト管理**: シフトの確認、追加、変更
-- **シフト交代**: シフト交代依頼の送信・承認・否認
-- **勤怠管理**: 打刻機能、勤怠履歴の確認
-- **給与管理**: 103万の壁ゲージ表示
+## システム仕様
+- [requirement.md](requirement.md) - 要件定義
+- [api-specification.md](api-specification.md) - API仕様書
+- [database-schema-design.md](database-schema-design.md) - データベース設計
+- [authentication-system.md](authentication-system.md) - 認証システム仕様
 
-### LINE Bot連携
-- **認証システム**: 従業員名入力による認証
-- **シフト確認**: 個人・全従業員のシフト確認
-- **シフト交代**: 日付入力による絞り込み方式でのシフト交代依頼
-- **シフト追加**: 新しいシフトの追加依頼（実装予定）
-- **リクエスト確認**: 承認待ちリクエストの確認
+## LINE Bot連携
+- [line-integration.md](line-integration.md) - LINE Bot連携機能概要
+- [line_bot_api_spec.md](line_bot_api_spec.md) - LINE Bot API仕様
+- [line_bot_deployment.md](line_bot_deployment.md) - LINE Botデプロイ手順
 
-## 技術スタック
+## テスト関連
+- [test-specification.md](test-specification.md) - テスト仕様書
 
-- **フロントエンド**: HTML/CSS/JavaScript
-- **バックエンド**: Ruby on Rails 8.0.2
+## 最新の更新
+
+### 2025年1月 - タイムゾーン修正完了
+- **修正内容**: 打刻機能のタイムゾーン不一致問題を修正
+- **実装手法**: TDD（テスト駆動開発）
+- **成果**: 4テスト、9アサーション、すべて成功
+- **影響**: 打刻機能の時刻記録精度向上、勤怠管理の信頼性向上
+
+### 2025年1月 - シフト交代承認・否認機能修正完了
+- **修正内容**: Webアプリ上でのシフト交代リクエスト承認・否認機能の不具合修正
+- **実装手法**: TDD（テスト駆動開発）
+- **成果**: 5テスト、30アサーション、すべて成功
+- **影響**: 外部キー制約エラー、認証エラー、権限チェックエラーの解決
+
+### 2025年9月 - 本番環境デプロイ完了
+- **デプロイ先**: Fly.io
 - **データベース**: SQLite3
-- **デプロイ**: Fly.io
-- **外部API**: freee API、LINE Messaging API
-- **メール送信**: Gmail SMTP
+- **成果**: 本番環境での稼働開始
 
-## 実装状況
+## ドキュメント更新履歴
 
-### ✅ 完了済み機能
-- 認証システム（freee API連携）
-- シフト管理機能
-- シフト交代機能
-- LINE Bot基本機能
-- メール通知機能
-- 本番環境デプロイ
+| 日付 | 更新内容 | 更新者 |
+|------|----------|--------|
+| 2025年1月 | タイムゾーン修正ドキュメント追加 | AI Assistant |
+| 2025年1月 | シフト交代機能修正ドキュメント更新 | AI Assistant |
+| 2025年9月 | 本番環境デプロイ関連ドキュメント追加 | AI Assistant |
+| 2025年1月 | 包括的ドキュメント整備完了 | AI Assistant |
 
-### 🔄 実装予定機能
-- シフト追加リクエスト機能（LINE Bot経由）
+## 注意事項
 
-### ✅ 修正完了
-- Webアプリ上でのシフト交代リクエスト承認・否認機能の不具合修正（TDD手法で実装）
-
-### 🔴 緊急修正予定
-- 打刻機能のタイムゾーンずれ修正
-
-## ドキュメント
-
-### 実装関連
-- [実装状況レポート](docs/implementation-status.md)
-- [実装詳細](docs/implementation-details.md)
-- [データベース設計](docs/schema-database.md)
-
-### LINE Bot関連
-- [LINE Bot連携機能仕様書](docs/line-integration.md)
-- [LINE Bot API仕様書](docs/line_bot_api_spec.md)
-- [LINE Bot実装状況](docs/line_bot_current_status.md)
-- [LINE Botデータベース設計](docs/line_bot_database_design.md)
-- [LINE Botデプロイ手順書](docs/line_bot_deployment.md)
-- [シフト追加リクエスト機能仕様書](docs/line_bot_shift_addition_spec.md)
-
-### 運用関連
-- [デプロイガイド](docs/DEPLOYMENT_GUIDE.md)
-- [セットアップガイド](docs/setup-guide.md)
-- [テスト仕様](docs/testing.md)
-
-### 仕様関連
-- [要件定義](docs/requirement.md)
-- [画面設計](docs/screen-design.md)
-- [API仕様](docs/api-specification.md)
-
-## 開発状況
-
-### 最新の更新（2025年1月）
-- **シフト交代リクエスト承認・否認機能の修正完了**（TDD手法で実装）
-- メール通知機能の修正完了
-- メール文言の改善（LINEコマンド案内追加）
-- シフト交代機能の改善（従業員名のみ対応、ID指定機能削除）
-
-### テスト状況
-- **87テスト実行**
-- **257アサーション**
-- **0失敗、0エラー、0スキップ**
-- **TDD手法**: Red-Green-Refactorサイクルで実装
-- **新規追加**: シフト交代承認・否認機能の包括的テストスイート
-
-## セキュリティ
-
-- 認証コードによる安全なアカウント紐付け
-- 有効期限付きの会話状態管理
-- 適切なアクセス制御
-- 機密情報の環境変数管理
-
-## 運用
-
-### 本番環境
-- **URL**: [本番環境URL]
-- **デプロイ**: Fly.io
-- **監視**: ヘルスチェック、ログ監視
-
-### メンテナンス
-- 定期チェック項目の確認
-- エラーログの監視
-- パフォーマンスメトリクスの確認
-
-## ライセンス
-
-[ライセンス情報]
-
-## 連絡先
-
-[連絡先情報]
+- すべてのドキュメントは最新の実装状況を反映しています
+- 実装変更時は関連ドキュメントの更新を忘れずに行ってください
+- セキュリティ関連の情報は適切に管理してください

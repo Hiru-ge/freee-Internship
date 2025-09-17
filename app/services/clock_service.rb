@@ -14,14 +14,8 @@ class ClockService
   def clock_in
     begin
       now = Time.current
-      date_str = now.strftime('%Y-%m-%d')
-      time_str = now.strftime('%H:%M')
       
-      clock_in_form = {
-        target_date: date_str,
-        target_time: time_str,
-        target_type: 'clock_in'
-      }
+      clock_in_form = create_clock_form_data('clock_in', now)
       
       clock_result = @freee_service.create_work_record(@employee_id, clock_in_form)
       
@@ -49,14 +43,8 @@ class ClockService
   def clock_out
     begin
       now = Time.current
-      date_str = now.strftime('%Y-%m-%d')
-      time_str = now.strftime('%H:%M')
       
-      clock_out_form = {
-        target_date: date_str,
-        target_time: time_str,
-        target_type: 'clock_out'
-      }
+      clock_out_form = create_clock_form_data('clock_out', now)
       
       clock_result = @freee_service.create_work_record(@employee_id, clock_out_form)
       
@@ -149,5 +137,16 @@ class ClockService
   def self.check_forgotten_clock_outs
     # バックグラウンド処理として実装予定
     # 現在はスキップ
+  end
+
+  private
+
+  # 打刻用のフォームデータを作成
+  def create_clock_form_data(clock_type, time = Time.current)
+    {
+      target_date: time.strftime('%Y-%m-%d'),
+      target_time: time.strftime('%H:%M'),
+      target_type: clock_type
+    }
   end
 end

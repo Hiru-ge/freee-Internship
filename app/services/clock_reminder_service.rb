@@ -102,9 +102,8 @@ class ClockReminderService
   def get_time_clocks_for_today(employee_id)
     begin
       today = Date.current
-      from_date = today.strftime('%Y-%m-%d')
-      to_date = today.strftime('%Y-%m-%d')
-      @freee_service.get_time_clocks(employee_id, from_date, to_date)
+      date_string = today.strftime('%Y-%m-%d')
+      @freee_service.get_time_clocks(employee_id, date_string, date_string)
     rescue => e
       Rails.logger.error "打刻記録取得エラー: #{e.message}"
       []
