@@ -39,7 +39,7 @@ module AuthorizationCheck
     end
 
     # 承認者は交代先のシフトの担当者である必要がある
-    unless shift_exchange.approver_ids.include?(current_employee_id)
+    unless shift_exchange.approver_id == current_employee_id
       flash[:error] = "このリクエストを承認する権限がありません"
       redirect_to redirect_path
       return false
@@ -96,8 +96,8 @@ module AuthorizationCheck
     end
 
     # 申請者または承認者のみが操作可能
-    unless shift_exchange.applicant_id == current_employee_id || 
-           shift_exchange.approver_ids.include?(current_employee_id) ||
+    unless shift_exchange.requester_id == current_employee_id || 
+           shift_exchange.approver_id == current_employee_id ||
            owner?
       flash[:error] = "このリクエストを操作する権限がありません"
       redirect_to redirect_path
@@ -202,7 +202,7 @@ module AuthorizationCheck
     when 'exchange'
       shift_exchange = ShiftExchange.find_by(request_id: request_id)
       return false unless shift_exchange
-      shift_exchange.approver_ids.include?(current_employee_id)
+      shift_exchange.approver_id == current_employee_id
     when 'addition'
       shift_addition = ShiftAddition.find_by(request_id: request_id)
       return false unless shift_addition

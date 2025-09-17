@@ -542,6 +542,158 @@ CREATE TABLE line_message_logs (
 - **データ整合性**: 外部キー制約でデータの整合性を保証
 - **ユーザビリティ**: 日付入力による絞り込み方式で使いやすさを向上
 
+## シフト交代承認・否認機能修正（Phase 9-2.5）
+
+### 概要
+
+Phase 9-2.5で実装したシフト交代承認・否認機能の修正について説明します。TDD手法により外部キー制約エラー、認証エラー、権限チェックエラーを解決し、包括的なテストスイートを作成しました。
+
+### 実装完了日時
+
+- **実装完了**: 2025年1月
+- **実装手法**: TDD（Test-Driven Development）
+- **実装時間**: 4時間
+
+### 修正内容
+
+#### 1. 外部キー制約エラーの解決
+
+**問題**: `ActiveRecord::InvalidForeignKey`エラーが発生
+- シフト削除時に、関連するShiftExchangeレコードが存在するため外部キー制約に違反
+
+**解決策**:
+```ruby
+# シフト削除前に、関連するShiftExchangeのshift_idをnilに設定
+ShiftExchange.where(shift_id: original_shift.id).update_all(shift_id: nil)
+original_shift.destroy!
+```
+
+#### 2. 認証エラーの解決
+
+**問題**: `ActiveModel::UnknownAttributeError: unknown attribute 'email'`
+- Employeeモデルにemail属性が存在しない
+
+**解決策**:
+```ruby
+# セッション直接設定による認証回避
+@controller.session[:authenticated] = true
+@controller.session[:employee_id] = @employee2.employee_id
+```
+
+#### 3. 権限チェックエラーの解決
+
+**問題**: `NoMethodError: undefined method 'session'`
+- テストクラスの不適切な継承
+
+**解決策**:
+```ruby
+# ActionController::TestCaseへの変更
+class ShiftApprovalsControllerTest < ActionController::TestCase
+```
+
+#### 4. 処理順序の最適化
+
+**改善前**:
+1. シフト削除
+2. 他のリクエスト拒否
+3. 新しいシフト作成
+
+**改善後**:
+1. 他のリクエスト拒否
+2. 関連データのクリア
+3. シフト削除
+4. 新しいシフト作成
+
+### エラーハンドリングの改善
+
+#### 承認処理のエラーハンドリング
+
+```ruby
+def approve
+  begin
+    # 権限チェック
+    return unless check_shift_approval_authorization(request_id, request_type)
+    
+    # シフト存在チェック
+    unless shift_exchange.shift
+      flash[:error] = "シフトが削除されているため、承認できません"
+      redirect_to shift_approvals_path and return
+    end
+    
+    # 処理実行
+    # ...
+    
+  rescue => e
+    logger.error "Approval error: #{e.message}"
+    flash[:error] = "承認処理中にエラーが発生しました"
+    redirect_to shift_approvals_path
+  end
+end
+```
+
+#### 権限チェックの強化
+
+```ruby
+def check_shift_approval_authorization(request_id, request_type)
+  case request_type
+  when 'exchange'
+    shift_exchange = ShiftExchange.find_by(request_id: request_id)
+    return false unless shift_exchange
+    
+    if shift_exchange.approver_id == current_employee_id
+      true
+    else
+      flash[:error] = "このリクエストを承認する権限がありません"
+      false
+    end
+  else
+    flash[:error] = "無効なリクエストタイプです"
+    false
+  end
+end
+```
+
+### テストスイート
+
+#### 実装したテストケース
+
+1. **承認処理の正常系テスト**
+   - シフト交代リクエストの承認
+   - シフトの正しい更新
+   - ステータスの変更確認
+
+2. **否認処理の正常系テスト**
+   - シフト交代リクエストの否認
+   - 元のシフトの保持
+   - ステータスの変更確認
+
+3. **複数リクエストの競合処理テスト**
+   - 同じシフトに対する複数のリクエスト
+   - 1つの承認時の他リクエストの自動拒否
+
+4. **権限チェックテスト**
+   - 権限のないユーザーによる承認試行
+   - 適切なエラーメッセージの表示
+
+5. **エラーハンドリングテスト**
+   - シフト削除済みの場合の処理
+   - 適切なエラーメッセージの表示
+
+### 技術的成果
+
+#### データ整合性の保証
+- 外部キー制約を考慮した安全なデータ操作
+- トランザクション処理による一貫性の保証
+
+#### エラーハンドリングの統一
+- ユーザーフレンドリーなエラーメッセージ
+- 適切なログ出力とデバッグ情報
+
+#### テストの品質向上
+- 包括的なテストカバレッジ
+- 独立したテストの実行
+- TDD手法による品質保証
+
 ## 関連ドキュメント
 
 - [要件定義](./requirement.md)

@@ -41,30 +41,45 @@ class ShiftApprovalsController < ApplicationController
           redirect_to shift_approvals_path and return
         end
         
+        # シフトが削除されている場合は拒否
+        unless shift_exchange.shift
+          flash[:error] = "シフトが削除されているため、承認できません"
+          redirect_to shift_approvals_path and return
+        end
+        
         # シフトの交代を実行
         if shift_exchange.shift
-          # 元のシフトを削除
+          # 元のシフト情報を保存
           original_shift = shift_exchange.shift
+          shift_date = original_shift.shift_date
+          start_time = original_shift.start_time
+          end_time = original_shift.end_time
+          original_employee_id = original_shift.employee_id
+          
+          # 関連するShiftExchangeのshift_idをnilに設定（外部キー制約を回避）
+          ShiftExchange.where(shift_id: original_shift.id).update_all(shift_id: nil)
+          
+          # 元のシフトを削除
           original_shift.destroy!
           
           # 新しいシフトを作成
           Shift.create!(
             employee_id: current_employee_id,
-            shift_date: original_shift.shift_date,
-            start_time: original_shift.start_time,
-            end_time: original_shift.end_time,
+            shift_date: shift_date,
+            start_time: start_time,
+            end_time: end_time,
             is_modified: true,
-            original_employee_id: original_shift.employee_id
+            original_employee_id: original_employee_id
           )
         end
         
         # リクエストを承認
         shift_exchange.approve!
         
-        # 他の承認者へのリクエストを拒否
+        # 他の承認者へのリクエストを拒否（shift_idがnilになった後）
         ShiftExchange.where(
           requester_id: shift_exchange.requester_id,
-          shift_id: shift_exchange.shift_id,
+          shift_id: nil,  # shift_idがnilになったリクエストを対象
           status: 'pending'
         ).where.not(id: shift_exchange.id).each do |other_request|
           other_request.reject!
