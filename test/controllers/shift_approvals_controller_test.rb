@@ -162,4 +162,136 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
     assert_redirected_to shift_approvals_path
     assert_equal "シフトが削除されているため、承認できません", flash[:error]
   end
+
+  test "should merge shifts when approver has existing shift" do
+    # 承認者の既存シフトを作成（18:00-20:00）
+    existing_shift = Shift.create!(
+      employee_id: @employee2.employee_id,
+      shift_date: Date.current,
+      start_time: Time.zone.parse("18:00"),
+      end_time: Time.zone.parse("20:00")
+    )
+    
+    # 申請者のシフトを20:00-23:00に変更
+    @shift.update!(
+      start_time: Time.zone.parse("20:00"),
+      end_time: Time.zone.parse("23:00")
+    )
+
+    # 承認前の状態確認
+    assert_equal 1, Shift.where(employee_id: @employee2.employee_id).count
+    assert_equal '18:00', existing_shift.start_time.strftime('%H:%M')
+    assert_equal '20:00', existing_shift.end_time.strftime('%H:%M')
+
+    # 承認処理を実行
+    post :approve, params: {
+      request_id: @shift_exchange.request_id,
+      request_type: 'exchange'
+    }
+
+    # リダイレクト確認
+    assert_redirected_to shift_approvals_path
+
+    # 承認後の状態確認
+    @shift_exchange.reload
+    assert_equal 'approved', @shift_exchange.status
+    
+    # 元のシフトが削除されていることを確認
+    assert_nil Shift.find_by(id: @shift.id)
+    
+    # 承認者のシフトが18:00-23:00にマージされていることを確認
+    merged_shift = Shift.find_by(employee_id: @employee2.employee_id)
+    assert_not_nil merged_shift
+    assert_equal '18:00', merged_shift.start_time.strftime('%H:%M')
+    assert_equal '23:00', merged_shift.end_time.strftime('%H:%M')
+    assert_equal true, merged_shift.is_modified
+    assert_equal @employee1.employee_id, merged_shift.original_employee_id
+    
+    # 承認者のシフトが1つだけであることを確認
+    assert_equal 1, Shift.where(employee_id: @employee2.employee_id).count
+  end
+
+  test "should merge shifts when new shift is earlier than existing shift" do
+    # 承認者の既存シフトを作成（20:00-23:00）
+    existing_shift = Shift.create!(
+      employee_id: @employee2.employee_id,
+      shift_date: Date.current,
+      start_time: Time.zone.parse("20:00"),
+      end_time: Time.zone.parse("23:00")
+    )
+    
+    # 申請者のシフトを18:00-20:00に変更
+    @shift.update!(
+      start_time: Time.zone.parse("18:00"),
+      end_time: Time.zone.parse("20:00")
+    )
+
+    # 承認処理を実行
+    post :approve, params: {
+      request_id: @shift_exchange.request_id,
+      request_type: 'exchange'
+    }
+
+    # 承認者のシフトが18:00-23:00にマージされていることを確認
+    merged_shift = Shift.find_by(employee_id: @employee2.employee_id)
+    assert_not_nil merged_shift
+    assert_equal '18:00', merged_shift.start_time.strftime('%H:%M')
+    assert_equal '23:00', merged_shift.end_time.strftime('%H:%M')
+  end
+
+  test "should merge shifts when shifts overlap" do
+    # 承認者の既存シフトを作成（18:00-20:00）
+    existing_shift = Shift.create!(
+      employee_id: @employee2.employee_id,
+      shift_date: Date.current,
+      start_time: Time.zone.parse("18:00"),
+      end_time: Time.zone.parse("20:00")
+    )
+    
+    # 申請者のシフトを19:00-22:00に変更（重複あり）
+    @shift.update!(
+      start_time: Time.zone.parse("19:00"),
+      end_time: Time.zone.parse("22:00")
+    )
+
+    # 承認処理を実行
+    post :approve, params: {
+      request_id: @shift_exchange.request_id,
+      request_type: 'exchange'
+    }
+
+    # 承認者のシフトが18:00-22:00にマージされていることを確認
+    merged_shift = Shift.find_by(employee_id: @employee2.employee_id)
+    assert_not_nil merged_shift
+    assert_equal '18:00', merged_shift.start_time.strftime('%H:%M')
+    assert_equal '22:00', merged_shift.end_time.strftime('%H:%M')
+  end
+
+  test "should not merge when new shift is fully contained in existing shift" do
+    # 承認者の既存シフトを作成（18:00-23:00）
+    existing_shift = Shift.create!(
+      employee_id: @employee2.employee_id,
+      shift_date: Date.current,
+      start_time: Time.zone.parse("18:00"),
+      end_time: Time.zone.parse("23:00")
+    )
+    
+    # 申請者のシフトを20:00-22:00に変更（既存シフトに完全に含まれる）
+    @shift.update!(
+      start_time: Time.zone.parse("20:00"),
+      end_time: Time.zone.parse("22:00")
+    )
+
+    # 承認処理を実行
+    post :approve, params: {
+      request_id: @shift_exchange.request_id,
+      request_type: 'exchange'
+    }
+
+    # 承認者のシフトが変更されていないことを確認
+    merged_shift = Shift.find_by(employee_id: @employee2.employee_id)
+    assert_not_nil merged_shift
+    assert_equal '18:00', merged_shift.start_time.strftime('%H:%M')
+    assert_equal '23:00', merged_shift.end_time.strftime('%H:%M')
+  end
 end
