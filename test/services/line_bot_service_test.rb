@@ -7,6 +7,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     @test_group_id = "test_group_id"
   end
 
+
   test "should identify group message source" do
     # グループメッセージの識別テスト
     event = mock_line_event(source_type: "group", group_id: @test_group_id, user_id: @test_user_id)
@@ -643,7 +644,9 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # 認証済みユーザーのため、日付入力の案内が表示されることを確認
     assert_includes response, "シフト交代依頼"
     assert_includes response, "日付を入力してください"
-    assert_includes response, "例: 09/16"
+    # 日付例を動的に生成（明日の日付）
+    tomorrow = (Date.current + 1).strftime('%m/%d')
+    assert_includes response, "例: #{tomorrow}"
     
     # テストデータのクリーンアップ
     shift.destroy
@@ -662,7 +665,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     @line_bot_service.set_conversation_state(@test_user_id, { step: 'waiting_shift_date' })
     
     # 会話状態を考慮したメッセージ処理を使用
-    response = @line_bot_service.handle_message_with_state(@test_user_id, '2025-12-31')
+    response = @line_bot_service.handle_message_with_state(@test_user_id, (Date.current + 30).strftime('%Y-%m-%d'))
     
     # シフトが見つからない場合のメッセージが返されることを確認
     assert_includes response, "指定された日付のシフトが見つかりません"
@@ -681,7 +684,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # シフト交代フローを開始（日付入力済み）
     @line_bot_service.set_conversation_state(@test_user_id, { 
       step: 'waiting_shift_time',
-      shift_date: '2025-12-31'
+      shift_date: (Date.current + 30).strftime('%Y-%m-%d')
     })
     
     # 会話状態を考慮したメッセージ処理を使用
@@ -704,7 +707,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # シフト交代フローを開始（日付・時間入力済み）
     @line_bot_service.set_conversation_state(@test_user_id, { 
       step: 'waiting_employee_selection',
-      shift_date: '2025-12-31',
+      shift_date: (Date.current + 30).strftime('%Y-%m-%d'),
       shift_time: '09:00-18:00'
     })
     
@@ -768,7 +771,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # シフト交代フローを開始（日付入力済み）
     @line_bot_service.set_conversation_state(@test_user_id, { 
       step: 'waiting_shift_time',
-      shift_date: '2025-12-31'
+      shift_date: (Date.current + 30).strftime('%Y-%m-%d')
     })
     
     # 会話状態を考慮したメッセージ処理を使用
@@ -791,7 +794,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # シフト交代フローを開始（日付・時間入力済み）
     @line_bot_service.set_conversation_state(@test_user_id, { 
       step: 'waiting_employee_selection',
-      shift_date: '2025-12-31',
+      shift_date: (Date.current + 30).strftime('%Y-%m-%d'),
       shift_time: '09:00-18:00'
     })
     
@@ -815,7 +818,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # 既存のシフトを作成（外部キー制約のため、employee_idは文字列で指定）
     shift = Shift.create!(
       employee_id: employee.employee_id,
-      shift_date: Date.parse('2025-12-31'),
+      shift_date: Date.parse((Date.current + 30).strftime('%Y-%m-%d')),
       start_time: Time.zone.parse('09:00'),
       end_time: Time.zone.parse('18:00')
     )
@@ -824,7 +827,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     @line_bot_service.set_conversation_state(@test_user_id, { step: 'waiting_shift_date' })
     
     # 既存シフトがある日付を入力
-    response = @line_bot_service.handle_message_with_state(@test_user_id, '2025-12-31')
+    response = @line_bot_service.handle_message_with_state(@test_user_id, (Date.current + 30).strftime('%Y-%m-%d'))
     
     # Flex Messageが返されることを確認（シフトが見つかった場合）
     assert response.is_a?(Hash)
@@ -851,7 +854,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # シフト交代フローを開始（日付・時間入力済み）
     @line_bot_service.set_conversation_state(@test_user_id, { 
       step: 'waiting_employee_selection',
-      shift_date: '2025-12-31',
+      shift_date: (Date.current + 30).strftime('%Y-%m-%d'),
       shift_time: '09:00-18:00'
     })
     
@@ -925,7 +928,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # シフト交代フローを開始（日付・時間入力済み）
     @line_bot_service.set_conversation_state(@test_user_id, { 
       step: 'waiting_employee_selection',
-      shift_date: '2025-12-31',
+      shift_date: (Date.current + 30).strftime('%Y-%m-%d'),
       shift_time: '09:00-18:00'
     })
     
@@ -1000,7 +1003,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # シフト交代フローを開始（日付・時間入力済み）
     @line_bot_service.set_conversation_state(@test_user_id, { 
       step: 'waiting_employee_selection',
-      shift_date: '2025-12-31',
+      shift_date: (Date.current + 30).strftime('%Y-%m-%d'),
       shift_time: '09:00-18:00'
     })
     
@@ -1076,7 +1079,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # シフト交代フローを開始（日付・時間入力済み）
     @line_bot_service.set_conversation_state(@test_user_id, { 
       step: 'waiting_employee_selection',
-      shift_date: '2025-12-31',
+      shift_date: (Date.current + 30).strftime('%Y-%m-%d'),
       shift_time: '09:00-18:00'
     })
     
@@ -1151,7 +1154,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # シフト交代フローを開始（日付・時間入力済み）
     @line_bot_service.set_conversation_state(@test_user_id, { 
       step: 'waiting_employee_selection',
-      shift_date: '2025-12-31',
+      shift_date: (Date.current + 30).strftime('%Y-%m-%d'),
       shift_time: '09:00-18:00'
     })
     
@@ -1188,7 +1191,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # 申請者のシフトを作成
     shift = Shift.create!(
       employee_id: employee.employee_id,
-      shift_date: Date.parse('2025-12-31'),
+      shift_date: Date.parse((Date.current + 30).strftime('%Y-%m-%d')),
       start_time: Time.zone.parse('09:00'),
       end_time: Time.zone.parse('18:00')
     )
@@ -1233,7 +1236,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     
     # 1. シフト交代フローを開始
     @line_bot_service.set_conversation_state(@test_user_id, { step: 'waiting_shift_date' })
-    response = @line_bot_service.handle_message_with_state(@test_user_id, '2025-12-31')
+    response = @line_bot_service.handle_message_with_state(@test_user_id, (Date.current + 30).strftime('%Y-%m-%d'))
     # Flex Messageが返される場合はaltTextをチェック
     if response.is_a?(Hash)
       assert_includes response[:altText], "シフト交代依頼"
@@ -1244,7 +1247,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # 2. 時間を入力
     @line_bot_service.set_conversation_state(@test_user_id, { 
       step: 'waiting_shift_time',
-      shift_date: '2025-12-31'
+      shift_date: (Date.current + 30).strftime('%Y-%m-%d')
     })
     response = @line_bot_service.handle_message_with_state(@test_user_id, '09:00-18:00')
     assert_includes response, "利用可能な従業員一覧"
@@ -1252,7 +1255,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # 3. 従業員名で選択
     @line_bot_service.set_conversation_state(@test_user_id, { 
       step: 'waiting_employee_selection',
-      shift_date: '2025-12-31',
+      shift_date: (Date.current + 30).strftime('%Y-%m-%d'),
       shift_time: '09:00-18:00'
     })
     response = @line_bot_service.handle_message_with_state(@test_user_id, 'テスト 太郎')
@@ -1262,7 +1265,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # 4. 確認
     @line_bot_service.set_conversation_state(@test_user_id, { 
       step: 'waiting_confirmation',
-      shift_date: '2025-12-31',
+      shift_date: (Date.current + 30).strftime('%Y-%m-%d'),
       shift_time: '09:00-18:00',
       selected_employee_ids: ['1000']
     })
@@ -1300,7 +1303,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # 申請者のシフトを作成
     shift = Shift.create!(
       employee_id: employee.employee_id,
-      shift_date: Date.parse('2025-12-31'),
+      shift_date: Date.parse((Date.current + 30).strftime('%Y-%m-%d')),
       start_time: Time.zone.parse('09:00'),
       end_time: Time.zone.parse('18:00')
     )
@@ -1345,7 +1348,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     
     # 1. シフト交代フローを開始
     @line_bot_service.set_conversation_state(@test_user_id, { step: 'waiting_shift_date' })
-    response = @line_bot_service.handle_message_with_state(@test_user_id, '2025-12-31')
+    response = @line_bot_service.handle_message_with_state(@test_user_id, (Date.current + 30).strftime('%Y-%m-%d'))
     # Flex Messageが返される場合はaltTextをチェック
     if response.is_a?(Hash)
       assert_includes response[:altText], "シフト交代依頼"
@@ -1356,7 +1359,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # 2. 時間を入力
     @line_bot_service.set_conversation_state(@test_user_id, { 
       step: 'waiting_shift_time',
-      shift_date: '2025-12-31'
+      shift_date: (Date.current + 30).strftime('%Y-%m-%d')
     })
     response = @line_bot_service.handle_message_with_state(@test_user_id, '09:00-18:00')
     assert_includes response, "利用可能な従業員一覧"
@@ -1364,7 +1367,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # 3. 複数の従業員名で選択
     @line_bot_service.set_conversation_state(@test_user_id, { 
       step: 'waiting_employee_selection',
-      shift_date: '2025-12-31',
+      shift_date: (Date.current + 30).strftime('%Y-%m-%d'),
       shift_time: '09:00-18:00'
     })
     response = @line_bot_service.handle_message_with_state(@test_user_id, 'テスト 太郎,テスト 三郎')
@@ -1375,7 +1378,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # 4. 確認
     @line_bot_service.set_conversation_state(@test_user_id, { 
       step: 'waiting_confirmation',
-      shift_date: '2025-12-31',
+      shift_date: (Date.current + 30).strftime('%Y-%m-%d'),
       shift_time: '09:00-18:00',
       selected_employee_ids: ['1000', '1001']
     })
@@ -1406,7 +1409,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # 他の従業員に既存シフトを作成（重複する時間）
     shift = Shift.create!(
       employee_id: other_employee.employee_id,
-      shift_date: Date.parse('2025-12-31'),
+      shift_date: Date.parse((Date.current + 30).strftime('%Y-%m-%d')),
       start_time: Time.zone.parse('09:00'),
       end_time: Time.zone.parse('18:00')
     )
@@ -1414,7 +1417,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # シフト交代フローを開始（日付・時間入力済み）
     @line_bot_service.set_conversation_state(@test_user_id, { 
       step: 'waiting_employee_selection',
-      shift_date: '2025-12-31',
+      shift_date: (Date.current + 30).strftime('%Y-%m-%d'),
       shift_time: '09:00-18:00'
     })
     
@@ -1444,7 +1447,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # 申請者の既存シフトを作成
     shift = Shift.create!(
       employee_id: employee.employee_id,
-      shift_date: Date.parse('2025-12-31'),
+      shift_date: Date.parse((Date.current + 30).strftime('%Y-%m-%d')),
       start_time: Time.zone.parse('09:00'),
       end_time: Time.zone.parse('18:00')
     )
@@ -1452,7 +1455,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # シフト交代フローを開始（確認段階）
     @line_bot_service.set_conversation_state(@test_user_id, { 
       step: 'waiting_confirmation',
-      shift_date: '2025-12-31',
+      shift_date: (Date.current + 30).strftime('%Y-%m-%d'),
       shift_time: '09:00-18:00',
       selected_employee_id: '1000'
     })

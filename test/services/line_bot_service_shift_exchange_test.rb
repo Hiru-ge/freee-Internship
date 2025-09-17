@@ -34,7 +34,9 @@ class LineBotServiceShiftExchangeTest < ActiveSupport::TestCase
     assert response.is_a?(String)
     assert_includes response, "📋 シフト交代依頼"
     assert_includes response, "交代したいシフトの日付を入力してください"
-    assert_includes response, "📝 入力例: 09/16"
+    # 日付例を動的に生成（明日の日付）
+    tomorrow = (Date.current + 1).strftime('%m/%d')
+    assert_includes response, "📝 入力例: #{tomorrow}"
     assert_includes response, "⚠️ 過去の日付は選択できません"
 
     # テストデータのクリーンアップ

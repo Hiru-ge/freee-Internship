@@ -15,8 +15,8 @@ class ClockServiceTest < ActiveSupport::TestCase
     assert_equal "Asia/Tokyo", Time.zone.name, "日本時間が設定されているべき"
     
     # 日本時間での時刻取得をテスト
-    jst_time = Time.zone.parse("2024-01-15 09:00:00")
-    utc_time = Time.utc(2024, 1, 15, 0, 0, 0)
+    jst_time = Time.zone.parse("#{Date.current.strftime('%Y-%m-%d')} 09:00:00")
+    utc_time = Time.utc(Date.current.year, Date.current.month, Date.current.day, 0, 0, 0)
     
     # タイムゾーンが正しく設定されている場合のテスト
     assert_equal 9, jst_time.hour, "日本時間の9時であるべき"
@@ -96,7 +96,8 @@ class ClockServiceTest < ActiveSupport::TestCase
       assert_equal 'UTC', Time.zone.name
       
       # 時刻の差を検証（日本時間はUTC+9）
-      time_diff = jst_time.hour - utc_time.hour
+      # 日付をまたぐ場合を考慮して、時間差を正の値で計算
+      time_diff = (jst_time.hour - utc_time.hour) % 24
       # サマータイム等を考慮して±1時間の誤差を許容
       assert_includes [8, 9, 10], time_diff, "日本時間とUTC時間の差は8-10時間であるべき"
       

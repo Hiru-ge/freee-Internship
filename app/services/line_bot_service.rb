@@ -655,9 +655,10 @@ class LineBotService
     end
     
     # 日付入力の案内を返す
+    tomorrow = (Date.current + 1).strftime('%m/%d')
     "📋 シフト交代依頼\n\n" +
     "交代したいシフトの日付を入力してください。\n\n" +
-    "📝 入力例: 09/16\n" +
+    "📝 入力例: #{tomorrow}\n" +
     "⚠️ 過去の日付は選択できません"
   end
 
@@ -1361,13 +1362,15 @@ class LineBotService
       ).order(:start_time)
       
       if shifts.empty?
-        return "指定された日付のシフトが見つかりません。\n再度日付を入力してください。\n\n例: 09/16"
+        tomorrow = (Date.current + 1).strftime('%m/%d')
+        return "指定された日付のシフトが見つかりません。\n再度日付を入力してください。\n\n例: #{tomorrow}"
       end
       
       # シフトカードを生成して返す
       generate_shift_flex_message_for_date(shifts)
     rescue Date::Error
-      return "日付の形式が正しくありません。\n例: 09/16"
+      tomorrow = (Date.current + 1).strftime('%m/%d')
+      return "日付の形式が正しくありません。\n例: #{tomorrow}"
     end
   end
 
@@ -2000,8 +2003,9 @@ class LineBotService
       step: 'waiting_shift_addition_date'
     })
     
+    tomorrow = (Date.current + 1).strftime('%Y-%m-%d')
     "📅 シフト追加依頼\n\n" +
-    "日付を入力してください（例：2025-01-15）\n" +
+    "日付を入力してください（例：#{tomorrow}）\n" +
     "※ 過去の日付は指定できません"
   end
 
@@ -2253,11 +2257,13 @@ class LineBotService
     begin
       date = Date.parse(date_text)
       if date < Date.current
-        return { error: "過去の日付は指定できません。\n日付を入力してください（例：2025-01-15）" }
+        tomorrow = (Date.current + 1).strftime('%Y-%m-%d')
+        return { error: "過去の日付は指定できません。\n日付を入力してください（例：#{tomorrow}）" }
       end
       { date: date }
     rescue ArgumentError
-      { error: "日付の形式が正しくありません。\n例：2025-01-15" }
+      tomorrow = (Date.current + 1).strftime('%Y-%m-%d')
+      { error: "日付の形式が正しくありません。\n例：#{tomorrow}" }
     end
   end
 

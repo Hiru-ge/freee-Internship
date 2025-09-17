@@ -27,7 +27,9 @@ class LineBotServiceShiftExchangeRedesignTest < ActiveSupport::TestCase
     # 日付入力の案内が返されることを確認
     assert_includes result, "シフト交代依頼"
     assert_includes result, "日付を入力してください"
-    assert_includes result, "例: 09/16"
+    # 日付例を動的に生成（明日の日付）
+    tomorrow = (Date.current + 1).strftime('%m/%d')
+    assert_includes result, "例: #{tomorrow}"
     
     # テストデータのクリーンアップ
     Shift.where(employee_id: requester.employee_id).destroy_all
@@ -105,7 +107,9 @@ class LineBotServiceShiftExchangeRedesignTest < ActiveSupport::TestCase
     # エラーメッセージが返されることを確認
     assert_equal String, result.class
     assert_includes result, "日付の形式が正しくありません"
-    assert_includes result, "例: 09/16"
+    # 日付例を動的に生成（明日の日付）
+    tomorrow = (Date.current + 1).strftime('%m/%d')
+    assert_includes result, "例: #{tomorrow}"
     
     # テストデータのクリーンアップ
     requester.destroy

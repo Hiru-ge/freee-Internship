@@ -24,7 +24,9 @@ class LineBotShiftAdditionTest < ActiveSupport::TestCase
 
     # 日付入力の案内が表示されることを確認
     assert_includes response, "日付を入力してください"
-    assert_includes response, "例：2025-01-15"
+    # 日付例を動的に生成（明日の日付）
+    tomorrow = (Date.current + 1).strftime('%Y-%m-%d')
+    assert_includes response, "例：#{tomorrow}"
 
     # クリーンアップ
     owner.destroy
@@ -173,7 +175,9 @@ class LineBotShiftAdditionTest < ActiveSupport::TestCase
 
     # 確認画面が表示されることを確認
     assert_includes response, "シフト追加依頼の確認"
-    assert_includes response, "10/17"  # 実際の表示形式に合わせる
+    # 30日後の日付を動的に計算して確認
+    expected_date = (Date.current + 30).strftime('%m/%d')
+    assert_includes response, expected_date
     assert_includes response, "09:00-18:00"
     assert_includes response, "テスト 太郎"
 
@@ -277,7 +281,9 @@ class LineBotShiftAdditionTest < ActiveSupport::TestCase
 
     # エラーメッセージが表示されることを確認
     assert_includes response, "日付の形式が正しくありません"
-    assert_includes response, "例：2025-01-15"
+    # 日付例を動的に生成（明日の日付）
+    tomorrow = (Date.current + 1).strftime('%Y-%m-%d')
+    assert_includes response, "例：#{tomorrow}"
 
     # クリーンアップ
     owner.destroy
@@ -294,7 +300,7 @@ class LineBotShiftAdditionTest < ActiveSupport::TestCase
     # 時間入力待ちの状態を設定
     @line_bot_service.set_conversation_state(@test_user_id, { 
       step: 'waiting_shift_addition_time',
-      shift_date: '2025-01-15'
+      shift_date: (Date.current + 1).strftime('%Y-%m-%d')
     })
 
     # 無効な時間形式を入力
