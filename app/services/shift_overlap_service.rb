@@ -24,7 +24,7 @@ class ShiftOverlapService
     
     approver_ids.each do |approver_id|
       if has_shift_overlap?(approver_id, shift_date, start_time, end_time)
-        employee = Employee.find_by(employee_id: approver_id.to_s)
+        employee = Employee.find_by(employee_id: approver_id)
         employee_name = employee&.display_name || "ID: #{approver_id}"
         overlapping_names << employee_name
       else
@@ -52,7 +52,7 @@ class ShiftOverlapService
   def has_shift_overlap?(employee_id, shift_date, start_time, end_time)
     # 既存のシフトを取得
     existing_shifts = Shift.where(
-      employee_id: employee_id.to_s,
+      employee_id: employee_id,
       shift_date: shift_date
     )
     

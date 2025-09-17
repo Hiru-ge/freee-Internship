@@ -530,7 +530,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     response = @line_bot_service.handle_message(event)
     
     # 認証済みユーザーのため、承認待ちリクエストがないメッセージが返されることを確認
-    assert_includes response, "承認待ちのシフト交代リクエストはありません"
+    assert_includes response, "承認待ちのリクエストはありません"
     
     employee.destroy
   end
@@ -1486,13 +1486,9 @@ class LineBotServiceTest < ActiveSupport::TestCase
     response = @line_bot_service.handle_message(event)
 
     # Flex Message形式で承認待ちリクエストが表示されることを確認
-    if response.is_a?(Hash)
-      assert_equal "flex", response[:type]
-      assert_includes response[:altText], "承認待ちのシフト交代リクエスト"
-    else
-      assert_includes response, "承認待ちのシフト交代リクエスト"
-      assert_includes response, today.strftime('%m/%d')
-    end
+    assert response.is_a?(Hash)
+    assert_equal "flex", response[:type]
+    assert_includes response[:altText], "承認待ちのリクエスト"
 
     # テストデータのクリーンアップ
     exchange_request.destroy
@@ -1509,7 +1505,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
 
     response = @line_bot_service.handle_message(event)
 
-    assert_includes response, "承認待ちのシフト交代リクエストはありません"
+    assert_includes response, "承認待ちのリクエストはありません"
 
     employee.destroy
   end

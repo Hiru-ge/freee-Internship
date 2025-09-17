@@ -15,6 +15,18 @@ class ShiftOverlapServiceTest < ActiveSupport::TestCase
       start_time: Time.zone.parse('19:00'),
       end_time: Time.zone.parse('22:00')
     )
+    
+    # display_nameメソッドをオーバーライド
+    Employee.class_eval do
+      def display_name
+        case self.employee_id
+        when '3317741'
+          "テスト 三郎"
+        else
+          "ID: #{self.employee_id}"
+        end
+      end
+    end
   end
 
   # シフト交代の重複チェックテスト（重複なし）
