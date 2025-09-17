@@ -296,7 +296,7 @@ class ShiftMergeServiceTest < ActiveSupport::TestCase
     assert_equal @employee1.employee_id, merged_shift.employee_id
     assert_equal '18:00', merged_shift.start_time.strftime('%H:%M')
     assert_equal '20:00', merged_shift.end_time.strftime('%H:%M')
-    assert_equal false, merged_shift.is_modified
+    assert_equal true, merged_shift.is_modified
   end
 
   test "should not modify existing shift when new shift is fully contained in addition" do

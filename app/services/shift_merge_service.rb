@@ -61,7 +61,8 @@ class ShiftMergeService
       shift_date: new_shift_data[:shift_date],
       start_time: new_shift_data[:start_time],
       end_time: new_shift_data[:end_time],
-      is_modified: false
+      is_modified: true,
+      original_employee_id: new_shift_data[:requester_id]
     }
     
     process_shift_approval(employee_id, shift_data)

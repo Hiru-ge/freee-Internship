@@ -515,6 +515,23 @@ class LineBotServiceTest < ActiveSupport::TestCase
     event
   end
 
+  def mock_postback_event(user_id:, postback_data:)
+    source = { 'type' => 'user', 'userId' => user_id }
+    
+    event = {
+      'source' => source,
+      'postback' => { 'data' => postback_data },
+      'replyToken' => 'test_reply_token'
+    }
+    
+    # LINE Bot SDKのイベントオブジェクトのように動作するように拡張
+    event.define_singleton_method(:source) { self['source'] }
+    event.define_singleton_method(:postback) { self['postback'] }
+    event.define_singleton_method(:replyToken) { self['replyToken'] }
+    
+    event
+  end
+
   # シフト交代機能のテスト
   test "should handle shift exchange request command" do
     # シフト交代依頼コマンドの処理テスト（未認証ユーザー）
@@ -2289,5 +2306,228 @@ class LineBotServiceTest < ActiveSupport::TestCase
     shift.destroy
     employee.destroy
     approver.destroy
+  end
+
+  # シフト追加承認・否認機能のテスト
+  test "should approve shift addition request via LINE Bot" do
+    # テスト用の従業員を作成
+    employee = Employee.create!(
+      employee_id: "1001",
+      line_id: "requester_user_id",
+      role: "employee"
+    )
+    
+    target_employee = Employee.create!(
+      employee_id: "1002",
+      line_id: @test_user_id,  # 承認者はテストユーザー
+      role: "employee"
+    )
+
+    # シフト追加リクエストを作成
+    shift_addition = ShiftAddition.create!(
+      request_id: "test_addition_line_123",
+      requester_id: employee.employee_id,
+      target_employee_id: target_employee.employee_id,
+      shift_date: Date.current + 1.day,
+      start_time: Time.zone.parse("10:00"),
+      end_time: Time.zone.parse("14:00"),
+      status: 'pending'
+    )
+
+    # 承認前の状態確認
+    assert_equal 'pending', shift_addition.status
+    assert_equal 0, Shift.where(employee_id: target_employee.employee_id, shift_date: Date.current + 1.day).count
+
+    # 承認処理を実行（LINE Bot経由）
+    postback_data = "approve_addition_#{shift_addition.request_id}"
+    response = @line_bot_service.handle_postback_event(mock_postback_event(user_id: @test_user_id, postback_data: postback_data))
+
+    # 承認後の状態確認
+    shift_addition.reload
+    assert_equal 'approved', shift_addition.status
+    
+    # 新しいシフトが作成されていることを確認
+    new_shift = Shift.find_by(employee_id: target_employee.employee_id, shift_date: Date.current + 1.day)
+    assert_not_nil new_shift
+    assert_equal shift_addition.start_time, new_shift.start_time
+    assert_equal shift_addition.end_time, new_shift.end_time
+    assert_equal true, new_shift.is_modified
+    assert_equal employee.employee_id, new_shift.original_employee_id
+
+    # レスポンスメッセージの確認
+    assert_includes response, "シフト追加を承認しました"
+
+    # クリーンアップ
+    new_shift.destroy
+    shift_addition.destroy
+    employee.destroy
+    target_employee.destroy
+  end
+
+  test "should reject shift addition request via LINE Bot" do
+    # テスト用の従業員を作成
+    employee = Employee.create!(
+      employee_id: "1003",
+      line_id: "requester_user_id_2",
+      role: "employee"
+    )
+    
+    target_employee = Employee.create!(
+      employee_id: "1004",
+      line_id: @test_user_id,  # 承認者はテストユーザー
+      role: "employee"
+    )
+
+    # シフト追加リクエストを作成
+    shift_addition = ShiftAddition.create!(
+      request_id: "test_addition_line_456",
+      requester_id: employee.employee_id,
+      target_employee_id: target_employee.employee_id,
+      shift_date: Date.current + 1.day,
+      start_time: Time.zone.parse("10:00"),
+      end_time: Time.zone.parse("14:00"),
+      status: 'pending'
+    )
+
+    # 否認前の状態確認
+    assert_equal 'pending', shift_addition.status
+    assert_equal 0, Shift.where(employee_id: target_employee.employee_id, shift_date: Date.current + 1.day).count
+
+    # 否認処理を実行（LINE Bot経由）
+    postback_data = "reject_addition_#{shift_addition.request_id}"
+    response = @line_bot_service.handle_postback_event(mock_postback_event(user_id: @test_user_id, postback_data: postback_data))
+
+    # 否認後の状態確認
+    shift_addition.reload
+    assert_equal 'rejected', shift_addition.status
+    
+    # 新しいシフトが作成されていないことを確認
+    assert_equal 0, Shift.where(employee_id: target_employee.employee_id, shift_date: Date.current + 1.day).count
+
+    # レスポンスメッセージの確認
+    assert_includes response, "シフト追加を拒否しました"
+
+    # クリーンアップ
+    shift_addition.destroy
+    employee.destroy
+    target_employee.destroy
+  end
+
+  test "should not allow shift addition approval by unauthorized user via LINE Bot" do
+    # テスト用の従業員を作成
+    employee = Employee.create!(
+      employee_id: "1005",
+      line_id: "requester_user_id_4",
+      role: "employee"
+    )
+    
+    target_employee = Employee.create!(
+      employee_id: "1006",
+      line_id: "target_user_id_3",  # 承認者は別のユーザー
+      role: "employee"
+    )
+
+    # テストユーザーを認証済みの従業員として作成（権限なし）
+    unauthorized_employee = Employee.create!(
+      employee_id: "1007",
+      line_id: @test_user_id,  # テストユーザー
+      role: "employee"
+    )
+
+    # シフト追加リクエストを作成
+    shift_addition = ShiftAddition.create!(
+      request_id: "test_addition_line_789",
+      requester_id: employee.employee_id,
+      target_employee_id: target_employee.employee_id,
+      shift_date: Date.current + 1.day,
+      start_time: Time.zone.parse("10:00"),
+      end_time: Time.zone.parse("14:00"),
+      status: 'pending'
+    )
+
+    # 権限のないユーザー（テストユーザー）で承認処理を実行
+    # テストユーザーはtarget_employeeではないため権限なし
+    postback_data = "approve_addition_#{shift_addition.request_id}"
+    response = @line_bot_service.handle_postback_event(mock_postback_event(user_id: @test_user_id, postback_data: postback_data))
+
+    # エラーメッセージの確認
+    assert_includes response, "このリクエストを承認する権限がありません"
+    
+    # リクエストの状態が変わっていないことを確認
+    shift_addition.reload
+    assert_equal 'pending', shift_addition.status
+
+    # クリーンアップ
+    shift_addition.destroy
+    employee.destroy
+    target_employee.destroy
+    unauthorized_employee.destroy
+  end
+
+  test "should handle shift addition approval with existing shift merge via LINE Bot" do
+    # テスト用の従業員を作成
+    employee = Employee.create!(
+      employee_id: "1007",
+      line_id: "requester_user_id_3",
+      role: "employee"
+    )
+    
+    target_employee = Employee.create!(
+      employee_id: "1008",
+      line_id: @test_user_id,  # 承認者はテストユーザー
+      role: "employee"
+    )
+
+    # 承認者の既存シフトを作成（12:00-16:00）
+    existing_shift = Shift.create!(
+      employee_id: target_employee.employee_id,
+      shift_date: Date.current + 1.day,
+      start_time: Time.zone.parse("12:00"),
+      end_time: Time.zone.parse("16:00")
+    )
+
+    # シフト追加リクエストを作成（10:00-14:00、既存シフトと重複）
+    shift_addition = ShiftAddition.create!(
+      request_id: "test_addition_line_merge",
+      requester_id: employee.employee_id,
+      target_employee_id: target_employee.employee_id,
+      shift_date: Date.current + 1.day,
+      start_time: Time.zone.parse("10:00"),
+      end_time: Time.zone.parse("14:00"),
+      status: 'pending'
+    )
+
+    # 承認前の状態確認
+    assert_equal 1, Shift.where(employee_id: target_employee.employee_id, shift_date: Date.current + 1.day).count
+    assert_equal '12:00', existing_shift.start_time.strftime('%H:%M')
+    assert_equal '16:00', existing_shift.end_time.strftime('%H:%M')
+
+    # 承認処理を実行（LINE Bot経由）
+    postback_data = "approve_addition_#{shift_addition.request_id}"
+    response = @line_bot_service.handle_postback_event(mock_postback_event(user_id: @test_user_id, postback_data: postback_data))
+
+    # 承認後の状態確認
+    shift_addition.reload
+    assert_equal 'approved', shift_addition.status
+    
+    # シフトが10:00-16:00にマージされていることを確認
+    merged_shift = Shift.find_by(employee_id: target_employee.employee_id, shift_date: Date.current + 1.day)
+    assert_not_nil merged_shift
+    assert_equal '10:00', merged_shift.start_time.strftime('%H:%M')
+    assert_equal '16:00', merged_shift.end_time.strftime('%H:%M')
+    assert_equal true, merged_shift.is_modified
+    assert_equal employee.employee_id, merged_shift.original_employee_id
+    
+    # シフトが1つだけであることを確認
+    assert_equal 1, Shift.where(employee_id: target_employee.employee_id, shift_date: Date.current + 1.day).count
+
+    # レスポンスメッセージの確認
+    assert_includes response, "シフト追加を承認しました"
+
+    # クリーンアップ
+    merged_shift.destroy
+    shift_addition.destroy
+    employee.destroy
+    target_employee.destroy
   end
 end

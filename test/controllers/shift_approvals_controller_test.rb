@@ -294,4 +294,160 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
     assert_equal '18:00', merged_shift.start_time.strftime('%H:%M')
     assert_equal '23:00', merged_shift.end_time.strftime('%H:%M')
   end
+
+  # シフト追加承認・否認機能のテスト
+  test "should approve shift addition request and create new shift" do
+    # シフト追加リクエストを作成
+    @shift_addition = ShiftAddition.create!(
+      request_id: "test_addition_123",
+      requester_id: @employee1.employee_id,
+      target_employee_id: @employee2.employee_id,
+      shift_date: Date.current + 1.day,
+      start_time: Time.zone.parse("10:00"),
+      end_time: Time.zone.parse("14:00"),
+      status: 'pending'
+    )
+
+    # 承認前の状態確認
+    assert_equal 'pending', @shift_addition.status
+    assert_equal 0, Shift.where(employee_id: @employee2.employee_id, shift_date: Date.current + 1.day).count
+
+    # 承認処理を実行
+    post :approve, params: {
+      request_id: @shift_addition.request_id,
+      request_type: 'addition'
+    }
+
+    # リダイレクト確認
+    assert_redirected_to shift_approvals_path
+
+    # 承認後の状態確認
+    @shift_addition.reload
+    assert_equal 'approved', @shift_addition.status
+    
+    # 新しいシフトが作成されていることを確認
+    new_shift = Shift.find_by(employee_id: @employee2.employee_id, shift_date: Date.current + 1.day)
+    assert_not_nil new_shift
+    assert_equal @shift_addition.start_time, new_shift.start_time
+    assert_equal @shift_addition.end_time, new_shift.end_time
+    assert_equal true, new_shift.is_modified
+    assert_equal @employee1.employee_id, new_shift.original_employee_id
+  end
+
+  test "should reject shift addition request and not create shift" do
+    # シフト追加リクエストを作成
+    @shift_addition = ShiftAddition.create!(
+      request_id: "test_addition_456",
+      requester_id: @employee1.employee_id,
+      target_employee_id: @employee2.employee_id,
+      shift_date: Date.current + 1.day,
+      start_time: Time.zone.parse("10:00"),
+      end_time: Time.zone.parse("14:00"),
+      status: 'pending'
+    )
+
+    # 否認前の状態確認
+    assert_equal 'pending', @shift_addition.status
+    assert_equal 0, Shift.where(employee_id: @employee2.employee_id, shift_date: Date.current + 1.day).count
+
+    # 否認処理を実行
+    post :reject, params: {
+      request_id: @shift_addition.request_id,
+      request_type: 'addition'
+    }
+
+    # リダイレクト確認
+    assert_redirected_to shift_approvals_path
+
+    # 否認後の状態確認
+    @shift_addition.reload
+    assert_equal 'rejected', @shift_addition.status
+    
+    # 新しいシフトが作成されていないことを確認
+    assert_equal 0, Shift.where(employee_id: @employee2.employee_id, shift_date: Date.current + 1.day).count
+  end
+
+  test "should not allow shift addition approval by unauthorized user" do
+    # シフト追加リクエストを作成
+    @shift_addition = ShiftAddition.create!(
+      request_id: "test_addition_789",
+      requester_id: @employee1.employee_id,
+      target_employee_id: @employee2.employee_id,
+      shift_date: Date.current + 1.day,
+      start_time: Time.zone.parse("10:00"),
+      end_time: Time.zone.parse("14:00"),
+      status: 'pending'
+    )
+
+    # 別のユーザーでログイン
+    @employee3 = Employee.create!(
+      employee_id: "3",
+      role: "employee"
+    )
+    @controller.session[:employee_id] = @employee3.employee_id
+
+    # 承認処理を実行（権限なし）
+    post :approve, params: {
+      request_id: @shift_addition.request_id,
+      request_type: 'addition'
+    }
+
+    # エラーが発生することを確認
+    assert_redirected_to shift_approvals_path
+    assert_equal "このリクエストを承認する権限がありません", flash[:error]
+    
+    # リクエストの状態が変わっていないことを確認
+    @shift_addition.reload
+    assert_equal 'pending', @shift_addition.status
+  end
+
+  test "should merge shift addition with existing shift" do
+    # 承認者の既存シフトを作成（12:00-16:00）
+    existing_shift = Shift.create!(
+      employee_id: @employee2.employee_id,
+      shift_date: Date.current + 1.day,
+      start_time: Time.zone.parse("12:00"),
+      end_time: Time.zone.parse("16:00")
+    )
+
+    # シフト追加リクエストを作成（10:00-14:00、既存シフトと重複）
+    @shift_addition = ShiftAddition.create!(
+      request_id: "test_addition_merge",
+      requester_id: @employee1.employee_id,
+      target_employee_id: @employee2.employee_id,
+      shift_date: Date.current + 1.day,
+      start_time: Time.zone.parse("10:00"),
+      end_time: Time.zone.parse("14:00"),
+      status: 'pending'
+    )
+
+    # 承認前の状態確認
+    assert_equal 1, Shift.where(employee_id: @employee2.employee_id, shift_date: Date.current + 1.day).count
+    assert_equal '12:00', existing_shift.start_time.strftime('%H:%M')
+    assert_equal '16:00', existing_shift.end_time.strftime('%H:%M')
+
+    # 承認処理を実行
+    post :approve, params: {
+      request_id: @shift_addition.request_id,
+      request_type: 'addition'
+    }
+
+    # リダイレクト確認
+    assert_redirected_to shift_approvals_path
+
+    # 承認後の状態確認
+    @shift_addition.reload
+    assert_equal 'approved', @shift_addition.status
+    
+    # シフトが10:00-16:00にマージされていることを確認
+    merged_shift = Shift.find_by(employee_id: @employee2.employee_id, shift_date: Date.current + 1.day)
+    assert_not_nil merged_shift
+    assert_equal '10:00', merged_shift.start_time.strftime('%H:%M')
+    assert_equal '16:00', merged_shift.end_time.strftime('%H:%M')
+    assert_equal true, merged_shift.is_modified
+    assert_equal @employee1.employee_id, merged_shift.original_employee_id
+    
+    # シフトが1つだけであることを確認
+    assert_equal 1, Shift.where(employee_id: @employee2.employee_id, shift_date: Date.current + 1.day).count
+  end
 end

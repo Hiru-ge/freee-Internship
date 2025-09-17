@@ -164,9 +164,9 @@ class ShiftExchangesController < ApplicationController
     EmailNotificationService.new.send_shift_exchange_request(
       applicant_id,
       approver_ids,
-      shift_date,
-      start_time,
-      end_time
+      Date.parse(shift_date),
+      Time.zone.parse(start_time),
+      Time.zone.parse(end_time)
     )
   end
 end

@@ -92,7 +92,8 @@ class ShiftApprovalsController < ApplicationController
         new_shift_data = {
           shift_date: shift_addition.shift_date,
           start_time: shift_addition.start_time,
-          end_time: shift_addition.end_time
+          end_time: shift_addition.end_time,
+          requester_id: shift_addition.requester_id
         }
         ShiftMergeService.process_shift_addition_approval(current_employee_id, new_shift_data)
         
@@ -225,22 +226,17 @@ class ShiftApprovalsController < ApplicationController
   # シフト追加承認のメール通知を送信
   def send_addition_approval_notification(shift_addition)
     begin
-      # GAS時代のgetEmployeesを再現したAPIから従業員情報を取得
-      freee_service = freee_api_service
-      all_employees = freee_service.get_employees_full
+      email_service = EmailNotificationService.new
+      # 従業員情報を取得
+      target_employee = Employee.find_by(employee_id: shift_addition.target_employee_id)
       
-      # オーナー（依頼者）・対象従業員情報を検索
-      owner_info = all_employees.find { |emp| emp['id'].to_s == shift_addition.requester_id.to_s }
-      target_employee_info = all_employees.find { |emp| emp['id'].to_s == shift_addition.target_employee_id.to_s }
-      return unless owner_info&.dig('email') && target_employee_info
-
-      ShiftMailer.shift_addition_approved(
-        owner_info['email'],
-        target_employee_info['display_name'],
+      email_service.send_shift_addition_approved(
+        shift_addition.requester_id,
+        target_employee&.display_name || "対象従業員",
         shift_addition.shift_date,
         shift_addition.start_time,
         shift_addition.end_time
-      ).deliver_now
+      )
     rescue => e
       Rails.logger.error "シフト追加承認メール送信エラー: #{e.message}"
     end
@@ -249,19 +245,14 @@ class ShiftApprovalsController < ApplicationController
   # シフト追加否認のメール通知を送信
   def send_addition_denial_notification(shift_addition)
     begin
-      # GAS時代のgetEmployeesを再現したAPIから従業員情報を取得
-      freee_service = freee_api_service
-      all_employees = freee_service.get_employees_full
+      email_service = EmailNotificationService.new
+      # 従業員情報を取得
+      target_employee = Employee.find_by(employee_id: shift_addition.target_employee_id)
       
-      # オーナー（依頼者）・対象従業員情報を検索
-      owner_info = all_employees.find { |emp| emp['id'].to_s == shift_addition.requester_id.to_s }
-      target_employee_info = all_employees.find { |emp| emp['id'].to_s == shift_addition.target_employee_id.to_s }
-      return unless owner_info&.dig('email') && target_employee_info
-
-      ShiftMailer.shift_addition_denied(
-        owner_info['email'],
-        target_employee_info['display_name']
-      ).deliver_now
+      email_service.send_shift_addition_denied(
+        shift_addition.requester_id,
+        target_employee&.display_name || "対象従業員"
+      )
     rescue => e
       Rails.logger.error "シフト追加否認メール送信エラー: #{e.message}"
     end

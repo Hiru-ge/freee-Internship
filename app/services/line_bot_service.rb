@@ -77,9 +77,9 @@ class LineBotService
       return handle_approval_postback(line_user_id, postback_data, 'approve')
     elsif postback_data.match?(/^reject_\d+$/)
       return handle_approval_postback(line_user_id, postback_data, 'reject')
-    elsif postback_data.match?(/^approve_addition_\d+$/)
+    elsif postback_data.match?(/^approve_addition_.+$/)
       return handle_shift_addition_approval_postback(line_user_id, postback_data, 'approve')
-    elsif postback_data.match?(/^reject_addition_\d+$/)
+    elsif postback_data.match?(/^reject_addition_.+$/)
       return handle_shift_addition_approval_postback(line_user_id, postback_data, 'reject')
     end
     
@@ -88,7 +88,7 @@ class LineBotService
 
   def handle_shift_addition_approval_postback(line_user_id, postback_data, action)
     request_id = extract_request_id_from_postback(postback_data, 'addition')
-    addition_request = ShiftAddition.find_by(id: request_id)
+    addition_request = ShiftAddition.find_by(request_id: request_id)
     
     return "シフト追加リクエストが見つかりません。" unless addition_request
     
@@ -110,7 +110,8 @@ class LineBotService
   def extract_request_id_from_postback(postback_data, type)
     case type
     when 'addition'
-      postback_data.split('_')[2]  # approve_addition_4 -> 4
+      # approve_addition_REQUEST_ID -> REQUEST_ID
+      postback_data.sub(/^approve_addition_/, '').sub(/^reject_addition_/, '')
     when 'exchange'
       postback_data.split('_')[1]  # approve_4 -> 4
     else
@@ -124,12 +125,16 @@ class LineBotService
       new_shift_data = {
         shift_date: addition_request.shift_date,
         start_time: addition_request.start_time,
-        end_time: addition_request.end_time
+        end_time: addition_request.end_time,
+        requester_id: addition_request.requester_id
       }
       ShiftMergeService.process_shift_addition_approval(employee.employee_id, new_shift_data)
       
       # リクエストのステータスを承認に更新
       addition_request.update!(status: 'approved')
+      
+      # メール通知を送信
+      send_shift_addition_approval_email(addition_request)
       
       generate_shift_addition_response(addition_request, 'approved')
       
@@ -142,6 +147,9 @@ class LineBotService
   def reject_shift_addition(addition_request)
     # リクエストのステータスを拒否に更新
     addition_request.update!(status: 'rejected')
+    
+    # メール通知を送信
+    send_shift_addition_rejection_email(addition_request)
     
     generate_shift_addition_response(addition_request, 'rejected')
   end
@@ -2203,6 +2211,41 @@ class LineBotService
   # リクエストID生成
   def generate_request_id
     "ADD_#{Time.current.strftime('%Y%m%d_%H%M%S')}_#{SecureRandom.hex(4)}"
+  end
+
+  # シフト追加承認メール送信
+  def send_shift_addition_approval_email(addition_request)
+    begin
+      email_service = EmailNotificationService.new
+      # 従業員情報を取得
+      target_employee = Employee.find_by(employee_id: addition_request.target_employee_id)
+      
+      email_service.send_shift_addition_approved(
+        addition_request.requester_id,
+        target_employee&.display_name || "対象従業員",
+        addition_request.shift_date,
+        addition_request.start_time,
+        addition_request.end_time
+      )
+    rescue => e
+      Rails.logger.error "シフト追加承認メール送信エラー: #{e.message}"
+    end
+  end
+
+  # シフト追加拒否メール送信
+  def send_shift_addition_rejection_email(addition_request)
+    begin
+      email_service = EmailNotificationService.new
+      # 従業員情報を取得
+      target_employee = Employee.find_by(employee_id: addition_request.target_employee_id)
+      
+      email_service.send_shift_addition_denied(
+        addition_request.requester_id,
+        target_employee&.display_name || "対象従業員"
+      )
+    rescue => e
+      Rails.logger.error "シフト追加拒否メール送信エラー: #{e.message}"
+    end
   end
 
   # 日付検証の共通メソッド

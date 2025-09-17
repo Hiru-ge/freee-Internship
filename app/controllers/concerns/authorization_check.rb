@@ -57,8 +57,8 @@ module AuthorizationCheck
       return false
     end
 
-    # 承認者はオーナーである必要がある
-    unless owner?
+    # 承認者は対象従業員である必要がある
+    unless shift_addition.target_employee_id == current_employee_id
       flash[:error] = "このリクエストを承認する権限がありません"
       redirect_to redirect_path
       return false

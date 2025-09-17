@@ -64,9 +64,9 @@ class ShiftAdditionsController < ApplicationController
       unless Rails.env.test?
         EmailNotificationService.new.send_shift_addition_request(
           params[:employee_id],
-          params[:shift_date],
-          params[:start_time],
-          params[:end_time]
+          Date.parse(params[:shift_date]),
+          Time.zone.parse(params[:start_time]),
+          Time.zone.parse(params[:end_time])
         )
       end
 
