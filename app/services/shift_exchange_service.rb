@@ -80,22 +80,24 @@ class ShiftExchangeService
 
       # シフトの所有者を変更
       shift = exchange_request.shift
-      if shift
-        # シフト情報を保存（削除前に）
-        original_employee_id = shift.employee_id
-        shift_date = shift.shift_date
-        start_time = shift.start_time
-        end_time = shift.end_time
-        
-        # シフト交代承認処理（既存シフトとの結合を考慮）
-        ShiftMergeService.process_shift_exchange_approval(approver_id, shift)
-        
-        # 関連するShiftExchangeのshift_idをnilに更新（外部キー制約を回避）
-        ShiftExchange.where(shift_id: shift.id).update_all(shift_id: nil)
-        
-        # 元のシフトを削除
-        shift.destroy!
+      unless shift
+        return { success: false, message: "シフトが削除されているため、承認できません。" }
       end
+      
+      # シフト情報を保存（削除前に）
+      original_employee_id = shift.employee_id
+      shift_date = shift.shift_date
+      start_time = shift.start_time
+      end_time = shift.end_time
+      
+      # シフト交代承認処理（既存シフトとの結合を考慮）
+      ShiftMergeService.process_shift_exchange_approval(approver_id, shift)
+      
+      # 関連するShiftExchangeのshift_idをnilに更新（外部キー制約を回避）
+      ShiftExchange.where(shift_id: shift.id).update_all(shift_id: nil)
+      
+      # 元のシフトを削除
+      shift.destroy!
       
       # リクエストを承認
       exchange_request.approve!

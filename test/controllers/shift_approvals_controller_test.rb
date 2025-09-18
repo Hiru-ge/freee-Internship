@@ -158,9 +158,9 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
       request_type: 'exchange'
     }
 
-    # エラーが発生することを確認
+    # エラーが発生することを確認（シフトが削除されている場合は承認できない）
     assert_redirected_to shift_approvals_path
-    assert_equal "シフトが削除されているため、承認できません", flash[:error]
+    assert_equal "シフトが削除されているため、承認できません。", flash[:error]
   end
 
   test "should merge shifts when approver has existing shift" do
