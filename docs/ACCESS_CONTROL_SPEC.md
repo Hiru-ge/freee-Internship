@@ -251,6 +251,26 @@ end
 - 認証コードの有効期限調整
 - セキュリティアップデート
 
+## GitHubActions API認証機能
+
+### 1. 概要
+GitHubActionsからの打刻忘れアラート処理を安全に実行するための専用APIキー認証システム。
+
+### 2. 認証方式
+- **APIキー認証**: `X-API-Key`ヘッダーによる認証
+- **環境変数管理**: `CLOCK_REMINDER_API_KEY`でAPIキーを管理
+- **アクセス制限統合**: 既存のアクセス制限機能との共存
+
+### 3. 実装詳細
+- **ClockReminderController**: メール認証スキップとAPIキー認証の追加
+- **GitHubActions統合**: ワークフローでのAPIキー使用
+- **セキュリティログ**: 認証試行の記録と監査機能
+
+### 4. 設定手順
+1. **開発環境**: `.env`ファイルに`CLOCK_REMINDER_API_KEY`を追加
+2. **本番環境**: `fly secrets set CLOCK_REMINDER_API_KEY=your_key`
+3. **GitHubActions**: リポジトリのSecretsに`CLOCK_REMINDER_API_KEY`を設定
+
 ## 今後の拡張
 
 ### 1. 機能拡張

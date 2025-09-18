@@ -92,6 +92,9 @@ GMAIL_APP_PASSWORD=your_gmail_app_password_here
 # アクセス制限設定
 ALLOWED_EMAIL_ADDRESSES=okita2710@gmail.com
 
+# Clock Reminder API設定
+CLOCK_REMINDER_API_KEY=your_clock_reminder_api_key_here
+
 # アプリケーション設定
 RAILS_ENV=development
 RAILS_MASTER_KEY=your_master_key_here
@@ -183,6 +186,7 @@ fly secrets set FREEE_COMPANY_ID=your_company_id
 fly secrets set GMAIL_USERNAME=your_email
 fly secrets set GMAIL_APP_PASSWORD=your_app_password
 fly secrets set ALLOWED_EMAIL_ADDRESSES=okita2710@gmail.com
+fly secrets set CLOCK_REMINDER_API_KEY=your_clock_reminder_api_key_here
 
 # デプロイ
 fly deploy

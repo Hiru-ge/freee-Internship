@@ -64,6 +64,7 @@ jobs:
         echo "Triggering clock reminder check via HTTP..."
         curl -X POST "$APP_URL/clock_reminder/trigger" \
           -H "Content-Type: application/json" \
+          -H "X-API-Key: ${{ secrets.CLOCK_REMINDER_API_KEY }}" \
           --max-time 30 \
           --retry 3 \
           --retry-delay 5

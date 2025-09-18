@@ -43,6 +43,40 @@ class SecurityTest < ActionDispatch::IntegrationTest
     assert_response :redirect
   end
 
+  # ===== GitHub Actions API認証テスト =====
+
+  test "should require API key for clock reminder endpoint" do
+    # APIキーなしでアクセス
+    post "/clock_reminder/trigger"
+    assert_response :unauthorized
+    assert_includes response.body, "API key required"
+  end
+
+  test "should reject invalid API key for clock reminder endpoint" do
+    # 無効なAPIキーでアクセス
+    post "/clock_reminder/trigger", headers: { "X-API-Key" => "invalid_key" }
+    assert_response :unauthorized
+    assert_includes response.body, "Invalid API key"
+  end
+
+  test "should accept valid API key for clock reminder endpoint" do
+    # 有効なAPIキーでアクセス
+    ENV['CLOCK_REMINDER_API_KEY'] = 'test_api_key_123'
+    
+    # ClockReminderServiceをモック
+    service_mock = Object.new
+    def service_mock.check_forgotten_clock_ins; end
+    def service_mock.check_forgotten_clock_outs; end
+    
+    ClockReminderService.define_singleton_method(:new) { service_mock }
+    
+    post "/clock_reminder/trigger", headers: { "X-API-Key" => "test_api_key_123" }
+    assert_response :success
+    assert_includes response.body, "Clock reminder check completed"
+    
+    ENV.delete('CLOCK_REMINDER_API_KEY')
+  end
+
   test "should require authentication for shift exchanges" do
     # ログインせずにシフト交代リクエストにアクセス
     get "/shift_exchanges/new"
