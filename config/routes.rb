@@ -51,6 +51,10 @@ Rails.application.routes.draw do
   get "shift_additions/new", to: "shift_additions#new", as: :new_shift_addition
   post "shift_additions", to: "shift_additions#create", as: :shift_additions
 
+  # シフト削除（欠勤申請）
+  get "shift_deletions/new", to: "shift_deletions#new", as: :new_shift_deletion
+  post "shift_deletions", to: "shift_deletions#create", as: :shift_deletions
+
   # シフト承認
   get "shift_approvals", to: "shift_approvals#index", as: :shift_approvals
   post "shift_approvals/approve", to: "shift_approvals#approve", as: :approve_shift_approval

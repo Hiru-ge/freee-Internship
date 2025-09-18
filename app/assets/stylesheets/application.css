@@ -163,7 +163,7 @@
 
 .form-input {
   width: 100%;
-  max-width: 150px;
+  max-width: 250px;
   padding: 12px 16px;
   background: #1a1a1a;
   border: 2px solid #3a3a3a;
@@ -184,6 +184,27 @@
   background: #2a2a2a;
   color: #b0b0b0;
   cursor: not-allowed;
+}
+
+.form-textarea {
+  width: 100%;
+  max-width: 100%;
+  padding: 12px 16px;
+  background: #1a1a1a;
+  border: 2px solid #3a3a3a;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 1em;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 120px;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
 }
 
 .form-help {
@@ -344,7 +365,7 @@
 }
 
 /* 選択状態のスタイル */
-.form-checkbox-item input[type="checkbox"]:checked + label {
+.form-checkbox-item input[type="checkbox"]:checked+label {
   background: #ffd700;
   color: #000000;
   font-weight: 600;
@@ -372,42 +393,42 @@
     margin: 10px;
     max-width: 100%;
   }
-  
+
   .form-container h1 {
     font-size: 1.8em;
   }
-  
+
   .form-checkbox-group {
     grid-template-columns: 1fr;
   }
-  
+
   .form-input {
     max-width: 100%;
   }
-  
+
   .form-button {
     width: 100%;
   }
-  
+
   .form-row {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
   }
-  
+
   .form-row .form-label {
     min-width: auto;
   }
-  
+
   .form-row .form-input {
     width: 100%;
     min-width: auto;
   }
-  
+
   .time-inputs {
     width: 100%;
   }
-  
+
   .form-buttons {
     flex-direction: column;
     gap: 10px;
@@ -587,20 +608,20 @@
     justify-content: space-between;
     flex-wrap: nowrap;
   }
-  
+
   .logo {
     flex-shrink: 0;
   }
-  
+
   .logo-text {
     font-size: 1em;
   }
-  
-  
+
+
   .mobile-menu-toggle {
     display: block !important;
   }
-  
+
   .user-info {
     display: flex !important;
     font-size: 0.9em;
@@ -608,38 +629,38 @@
     flex-shrink: 0;
     height: 100%;
   }
-  
+
   .user-name {
     font-size: 1em;
   }
-  
+
   .user-role {
     font-size: 0.8em;
   }
-  
+
   .mobile-navigation {
     top: 60px;
     max-height: calc(100vh - 60px);
     z-index: 999;
   }
-  
+
   /* モバイル版でログアウトリンクをヘッダーに表示 */
   .header-logout {
     display: flex !important;
     margin-left: 10px;
   }
-  
+
   .logout-link {
     font-size: 0.8em !important;
   }
-  
+
   /* モバイル版でログインリンクをヘッダーに表示 */
   .header-login {
     display: flex !important;
     order: 2;
     margin-left: 10px;
   }
-  
+
   .login-link {
     font-size: 0.8em !important;
   }
@@ -650,19 +671,19 @@
   .mobile-menu-toggle {
     display: block !important;
   }
-  
+
   .user-info {
     display: flex !important;
   }
-  
+
   .header-logout {
     display: flex !important;
   }
-  
+
   .header-login {
     display: flex !important;
   }
-  
+
   .logout-form {
     display: block !important;
   }
@@ -672,16 +693,16 @@
   .header-container {
     padding: 0 10px;
   }
-  
+
   .logo-text {
     font-size: 0.9em;
   }
-  
+
   .mobile-nav-link {
     padding: 12px 15px;
     font-size: 0.9em;
   }
-  
+
   .mobile-user-info {
     padding: 12px 15px;
   }
@@ -693,6 +714,7 @@
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -722,11 +744,11 @@
   .main-header {
     background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
   }
-  
+
   .mobile-navigation {
     background: #1a1a1a;
   }
-  
+
   .user-info-mobile {
     background: #2a2a2a;
   }
@@ -754,17 +776,33 @@ body {
 }
 
 /* ===== 見出し ===== */
-h1, h2, h3 {
+h1,
+h2,
+h3 {
   color: #f0f0f0;
   margin-top: 15px;
   margin-bottom: 10px;
 }
-h1 { font-size: 1.8em; }
-h2 { font-size: 1.3em; }
-h3 { font-size: 1.1em; }
+
+h1 {
+  font-size: 1.8em;
+}
+
+h2 {
+  font-size: 1.3em;
+}
+
+h3 {
+  font-size: 1.1em;
+}
 
 /* ===== フォーム要素 ===== */
-input[type="text"], input[type="date"], input[type="time"], input[type="password"], select, textarea {
+input[type="text"],
+input[type="date"],
+input[type="time"],
+input[type="password"],
+select,
+textarea {
   padding: 12px;
   margin-top: 4px;
   margin-bottom: 12px;
@@ -777,7 +815,9 @@ input[type="text"], input[type="date"], input[type="time"], input[type="password
   width: 100%;
 }
 
-input:focus, select:focus, textarea:focus {
+input:focus,
+select:focus,
+textarea:focus {
   outline: none;
   border-color: #ffca28;
   box-shadow: 0 0 5px rgba(255, 202, 40, 0.3);
@@ -788,7 +828,8 @@ input::placeholder {
 }
 
 /* ===== ボタン ===== */
-.button, input[type="submit"] {
+.button,
+input[type="submit"] {
   background-color: #ffca28;
   color: #212121;
   padding: 10px 16px;
@@ -802,7 +843,8 @@ input::placeholder {
   display: inline-block;
 }
 
-.button:hover, input[type="submit"]:hover {
+.button:hover,
+input[type="submit"]:hover {
   background-color: #ffb300;
 }
 
@@ -869,13 +911,15 @@ table.shift-table {
   table-layout: fixed;
 }
 
-table.shift-table th, table.shift-table td {
+table.shift-table th,
+table.shift-table td {
   border: 1px solid #777;
   white-space: nowrap;
   width: 100px;
 }
 
-table.shift-table th:first-child, table.shift-table td:first-child {
+table.shift-table th:first-child,
+table.shift-table td:first-child {
   width: 150px;
   text-align: center;
 }
@@ -893,7 +937,8 @@ table.shift-table tbody tr:hover td {
   background-color: #5a5a5a;
 }
 
-th, td {
+th,
+td {
   padding: 8px;
   text-align: left;
   border: none;
@@ -926,7 +971,7 @@ table.employee-list th {
 
 table.employee-list td {
   background-color: #4a4a4a;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   border-radius: 6px;
   padding: 8px;
   text-align: center;
@@ -941,6 +986,7 @@ tr td:first-child {
   border-top-left-radius: 6px;
   border-bottom-left-radius: 6px;
 }
+
 tr td:last-child {
   border-top-right-radius: 6px;
   border-bottom-right-radius: 6px;
@@ -1120,11 +1166,13 @@ a:hover {
   color: #ffca28;
 }
 
-.time-clock-section, .attendance-history-section {
+.time-clock-section,
+.attendance-history-section {
   margin-bottom: 15px;
 }
 
-.time-clock-section h3, .attendance-history-section h3 {
+.time-clock-section h3,
+.attendance-history-section h3 {
   color: #f0f0f0;
   margin: 0 0 8px 0;
   font-size: 1.1em;
@@ -1192,7 +1240,8 @@ a:hover {
   padding: 10px;
 }
 
-#employee-list-section, #personal-gauge-section {
+#employee-list-section,
+#personal-gauge-section {
   display: none !important;
 }
 
@@ -1217,11 +1266,15 @@ a:hover {
   justify-content: flex-start;
 }
 
-.employee-list-section, .personal-gauge-section, .shift-calendar-section {
+.employee-list-section,
+.personal-gauge-section,
+.shift-calendar-section {
   margin-bottom: 15px;
 }
 
-.employee-list-section h2, .personal-gauge-section h2, .shift-calendar-section h2 {
+.employee-list-section h2,
+.personal-gauge-section h2,
+.shift-calendar-section h2 {
   color: #f0f0f0;
   margin: 0 0 8px 0;
   font-size: 1.1em;
@@ -1251,7 +1304,8 @@ a:hover {
   background-color: #555;
 }
 
-.shift-calendar th, .shift-calendar td {
+.shift-calendar th,
+.shift-calendar td {
   border: 1px solid #777;
   padding: 8px;
   text-align: center;
@@ -1317,7 +1371,7 @@ a:hover {
   padding: 20px;
   margin-bottom: 15px;
   border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
 }
 
 .request-item strong {
@@ -1383,7 +1437,7 @@ a:hover {
   border-radius: 8px;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 .approver-card.selected {
@@ -1465,7 +1519,8 @@ a:hover {
   background-color: #555;
 }
 
-.wage-breakdown th, .wage-breakdown td {
+.wage-breakdown th,
+.wage-breakdown td {
   padding: 8px;
   text-align: center;
   border: 1px solid #777;
@@ -1482,7 +1537,8 @@ a:hover {
   color: #f0f0f0;
 }
 
-.employee-list th, .employee-list td {
+.employee-list th,
+.employee-list td {
   padding: 6px;
   text-align: left;
   vertical-align: middle;
@@ -1555,7 +1611,9 @@ a:hover {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-container {
@@ -1575,7 +1633,8 @@ a:hover {
     font-size: 0.9em;
   }
 
-  #attendance-container th, #attendance-container td {
+  #attendance-container th,
+  #attendance-container td {
     padding: 8px;
   }
 
@@ -1762,12 +1821,12 @@ a:hover {
     max-width: 100% !important;
     padding: 10px !important;
   }
-  
+
   .approval-buttons {
     flex-direction: column !important;
     gap: 8px !important;
   }
-  
+
   .approval-button {
     width: 100% !important;
   }

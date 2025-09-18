@@ -8,7 +8,7 @@
     <div class="shift-approvals-container">
       <h1>自分へのシフトリクエスト一覧</h1>
 
-      <% if @shift_exchanges.empty? && @shift_additions.empty? %>
+      <% if @shift_exchanges.empty? && @shift_additions.empty? && @shift_deletions.empty? %>
         <div class="no-requests">
           <p>あなた宛の申請中リクエストはありません。</p>
         </div>
@@ -20,7 +20,7 @@
               <strong>申請者:</strong> <%= @employee_names[exchange.requester_id]&.dig(:display_name) || exchange.requester_id %><br>
               <strong>依頼日時:</strong> <%= exchange.shift&.shift_date&.strftime('%m/%d') %> <%= exchange.shift&.start_time&.strftime('%H:%M') %> - <%= exchange.shift&.end_time&.strftime('%H:%M') %>
             </div>
-            
+
             <div class="approval-buttons">
               <button class="approval-button approve" onclick="handleApprove('exchange', '<%= exchange.request_id %>', '<%= current_employee_id %>')">承認</button>
               <button class="approval-button reject" onclick="handleDeny('exchange', '<%= exchange.request_id %>', '<%= current_employee_id %>')">否認</button>
@@ -35,10 +35,26 @@
               <strong>申請者:</strong> <%= @employee_names[addition.requester_id]&.dig(:display_name) || addition.requester_id %><br>
               <strong>依頼日時:</strong> <%= addition.shift_date.strftime('%m/%d') %> <%= addition.start_time.strftime('%H:%M') %> - <%= addition.end_time.strftime('%H:%M') %>
             </div>
-            
+
             <div class="approval-buttons">
               <button class="approval-button approve" onclick="handleApprove('addition', '<%= addition.request_id %>', '<%= current_employee_id %>')">承認</button>
               <button class="approval-button reject" onclick="handleDeny('addition', '<%= addition.request_id %>', '<%= current_employee_id %>')">否認</button>
+            </div>
+          </div>
+        <% end %>
+
+        <% @shift_deletions.each do |deletion| %>
+          <div class="approval-section" id="req-<%= deletion.request_id %>">
+            <h3>欠勤申請</h3>
+            <div class="request-details">
+              <strong>申請者:</strong> <%= @employee_names[deletion.requester_id]&.dig(:display_name) || deletion.requester_id %><br>
+              <strong>欠勤予定日時:</strong> <%= deletion.shift&.shift_date&.strftime('%m/%d') %> <%= deletion.shift&.start_time&.strftime('%H:%M') %> - <%= deletion.shift&.end_time&.strftime('%H:%M') %><br>
+              <strong>欠勤理由:</strong> <%= deletion.reason %>
+            </div>
+
+            <div class="approval-buttons">
+              <button class="approval-button approve" onclick="handleApprove('deletion', '<%= deletion.request_id %>', '<%= current_employee_id %>')">承認</button>
+              <button class="approval-button reject" onclick="handleDeny('deletion', '<%= deletion.request_id %>', '<%= current_employee_id %>')">否認</button>
             </div>
           </div>
         <% end %>
@@ -54,7 +70,7 @@
         if (window.loadingHandler) {
           window.loadingHandler.show('承認処理中...');
         }
-        
+
         fetch('<%= approve_shift_approval_path %>', {
           method: 'POST',
           headers: {
@@ -93,7 +109,7 @@
         if (window.loadingHandler) {
           window.loadingHandler.show('否認処理中...');
         }
-        
+
         fetch('<%= reject_shift_approval_path %>', {
           method: 'POST',
           headers: {

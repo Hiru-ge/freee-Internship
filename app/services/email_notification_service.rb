@@ -122,4 +122,67 @@ class EmailNotificationService
     Rails.logger.error "シフト追加否認メール送信エラー: #{e.message}"
     false
   end
+
+  # 欠勤申請メールを送信（オーナー宛）
+  def send_shift_deletion_request(requester_id, shift_date, start_time, end_time, reason)
+    # オーナーに通知を送信
+    owners = Employee.where(role: "owner")
+    owners.each do |owner|
+      owner_info = get_employee_with_email(owner.employee_id)
+      next unless owner_info&.dig("email")
+
+      requester_info = get_employee_with_email(requester_id)
+      next unless requester_info
+
+      ShiftMailer.shift_deletion_request(
+        owner_info["email"],
+        owner_info["display_name"],
+        requester_info["display_name"],
+        shift_date,
+        start_time,
+        end_time,
+        reason
+      ).deliver_now
+    end
+    true
+  rescue StandardError => e
+    Rails.logger.error "欠勤申請メール送信エラー: #{e.message}"
+    false
+  end
+
+  # 欠勤申請承認メールを送信
+  def send_shift_deletion_approved(requester_id, shift_date, start_time, end_time)
+    requester_info = get_employee_with_email(requester_id)
+    return false unless requester_info&.dig("email")
+
+    ShiftMailer.shift_deletion_approved(
+      requester_info["email"],
+      requester_info["display_name"],
+      shift_date,
+      start_time,
+      end_time
+    ).deliver_now
+    true
+  rescue StandardError => e
+    Rails.logger.error "欠勤申請承認メール送信エラー: #{e.message}"
+    false
+  end
+
+  # 欠勤申請拒否メールを送信
+  def send_shift_deletion_denied(requester_id, shift_date, start_time, end_time)
+    requester_info = get_employee_with_email(requester_id)
+    return false unless requester_info&.dig("email")
+
+    ShiftMailer.shift_deletion_denied(
+      requester_info["email"],
+      requester_info["display_name"],
+      shift_date,
+      start_time,
+      end_time
+    ).deliver_now
+    true
+  rescue StandardError => e
+    Rails.logger.error "欠勤申請拒否メール送信エラー: #{e.message}"
+    false
+  end
 end

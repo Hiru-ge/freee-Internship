@@ -1,0 +1,65 @@
+<div class="form-container">
+  <h1>欠勤申請</h1>
+  <p class="form-description">欠勤したいシフトを選択し、理由を入力してください。</p>
+
+  <%= form_with(model: @shift_deletion, url: shift_deletions_path, local: true, id: "deletion-form") do |form| %>
+    <div class="form-group">
+      <div class="form-row">
+        <label for="shift-select" class="form-label">対象シフト:</label>
+        <%= form.select :shift_id,
+            options_from_collection_for_select(@shifts, :id, :display_name),
+            { prompt: "-- シフトを選択してください --" },
+            { required: true, id: "shift-select", class: "form-input" } %>
+      </div>
+      <div class="form-help">
+        ※ 欠勤したいシフトを選択してください
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="reason" class="form-label">欠勤理由:</label>
+      <%= form.text_area :reason,
+          class: "form-textarea",
+          rows: 8,
+          required: true,
+          id: "reason",
+          placeholder: "体調不良のため欠勤します" %>
+      <div class="form-help">
+        ※ 欠勤理由を具体的に記入してください
+      </div>
+    </div>
+
+    <div class="form-buttons">
+      <%= form.submit "欠勤申請を送信", class: "form-button" %>
+      <%= link_to "シフトページに戻る", shifts_path, class: "form-button secondary" %>
+    </div>
+  <% end %>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('deletion-form');
+
+    form.addEventListener('submit', function(e) {
+      const shiftSelect = document.getElementById('shift-select');
+      const reason = document.getElementById('reason');
+
+      if (!shiftSelect.value || !reason.value.trim()) {
+        e.preventDefault();
+        if (window.showFlashMessage) {
+          window.showFlashMessage('すべての項目を入力してください。', 'error');
+        } else if (window.messageHandler) {
+          window.messageHandler.show('すべての項目を入力してください。', 'error');
+        } else {
+          alert('すべての項目を入力してください。');
+        }
+        return;
+      }
+
+      // ローディング表示
+      const submitButton = document.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      submitButton.textContent = '送信中...';
+    });
+  });
+</script>

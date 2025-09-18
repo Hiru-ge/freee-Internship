@@ -76,4 +76,46 @@ class ShiftMailer < ApplicationMailer
       subject: "【否認】#{@target_name}さんがシフト追加を否認しました"
     )
   end
+
+  # 欠勤申請の通知メール（オーナー宛）
+  def shift_deletion_request(owner_email, owner_name, requester_name, shift_date, start_time, end_time, reason)
+    @owner_name = owner_name
+    @requester_name = requester_name
+    @shift_date = shift_date
+    @start_time = start_time
+    @end_time = end_time
+    @reason = reason
+    @approval_url = "#{root_url}shift_approvals"
+
+    mail(
+      to: owner_email,
+      subject: "【欠勤申請】#{@requester_name}さんより"
+    )
+  end
+
+  # 欠勤申請承認の通知メール
+  def shift_deletion_approved(requester_email, requester_name, shift_date, start_time, end_time)
+    @requester_name = requester_name
+    @shift_date = shift_date
+    @start_time = start_time
+    @end_time = end_time
+
+    mail(
+      to: requester_email,
+      subject: "【承認】欠勤申請が承認されました"
+    )
+  end
+
+  # 欠勤申請拒否の通知メール
+  def shift_deletion_denied(requester_email, requester_name, shift_date, start_time, end_time)
+    @requester_name = requester_name
+    @shift_date = shift_date
+    @start_time = start_time
+    @end_time = end_time
+
+    mail(
+      to: requester_email,
+      subject: "【拒否】欠勤申請が拒否されました"
+    )
+  end
 end

@@ -18,6 +18,7 @@
 - **シフト確認**: 月間シフト表の表示
 - **シフト交代依頼**: 他の従業員への交代依頼
 - **シフト追加依頼**: 新しいシフトの追加申請
+- **欠勤申請**: 自分のシフトの欠勤申請（未来のシフトのみ） ✅ **新機能**
 - **シフト承認**: 管理者によるシフト依頼の承認/否認
 
 ### 勤怠管理
@@ -256,6 +257,8 @@ fly ssh console -a your-app-name -C "bundle exec rails clock_reminder:check_all"
 - ✅ 機能見直し完了（Phase 14-2）
 - ✅ リファクタリング完了（Phase 14-3）
 - ✅ 実装クリーンアップ完了（Phase 14-4）
+- ✅ アクセス制限機能完了（Phase 14-5）
+- ✅ 欠勤申請機能完了（Phase 14-6）
 
 ## ドキュメント
 
@@ -270,6 +273,7 @@ fly ssh console -a your-app-name -C "bundle exec rails clock_reminder:check_all"
 - [LINE Bot データベース設計](docs/line_bot_database_design.md) - LINE Bot連携のデータベース設計
 - [LINE Bot デプロイ手順](docs/line_bot_deployment.md) - LINE Botのデプロイと設定
 - [LINE Bot API仕様](docs/line_bot_api_spec.md) - LINE Bot APIの仕様書
+- [Phase 14-6 欠勤申請機能](docs/phase-14-6-shift-deletion-implementation.md) - 欠勤申請機能の実装詳細
 
 詳細な実装状況は `docs/` ディレクトリ内のドキュメントを参照してください。
 

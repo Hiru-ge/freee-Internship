@@ -18,6 +18,11 @@ class Shift < ApplicationRecord
   scope :for_date_range, ->(start_date, end_date) { where(shift_date: start_date..end_date) }
   scope :for_month, ->(year, month) { where(shift_date: Date.new(year, month, 1)..Date.new(year, month, -1)) }
 
+  # 表示用メソッド
+  def display_name
+    "#{shift_date.strftime('%m/%d')} #{start_time.strftime('%H:%M')}-#{end_time.strftime('%H:%M')}"
+  end
+
   private
 
   def end_time_after_start_time

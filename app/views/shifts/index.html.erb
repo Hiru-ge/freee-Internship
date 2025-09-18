@@ -1,13 +1,13 @@
 <div class="shift-page-container <%= @is_owner ? 'owner-mode' : 'employee-mode' %>">
   <h1>シフトページ</h1>
-  
-  
+
+
   <!-- シフト表 -->
   <div class="shift-calendar-section">
     <h2>シフト表</h2>
     <p>交代を依頼したい<strong>自分のシフト</strong>をクリックすると、依頼フォームへ遷移します。<br>
     <small class="help-text">※ 黄色で表示されているシフトがクリック可能です</small></p>
-    
+
     <div class="month-navigation">
       <h3 id="calendar-title"></h3>
       <div class="month-navigation-buttons">
@@ -15,7 +15,7 @@
         <button class="button small-button" onclick="nextWeek()">></button>
       </div>
     </div>
-    
+
     <div id="shift-calendar-container">
       <p>シフト情報を読み込んでいます...</p>
     </div>
@@ -54,10 +54,11 @@
     </div>
   </div>
   <% end %>
-  
+
   <!-- シフト管理ボタン -->
   <div class="shift-management">
     <button class="button" onclick="goToRequestList()">自分へのリクエスト一覧</button>
+    <button class="button" onclick="goToDeletionForm()">欠勤申請</button>
     <button id="shift-add-btn" class="button owner-only hidden" onclick="goToShiftAddForm()">シフト追加依頼</button>
   </div>
 
@@ -82,11 +83,11 @@
 
   // オーナー権限チェック
   function checkOwnerPermissions() {
-    
+
     // コンテナに権限モードのクラスを追加
     var shift_page_container = document.querySelector('.shift-page-container');
     shift_page_container.classList.remove('owner-mode', 'employee-mode');
-    
+
     if (is_owner) {
       // オーナーの場合：従業員一覧と給与ゲージを表示
       shift_page_container.classList.add('owner-mode');
@@ -99,7 +100,7 @@
       loadPersonalGauge();
     }
   }
-  
+
   // 従業員一覧の読み込み（オーナーのみ）
   function loadEmployeeList() {
     // 重複実行を防ぐ
@@ -116,7 +117,7 @@
         if (employees && employees.length > 0) {
           employees.forEach(function(employee) {
             var row = document.createElement('tr');
-            row.innerHTML = 
+            row.innerHTML =
               '<td>' + employee.display_name + '</td>' +
               '<td><div class="wage-gauge" data-employee-id="' + employee.id + '">' +
               '<div class="gauge-container">' +
@@ -128,7 +129,7 @@
         } else {
           tbody.innerHTML = '<tr><td colspan="2">従業員情報がありません</td></tr>';
         }
-        
+
         // 従業員一覧の読み込み完了後に給与ゲージを読み込み
         loadWageGauge();
       })
@@ -179,7 +180,7 @@
     if (gaugeText) {
       gaugeText.textContent = '読み込み中...';
     }
-    
+
     // 個人の給与情報を取得
     fetch('/wages/wage_info?employee_id=' + current_employee_id)
       .then(response => response.json())
@@ -198,7 +199,7 @@
   function loadShifts() {
     var shift_calendar_container = document.getElementById('shift-calendar-container');
     shift_calendar_container.innerHTML = '<p>シフト情報を読み込んでいます...</p>';
-    
+
     fetch('<%= shifts_data_path %>')
       .then(response => response.json())
       .then(data => {
@@ -212,7 +213,7 @@
 
   function initializeShifts(dataFromServer) {
     allShiftsData = dataFromServer;
-    
+
     calendarYear = allShiftsData.year;
     calendarMonth = allShiftsData.month;
     daysInMonth = new Date(calendarYear, calendarMonth, 0).getDate();
@@ -220,7 +221,7 @@
     // 最初の表示範囲を設定
     var now = new Date();
     currentStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
-    
+
     updateCalendarTitle();
     displayShifts();
   }
@@ -233,7 +234,7 @@
   function displayShifts() {
     var titleEl = document.getElementById('calendar-title');
     titleEl.textContent = calendarYear + '年' + calendarMonth + '月';
-    
+
     var shift_calendar_container = document.getElementById('shift-calendar-container');
     if (!shift_calendar_container) {
       console.error('shift-calendar-container要素が見つかりません');
@@ -251,7 +252,7 @@
     var nameHeader = document.createElement('th');
     nameHeader.textContent = '従業員名';
     headerRow.appendChild(nameHeader);
-    
+
     var datesToShow = []; // 表示する日付の配列
     var currentDate = new Date(currentStartDate);
     for(var i = 0; i < 7; i++) {
@@ -279,23 +280,20 @@
         var shiftTime = employeeData.shifts[day] || "";
         if (shiftTime) {
           // 自分のシフトのみクリック可能にする
-          if (String(employeeId) === String(current_employee_id)) {
-            shiftCell.style.cursor = 'pointer';
-            shiftCell.style.textDecoration = 'underline';
-            shiftCell.style.color = '#ffca28'; // 自分のシフトは黄色で強調
-            shiftCell.onclick = function(id, d, time) {
-              return function() {
-                startRequestForShift(id, d, time);
-              };
-            }(employeeId, day, shiftTime);
-          } else {
-            // 他人のシフトはクリック不可
-            shiftCell.style.cursor = 'default';
-            shiftCell.style.color = '#999'; // グレーアウト
-            shiftCell.title = '他の人のシフトはクリックできません';
-          }
+        if (String(employeeId) === String(current_employee_id)) {
+          // シフト時間を表示
+          shiftCell.textContent = shiftTime;
+          shiftCell.style.color = '#ffca28'; // 自分のシフトは黄色で強調
+        } else {
+          // 他人のシフトはクリック不可
+          shiftCell.style.cursor = 'default';
+          shiftCell.style.color = '#999'; // グレーアウト
+          shiftCell.title = '他の人のシフトはクリックできません';
+          shiftCell.textContent = shiftTime;
         }
-        shiftCell.textContent = shiftTime;
+        } else {
+          shiftCell.textContent = '';
+        }
         employeeRow.appendChild(shiftCell);
       });
       tbody.appendChild(employeeRow);
@@ -304,10 +302,10 @@
     table.appendChild(thead);
     table.appendChild(tbody);
     shift_calendar_container.appendChild(table);
-    
+
     updatePaginationButtons();
   }
-  
+
   function updatePaginationButtons() {
     var prevBtn = document.querySelector('.month-navigation .button:first-of-type');
     var nextBtn = document.querySelector('.month-navigation .button:last-of-type');
@@ -323,7 +321,7 @@
 
     // 最終日が表示範囲に含まれるかチェック
     var lastDayOfDisplayedPeriod = currentStartDate.getDate() + 6;
-    
+
     if (lastDayOfDisplayedPeriod >= daysInMonth) {
         nextBtn.disabled = true;
         nextBtn.style.opacity = '0.5';
@@ -343,7 +341,7 @@
   function nextWeek() {
     var nextWeekStart = new Date(currentStartDate);
     nextWeekStart.setDate(currentStartDate.getDate() + 7);
-    
+
     // 次の週の開始日が月の最終日を超えていないかチェック
     if (nextWeekStart.getMonth() === currentStartDate.getMonth()) {
       currentStartDate = nextWeekStart;
@@ -369,11 +367,11 @@
       }
       return;
     }
-    
+
     var times = timeString.split('-');
     var startTime = times[0].padStart(2, '0') + ':00';
     var endTime = times[1].padStart(2, '0') + ':00';
-    
+
     var monthStr = String(calendarMonth).padStart(2, '0');
     var dayStr = String(day).padStart(2, '0');
     var dateStr = calendarYear + '-' + monthStr + '-' + dayStr;
@@ -385,6 +383,12 @@
                 '&end=' + encodeURIComponent(endTime);
     window.location.href = baseUrl + params;
   }
+
+  // 欠勤申請フォームに遷移する関数
+  function goToDeletionForm() {
+    window.location.href = '<%= new_shift_deletion_path %>';
+  }
+
 
   // ナビゲーション関数
   function goToRequestList() {
@@ -399,22 +403,22 @@
   function updatePersonalWageGauge(wageInfo) {
     var gaugeElement = document.getElementById('personal-wage-gauge');
     if (!gaugeElement) return;
-    
+
     var gaugeFill = gaugeElement.querySelector('.gauge-fill');
     var gaugeText = gaugeElement.querySelector('.gauge-text');
-    
+
     if (!wageInfo || wageInfo.wage === undefined || wageInfo.target === undefined) {
       gaugeText.textContent = 'データがありません';
       return;
     }
-    
+
     var percentage = Math.min(wageInfo.percentage, 100);
     var wageFormatted = (wageInfo.wage / 10000).toFixed(1) + '万円';
     var targetFormatted = (wageInfo.target / 10000).toFixed(0) + '万円';
-    
+
     // ゲージの幅を更新
     gaugeFill.style.width = percentage + '%';
-    
+
     // 色を更新（GASと同じロジック）
     if (percentage >= 100) {
       gaugeFill.style.backgroundColor = '#ff4444'; // 赤
@@ -437,14 +441,14 @@
 
     var gaugeFill = gaugeElement.querySelector('.gauge-fill');
     var gaugeText = gaugeElement.querySelector('.gauge-text');
-    
+
     var percentage = Math.min(wageInfo.percentage, 100);
     var wageFormatted = (wageInfo.wage / 10000).toFixed(1) + '万円';
     var targetFormatted = (wageInfo.target / 10000).toFixed(0) + '万円';
-    
+
     // ゲージの幅を更新
     gaugeFill.style.width = percentage + '%';
-    
+
     // 色を更新（GASと同じロジック）
     if (percentage >= 100) {
       gaugeFill.style.backgroundColor = '#ff4444'; // 赤
@@ -457,14 +461,14 @@
       gaugeText.innerHTML = wageFormatted + ' / ' + targetFormatted + '<br>あと' + ((wageInfo.target - wageInfo.wage) / 10000).toFixed(1) + '万円';
     }
   }
-  
+
   // メッセージ表示
   function showMessage(message, type) {
     var messageDiv = document.getElementById('message');
     messageDiv.textContent = message;
     messageDiv.className = 'message ' + type;
     messageDiv.style.display = 'block';
-    
+
     // 3秒後にメッセージを非表示
     setTimeout(function() {
       messageDiv.style.display = 'none';

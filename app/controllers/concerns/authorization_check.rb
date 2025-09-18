@@ -24,6 +24,8 @@ module AuthorizationCheck
       check_shift_exchange_approval_ownership(request_id, redirect_path)
     when "addition"
       check_shift_addition_approval_ownership(request_id, redirect_path)
+    when "deletion"
+      check_shift_deletion_approval_ownership(request_id, redirect_path)
     else
       flash[:error] = "無効なリクエストタイプです"
       redirect_to redirect_path
@@ -61,6 +63,25 @@ module AuthorizationCheck
 
     # 承認者は対象従業員である必要がある
     unless shift_addition.target_employee_id == current_employee_id
+      flash[:error] = "このリクエストを承認する権限がありません"
+      redirect_to redirect_path
+      return false
+    end
+
+    true
+  end
+
+  def check_shift_deletion_approval_ownership(request_id, redirect_path = shift_approvals_path)
+    shift_deletion = ShiftDeletion.find_by(request_id: request_id)
+
+    unless shift_deletion
+      flash[:error] = "リクエストが見つかりません"
+      redirect_to redirect_path
+      return false
+    end
+
+    # オーナーのみが欠勤申請を承認可能
+    unless owner?
       flash[:error] = "このリクエストを承認する権限がありません"
       redirect_to redirect_path
       return false
@@ -211,6 +232,9 @@ module AuthorizationCheck
       return false unless shift_addition
 
       shift_addition.target_employee_id == current_employee_id.to_s
+    when "deletion"
+      # 欠勤申請はオーナーのみ承認可能
+      owner?
     else
       false
     end

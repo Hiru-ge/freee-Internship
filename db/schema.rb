@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_18_123750) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_18_153359) do
   create_table "conversation_states", force: :cascade do |t|
     t.string "line_user_id"
     t.text "state_data"
@@ -71,6 +71,21 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_18_123750) do
     t.index ["processed_at"], name: "index_line_message_logs_on_processed_at"
   end
 
+  create_table "shift_absences", force: :cascade do |t|
+    t.string "request_id", null: false
+    t.string "requester_id", null: false
+    t.integer "shift_id", null: false
+    t.string "status", default: "pending", null: false
+    t.text "reason"
+    t.datetime "responded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["request_id"], name: "index_shift_absences_on_request_id", unique: true
+    t.index ["requester_id"], name: "index_shift_absences_on_requester_id"
+    t.index ["shift_id"], name: "index_shift_absences_on_shift_id"
+    t.index ["status"], name: "index_shift_absences_on_status"
+  end
+
   create_table "shift_additions", force: :cascade do |t|
     t.string "request_id", null: false
     t.string "target_employee_id", null: false
@@ -87,6 +102,22 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_18_123750) do
     t.index ["requester_id"], name: "index_shift_additions_on_requester_id"
     t.index ["status"], name: "index_shift_additions_on_status"
     t.index ["target_employee_id"], name: "index_shift_additions_on_target_employee_id"
+  end
+
+  create_table "shift_deletions", force: :cascade do |t|
+    t.string "request_id", null: false
+    t.string "requester_id", null: false
+    t.integer "shift_id", null: false
+    t.text "reason", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "requested_at"
+    t.datetime "responded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["request_id"], name: "index_shift_deletions_on_request_id", unique: true
+    t.index ["requester_id"], name: "index_shift_deletions_on_requester_id"
+    t.index ["shift_id"], name: "index_shift_deletions_on_shift_id"
+    t.index ["status"], name: "index_shift_deletions_on_status"
   end
 
   create_table "shift_exchanges", force: :cascade do |t|
@@ -133,6 +164,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_18_123750) do
   end
 
   add_foreign_key "employee_line_accounts", "employees"
+  add_foreign_key "shift_absences", "shifts", on_delete: :cascade
   add_foreign_key "shift_additions", "employees", column: "requester_id", primary_key: "employee_id", on_delete: :restrict
   add_foreign_key "shift_additions", "employees", column: "target_employee_id", primary_key: "employee_id", on_delete: :restrict
   add_foreign_key "shift_exchanges", "employees", column: "approver_id", primary_key: "employee_id", on_delete: :restrict

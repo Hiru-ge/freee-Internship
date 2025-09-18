@@ -13,6 +13,7 @@ class ShiftApprovalsController < ApplicationController
     # 自分宛のリクエストを取得
     @shift_exchanges = ShiftExchange.for_approver(@employee_id).pending.includes(:shift)
     @shift_additions = ShiftAddition.for_employee(@employee_id).pending
+    @shift_deletions = ShiftDeletion.pending.includes(:shift)
 
     # freee APIから従業員情報を取得
     begin
@@ -54,6 +55,19 @@ class ShiftApprovalsController < ApplicationController
       else
         flash[:error] = result[:message]
       end
+
+    elsif request_type == "deletion"
+      # 共通サービスを使用して欠勤申請を承認
+      shift_deletion_service = ShiftDeletionService.new
+      result = shift_deletion_service.approve_deletion_request(request_id, current_employee_id)
+
+      if result[:success]
+        flash[:success] = result[:message]
+      else
+        flash[:error] = result[:message]
+      end
+    else
+      flash[:error] = "無効なリクエストタイプです"
     end
 
     redirect_to shift_approvals_path
@@ -92,6 +106,19 @@ class ShiftApprovalsController < ApplicationController
       else
         flash[:error] = result[:message]
       end
+
+    elsif request_type == "deletion"
+      # 共通サービスを使用して欠勤申請を拒否
+      shift_deletion_service = ShiftDeletionService.new
+      result = shift_deletion_service.reject_deletion_request(request_id, current_employee_id)
+
+      if result[:success]
+        flash[:success] = result[:message]
+      else
+        flash[:error] = result[:message]
+      end
+    else
+      flash[:error] = "無効なリクエストタイプです"
     end
 
     redirect_to shift_approvals_path
