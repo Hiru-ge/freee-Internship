@@ -8,6 +8,7 @@ require "json"
 class WebhookController < ApplicationController
   protect_from_forgery with: :null_session
   skip_before_action :require_login, if: -> { action_name == "callback" }
+  skip_before_action :require_email_authentication, if: -> { action_name == "callback" }
 
   def callback
     body = request.body.read
