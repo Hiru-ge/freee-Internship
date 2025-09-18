@@ -286,57 +286,30 @@ class ShiftExchangeService
   def send_exchange_notifications(requests, params)
     return if Rails.env.test? || requests.empty?
 
-    requests.each do |request|
-      EmailNotificationService.new.send_shift_exchange_request(
-        request.requester_id,
-        [request.approver_id],
-        request.shift.shift_date,
-        request.shift.start_time,
-        request.shift.end_time
-      )
-    end
+    notification_service = UnifiedNotificationService.new
+    notification_service.send_shift_exchange_request_notification(requests, params)
   end
 
   # 承認通知の送信
   def send_approval_notification(exchange_request)
     return if Rails.env.test?
 
-    begin
-      # shiftが削除されている場合は通知をスキップ
-      return unless exchange_request.shift
+    # shiftが削除されている場合は通知をスキップ
+    return unless exchange_request.shift
 
-      email_service = EmailNotificationService.new
-      email_service.send_shift_exchange_approved(
-        exchange_request.requester_id,
-        exchange_request.approver_id,
-        exchange_request.shift.shift_date,
-        exchange_request.shift.start_time,
-        exchange_request.shift.end_time
-      )
-    rescue => e
-      Rails.logger.error "シフト交代承認通知送信エラー: #{e.message}"
-    end
+    notification_service = UnifiedNotificationService.new
+    notification_service.send_shift_exchange_approval_notification(exchange_request)
   end
 
   # 拒否通知の送信
   def send_rejection_notification(exchange_request)
     return if Rails.env.test?
 
-    begin
-      # shiftが削除されている場合は通知をスキップ
-      return unless exchange_request.shift
+    # shiftが削除されている場合は通知をスキップ
+    return unless exchange_request.shift
 
-      email_service = EmailNotificationService.new
-      email_service.send_shift_exchange_denied(
-        exchange_request.requester_id,
-        exchange_request.approver_id,
-        exchange_request.shift.shift_date,
-        exchange_request.shift.start_time,
-        exchange_request.shift.end_time
-      )
-    rescue => e
-      Rails.logger.error "シフト交代拒否通知送信エラー: #{e.message}"
-    end
+    notification_service = UnifiedNotificationService.new
+    notification_service.send_shift_exchange_rejection_notification(exchange_request)
   end
 
   # 成功メッセージの生成

@@ -405,16 +405,19 @@ class LineShiftAdditionService
     postback_data.gsub(/^(approve|reject)_#{type}_/, '')
   end
 
-  # 通知メソッド（LineNotificationServiceに移行予定）
+  # 通知メソッド（統合通知サービスを使用）
   def send_shift_addition_notification(addition_request)
-    # 実装は後でLineNotificationServiceに移行
+    notification_service = UnifiedNotificationService.new
+    notification_service.send_line_only(:shift_addition_request, addition_request)
   end
 
   def send_shift_addition_approval_notification(addition_request)
-    # 実装は後でLineNotificationServiceに移行
+    notification_service = UnifiedNotificationService.new
+    notification_service.send_line_only(:shift_addition_approval, addition_request)
   end
 
   def send_shift_addition_rejection_notification(addition_request)
-    # 実装は後でLineNotificationServiceに移行
+    notification_service = UnifiedNotificationService.new
+    notification_service.send_line_only(:shift_addition_rejection, addition_request)
   end
 end

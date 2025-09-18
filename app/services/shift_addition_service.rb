@@ -191,50 +191,24 @@ class ShiftAdditionService
   def send_addition_notifications(requests, params)
     return if Rails.env.test? || requests.empty?
 
-    requests.each do |request|
-      EmailNotificationService.new.send_shift_addition_request(
-        request.target_employee_id,
-        request.shift_date,
-        request.start_time,
-        request.end_time
-      )
-    end
+    notification_service = UnifiedNotificationService.new
+    notification_service.send_shift_addition_request_notification(requests, params)
   end
 
   # 承認通知の送信
   def send_approval_notification(addition_request)
     return if Rails.env.test?
 
-    begin
-      email_service = EmailNotificationService.new
-      email_service.send_shift_addition_approved(
-        addition_request.requester_id,
-        addition_request.target_employee_id,
-        addition_request.shift_date,
-        addition_request.start_time,
-        addition_request.end_time
-      )
-    rescue => e
-      Rails.logger.error "シフト追加承認通知送信エラー: #{e.message}"
-    end
+    notification_service = UnifiedNotificationService.new
+    notification_service.send_shift_addition_approval_notification(addition_request)
   end
 
   # 拒否通知の送信
   def send_rejection_notification(addition_request)
     return if Rails.env.test?
 
-    begin
-      email_service = EmailNotificationService.new
-      email_service.send_shift_addition_denied(
-        addition_request.requester_id,
-        addition_request.target_employee_id,
-        addition_request.shift_date,
-        addition_request.start_time,
-        addition_request.end_time
-      )
-    rescue => e
-      Rails.logger.error "シフト追加拒否通知送信エラー: #{e.message}"
-    end
+    notification_service = UnifiedNotificationService.new
+    notification_service.send_shift_addition_rejection_notification(addition_request)
   end
 
   # 成功メッセージの生成

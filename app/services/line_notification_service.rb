@@ -12,11 +12,11 @@ class LineNotificationService
   # シフト交代承認通知を申請者に送信
   def send_approval_notification_to_requester(exchange_request, action, shift_date, start_time, end_time)
     # 申請者の情報を取得
-    requester = Employee.find_by(employee_id: exchange_request.requester_employee_id)
+    requester = Employee.find_by(employee_id: exchange_request.requester_id)
     return unless requester&.line_id
 
     # 承認者の情報を取得
-    approver = Employee.find_by(employee_id: exchange_request.target_employee_id)
+    approver = Employee.find_by(employee_id: exchange_request.approver_id)
     approver_name = approver&.display_name || '不明'
 
     if action == 'approve'
@@ -37,11 +37,11 @@ class LineNotificationService
   # シフト交代依頼通知を承認者に送信
   def send_shift_exchange_request_notification(exchange_request)
     # 承認者の情報を取得
-    approver = Employee.find_by(employee_id: exchange_request.target_employee_id)
+    approver = Employee.find_by(employee_id: exchange_request.approver_id)
     return unless approver&.line_id
 
     # 申請者の情報を取得
-    requester = Employee.find_by(employee_id: exchange_request.requester_employee_id)
+    requester = Employee.find_by(employee_id: exchange_request.requester_id)
     requester_name = requester&.display_name || '不明'
 
     # シフト情報を取得
@@ -334,6 +334,62 @@ class LineNotificationService
     line_user_ids.each do |line_user_id|
       send_line_message(line_user_id, message)
     end
+  end
+
+  # シフト追加依頼通知を対象従業員に送信
+  def send_shift_addition_request_notification(addition_request)
+    # 対象従業員の情報を取得
+    target_employee = Employee.find_by(employee_id: addition_request.target_employee_id)
+    return unless target_employee&.line_id
+
+    # 申請者の情報を取得
+    requester = Employee.find_by(employee_id: addition_request.requester_id)
+    requester_name = requester&.display_name || '不明'
+
+    message = "➕ シフト追加依頼が届きました\n\n"
+    message += "📅 日付: #{addition_request.shift_date.strftime('%m/%d')}\n"
+    message += "⏰ 時間: #{addition_request.start_time.strftime('%H:%M')}-#{addition_request.end_time.strftime('%H:%M')}\n"
+    message += "👤 申請者: #{requester_name}さん\n\n"
+    message += "承認する場合は「承認 #{addition_request.request_id}」\n"
+    message += "拒否する場合は「拒否 #{addition_request.request_id}」と入力してください。"
+
+    send_line_message(target_employee.line_id, message)
+  end
+
+  # シフト追加承認通知を申請者に送信
+  def send_shift_addition_approval_notification(addition_request)
+    # 申請者の情報を取得
+    requester = Employee.find_by(employee_id: addition_request.requester_id)
+    return unless requester&.line_id
+
+    # 承認者の情報を取得
+    approver = Employee.find_by(employee_id: addition_request.target_employee_id)
+    approver_name = approver&.display_name || '不明'
+
+    message = "✅ シフト追加が承認されました！\n\n"
+    message += "📅 日付: #{addition_request.shift_date.strftime('%m/%d')}\n"
+    message += "⏰ 時間: #{addition_request.start_time.strftime('%H:%M')}-#{addition_request.end_time.strftime('%H:%M')}\n"
+    message += "👤 承認者: #{approver_name}さん"
+
+    send_line_message(requester.line_id, message)
+  end
+
+  # シフト追加拒否通知を申請者に送信
+  def send_shift_addition_rejection_notification(addition_request)
+    # 申請者の情報を取得
+    requester = Employee.find_by(employee_id: addition_request.requester_id)
+    return unless requester&.line_id
+
+    # 拒否者の情報を取得
+    rejector = Employee.find_by(employee_id: addition_request.target_employee_id)
+    rejector_name = rejector&.display_name || '不明'
+
+    message = "❌ シフト追加が拒否されました。\n\n"
+    message += "📅 日付: #{addition_request.shift_date.strftime('%m/%d')}\n"
+    message += "⏰ 時間: #{addition_request.start_time.strftime('%H:%M')}-#{addition_request.end_time.strftime('%H:%M')}\n"
+    message += "👤 拒否者: #{rejector_name}さん"
+
+    send_line_message(requester.line_id, message)
   end
 
   # グループ通知

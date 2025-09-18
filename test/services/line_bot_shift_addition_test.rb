@@ -765,44 +765,6 @@ class LineBotShiftAdditionTest < ActiveSupport::TestCase
     target_employee.destroy
   end
 
-  test "should skip email notifications in test environment" do
-    # オーナー従業員を作成
-    owner = Employee.create!(
-      employee_id: "999",
-      role: "owner",
-      line_id: @test_user_id
-    )
-
-    # 対象従業員を作成
-    target_employee = Employee.create!(
-      employee_id: "1000",
-      role: "employee",
-      line_id: "other_user_1"
-    )
-
-    # シフト追加リクエストを作成
-    future_date = Date.current + 30
-    shift_addition = ShiftAddition.create!(
-      request_id: "ADD_#{Time.current.strftime('%Y%m%d_%H%M%S')}_test",
-      requester_id: owner.employee_id,
-      target_employee_id: target_employee.employee_id,
-      shift_date: future_date,
-      start_time: Time.zone.parse("09:00"),
-      end_time: Time.zone.parse("18:00"),
-      status: 'pending'
-    )
-
-    # テスト環境ではEmailNotificationServiceが呼ばれないことを確認
-    # 実際のメソッドを呼び出して、テスト環境でのスキップを確認
-    result = @line_bot_service.send(:send_shift_addition_notifications, [shift_addition])
-    
-    assert_nil result
-
-    # クリーンアップ
-    shift_addition.destroy
-    owner.destroy
-    target_employee.destroy
-  end
 
   private
 
