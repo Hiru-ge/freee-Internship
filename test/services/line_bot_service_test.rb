@@ -1,4 +1,5 @@
 require "test_helper"
+require 'ostruct'
 
 class LineBotServiceTest < ActiveSupport::TestCase
   def setup
@@ -2311,6 +2312,323 @@ class LineBotServiceTest < ActiveSupport::TestCase
     approver.destroy
   end
 
+  # シフト交代キャンセル機能のテスト
+  test "should cancel pending shift exchange request" do
+    # 申請者
+    requester = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # 承認者
+    approver = Employee.create!(employee_id: "1000", role: "employee", line_id: "approver_user")
+    
+    # 申請者のシフト
+    today = Date.current
+    shift = Shift.create!(
+      employee_id: requester.employee_id,
+      shift_date: today,
+      start_time: Time.zone.parse('09:00'),
+      end_time: Time.zone.parse('18:00')
+    )
+    
+    # シフト交代依頼を作成
+    exchange_request = ShiftExchange.create!(
+      request_id: "REQ_001",
+      requester_id: requester.employee_id,
+      approver_id: approver.employee_id,
+      shift_id: shift.id,
+      status: 'pending'
+    )
+    
+    # キャンセル処理を実行
+    result = @line_bot_service.send(:cancel_shift_exchange_request, @test_user_id, exchange_request.id)
+    
+    # キャンセル成功メッセージが返されることを確認
+    assert_equal true, result[:success]
+    assert_includes result[:message], "シフト交代依頼をキャンセルしました"
+    
+    # リクエストのステータスがcancelledに変更されることを確認
+    exchange_request.reload
+    assert_equal 'cancelled', exchange_request.status
+    
+    # テストデータのクリーンアップ
+    exchange_request.destroy
+    shift.destroy
+    approver.destroy
+    requester.destroy
+  end
+
+  test "should not allow cancellation of approved request" do
+    # 申請者
+    requester = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # 承認者
+    approver = Employee.create!(employee_id: "1000", role: "employee", line_id: "approver_user")
+    
+    # 申請者のシフト
+    today = Date.current
+    shift = Shift.create!(
+      employee_id: requester.employee_id,
+      shift_date: today,
+      start_time: Time.zone.parse('09:00'),
+      end_time: Time.zone.parse('18:00')
+    )
+    
+    # 承認済みのシフト交代依頼を作成
+    exchange_request = ShiftExchange.create!(
+      request_id: "REQ_001",
+      requester_id: requester.employee_id,
+      approver_id: approver.employee_id,
+      shift_id: shift.id,
+      status: 'approved'
+    )
+    
+    # キャンセル処理を実行
+    result = @line_bot_service.send(:cancel_shift_exchange_request, @test_user_id, exchange_request.id)
+    
+    # キャンセル不可エラーが返されることを確認
+    assert_equal false, result[:success]
+    assert_includes result[:message], "承認済みのリクエストはキャンセルできません"
+    
+    # リクエストのステータスが変更されていないことを確認
+    exchange_request.reload
+    assert_equal 'approved', exchange_request.status
+    
+    # テストデータのクリーンアップ
+    exchange_request.destroy
+    shift.destroy
+    approver.destroy
+    requester.destroy
+  end
+
+  test "should not allow cancellation by non-requester" do
+    # 申請者
+    requester = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # 他の従業員（申請者ではない）
+    other_employee = Employee.create!(employee_id: "1001", role: "employee", line_id: "other_user")
+    
+    # 承認者
+    approver = Employee.create!(employee_id: "1000", role: "employee", line_id: "approver_user")
+    
+    # 申請者のシフト
+    today = Date.current
+    shift = Shift.create!(
+      employee_id: requester.employee_id,
+      shift_date: today,
+      start_time: Time.zone.parse('09:00'),
+      end_time: Time.zone.parse('18:00')
+    )
+    
+    # シフト交代依頼を作成
+    exchange_request = ShiftExchange.create!(
+      request_id: "REQ_001",
+      requester_id: requester.employee_id,
+      approver_id: approver.employee_id,
+      shift_id: shift.id,
+      status: 'pending'
+    )
+    
+    # 他の従業員がキャンセル処理を実行
+    result = @line_bot_service.send(:cancel_shift_exchange_request, "other_user", exchange_request.id)
+    
+    # 権限エラーが返されることを確認
+    assert_equal false, result[:success]
+    assert_includes result[:message], "このリクエストをキャンセルする権限がありません"
+    
+    # リクエストのステータスが変更されていないことを確認
+    exchange_request.reload
+    assert_equal 'pending', exchange_request.status
+    
+    # テストデータのクリーンアップ
+    exchange_request.destroy
+    shift.destroy
+    approver.destroy
+    other_employee.destroy
+    requester.destroy
+  end
+
+  # エラーハンドリング機能のテスト
+  test "should handle database connection errors gracefully" do
+    # 申請者
+    requester = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # 承認者
+    approver = Employee.create!(employee_id: "1000", role: "employee", line_id: "approver_user")
+    
+    # 申請者のシフト
+    today = Date.current
+    shift = Shift.create!(
+      employee_id: requester.employee_id,
+      shift_date: today,
+      start_time: Time.zone.parse('09:00'),
+      end_time: Time.zone.parse('18:00')
+    )
+    
+    # シフト交代依頼を作成
+    result = @line_bot_service.send(:create_shift_exchange_request, @test_user_id, {
+      'shift_date' => today.to_s,
+      'selected_employee_id' => approver.employee_id
+    })
+    
+    # 正常な場合は成功、エラーの場合は適切なエラーメッセージが返される
+    assert result[:success] || result[:message].include?("管理者にお問い合わせください")
+    
+    # テストデータのクリーンアップ
+    if result[:success]
+      exchange_request = ShiftExchange.last
+      exchange_request.destroy
+    end
+    shift.destroy
+    approver.destroy
+    requester.destroy
+  end
+
+  test "should handle invalid date format errors" do
+    # 申請者
+    requester = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # 承認者
+    approver = Employee.create!(employee_id: "1000", role: "employee", line_id: "approver_user")
+    
+    # 無効な日付形式でシフト交代依頼を作成
+    result = @line_bot_service.send(:create_shift_exchange_request, @test_user_id, {
+      'shift_date' => 'invalid-date',
+      'selected_employee_id' => approver.employee_id
+    })
+    
+    # エラーメッセージが返されることを確認
+    assert_equal false, result[:success]
+    assert_includes result[:message], "管理者にお問い合わせください"
+    
+    # テストデータのクリーンアップ
+    approver.destroy
+    requester.destroy
+  end
+
+  test "should handle malformed postback data errors" do
+    # 認証済みユーザー
+    employee = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # 不正なpostbackデータでイベントを作成
+    event = {
+      'type' => 'postback',
+      'source' => { 'type' => 'user', 'userId' => @test_user_id },
+      'postback' => { 'data' => 'invalid_data' }
+    }
+    
+    # postbackイベントを処理
+    response = @line_bot_service.handle_message(event)
+    
+    # 適切なエラーメッセージが返されることを確認
+    assert_includes response, "不明なPostbackイベントです"
+    
+    # テストデータのクリーンアップ
+    employee.destroy
+  end
+
+  # 履歴表示機能のテスト
+  test "should display comprehensive shift exchange history" do
+    # 申請者
+    requester = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # 承認者
+    approver = Employee.create!(employee_id: "1000", role: "employee", line_id: "approver_user")
+    
+    # 申請者のシフト
+    today = Date.current
+    shift = Shift.create!(
+      employee_id: requester.employee_id,
+      shift_date: today,
+      start_time: Time.zone.parse('09:00'),
+      end_time: Time.zone.parse('18:00')
+    )
+    
+    # 複数のシフト交代依頼を作成（異なるステータス）
+    pending_request = ShiftExchange.create!(
+      request_id: "REQ_001",
+      requester_id: requester.employee_id,
+      approver_id: approver.employee_id,
+      shift_id: shift.id,
+      status: 'pending',
+      created_at: 1.hour.ago
+    )
+    
+    approved_request = ShiftExchange.create!(
+      request_id: "REQ_002",
+      requester_id: requester.employee_id,
+      approver_id: approver.employee_id,
+      shift_id: shift.id,
+      status: 'approved',
+      created_at: 2.hours.ago,
+      responded_at: 1.hour.ago
+    )
+    
+    rejected_request = ShiftExchange.create!(
+      request_id: "REQ_003",
+      requester_id: requester.employee_id,
+      approver_id: approver.employee_id,
+      shift_id: shift.id,
+      status: 'rejected',
+      created_at: 3.hours.ago,
+      responded_at: 2.hours.ago
+    )
+    
+    cancelled_request = ShiftExchange.create!(
+      request_id: "REQ_004",
+      requester_id: requester.employee_id,
+      approver_id: approver.employee_id,
+      shift_id: shift.id,
+      status: 'cancelled',
+      created_at: 4.hours.ago,
+      responded_at: 3.hours.ago
+    )
+    
+    # 履歴表示コマンドを実行
+    event = {
+      'type' => 'message',
+      'source' => { 'type' => 'user', 'userId' => @test_user_id },
+      'message' => { 'text' => '交代状況' }
+    }
+    
+    response = @line_bot_service.handle_message(event)
+    
+    # 各ステータスのリクエストが表示されることを確認
+    assert_includes response, "📊 シフト交代状況"
+    assert_includes response, "⏳ 承認待ち (1件)"
+    assert_includes response, "✅ 承認済み (1件)"
+    assert_includes response, "❌ 拒否済み (1件)"
+    assert_includes response, "🚫 キャンセル済み (1件)"
+    
+    # 各リクエストの詳細情報が表示されることを確認
+    assert_includes response, today.strftime('%m/%d')
+    assert_includes response, "09:00-18:00"
+    
+    # テストデータのクリーンアップ
+    [pending_request, approved_request, rejected_request, cancelled_request].each(&:destroy)
+    shift.destroy
+    approver.destroy
+    requester.destroy
+  end
+
+  test "should display empty history when no requests exist" do
+    # 申請者
+    requester = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # 履歴表示コマンドを実行
+    event = {
+      'type' => 'message',
+      'source' => { 'type' => 'user', 'userId' => @test_user_id },
+      'message' => { 'text' => '交代状況' }
+    }
+    
+    response = @line_bot_service.handle_message(event)
+    
+    # リクエストがない場合のメッセージが表示されることを確認
+    assert_includes response, "シフト交代リクエストはありません"
+    
+    # テストデータのクリーンアップ
+    requester.destroy
+  end
+
   # シフト追加承認・否認機能のテスト
   test "should approve shift addition request via LINE Bot" do
     # テスト用の従業員を作成
@@ -2532,5 +2850,663 @@ class LineBotServiceTest < ActiveSupport::TestCase
     shift_addition.destroy
     employee.destroy
     target_employee.destroy
+  end
+
+  # ===== シフト交代リデザインテスト =====
+
+  test "should prompt for date input when shift exchange command is used (redesign)" do
+    # 申請者
+    requester = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # 今月のシフトを作成
+    today = Date.current
+    Shift.create!(
+      employee_id: requester.employee_id,
+      shift_date: today,
+      start_time: Time.zone.parse('09:00'),
+      end_time: Time.zone.parse('17:00')
+    )
+    
+    # シフト交代コマンドを実行
+    event = create_mock_event("シフト交代", @test_user_id)
+    result = @line_bot_service.handle_message(event)
+    
+    # 日付入力の案内が返されることを確認
+    assert_includes result, "シフト交代依頼"
+    assert_includes result, "日付を入力してください"
+    # 日付例を動的に生成（明日の日付）
+    tomorrow = (Date.current + 1).strftime('%m/%d')
+    assert_includes result, "例: #{tomorrow}"
+    
+    # テストデータのクリーンアップ
+    Shift.where(employee_id: requester.employee_id).destroy_all
+    requester.destroy
+  end
+
+  test "should show shift card for specific date when valid date is entered (redesign)" do
+    # 申請者
+    requester = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # 特定の日付のシフトを作成
+    target_date = Date.current + 1.day
+    shift = Shift.create!(
+      employee_id: requester.employee_id,
+      shift_date: target_date,
+      start_time: Time.zone.parse('09:00'),
+      end_time: Time.zone.parse('17:00')
+    )
+    
+    # 会話状態を設定
+    @line_bot_service.send(:set_conversation_state, @test_user_id, { step: 'waiting_shift_date' })
+    
+    # 日付を入力
+    event = create_mock_event(target_date.strftime('%m/%d'), @test_user_id)
+    result = @line_bot_service.handle_message(event)
+    
+    # Flex Messageが返されることを確認
+    assert_equal Hash, result.class
+    assert_equal 'flex', result[:type]
+    assert_equal 'carousel', result[:contents][:type]
+    assert_equal 1, result[:contents][:contents].length
+    
+    # カードの内容を確認
+    bubble = result[:contents][:contents][0]
+    assert_equal 'シフト交代依頼', bubble[:body][:contents][0][:text]
+    assert_equal '交代を依頼', bubble[:footer][:contents][0][:action][:label]
+    
+    # テストデータのクリーンアップ
+    shift.destroy
+    requester.destroy
+  end
+
+  test "should show error message when no shift exists for entered date (redesign)" do
+    # 申請者
+    requester = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # 会話状態を設定
+    @line_bot_service.send(:set_conversation_state, @test_user_id, { step: 'waiting_shift_date' })
+    
+    # 存在しない日付を入力
+    non_existent_date = Date.current + 30.days
+    event = create_mock_event(non_existent_date.strftime('%m/%d'), @test_user_id)
+    result = @line_bot_service.handle_message(event)
+    
+    # エラーメッセージが返されることを確認
+    assert_equal String, result.class
+    assert_includes result, "指定された日付のシフトが見つかりません"
+    assert_includes result, "再度日付を入力してください"
+    
+    # テストデータのクリーンアップ
+    requester.destroy
+  end
+
+  test "should show error message when invalid date format is entered (redesign)" do
+    # 申請者
+    requester = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # 会話状態を設定
+    @line_bot_service.send(:set_conversation_state, @test_user_id, { step: 'waiting_shift_date' })
+    
+    # 無効な日付形式を入力
+    event = create_mock_event("無効な日付", @test_user_id)
+    result = @line_bot_service.handle_message(event)
+    
+    # エラーメッセージが返されることを確認
+    assert_equal String, result.class
+    assert_includes result, "日付の形式が正しくありません"
+    # 日付例を動的に生成（明日の日付）
+    tomorrow = (Date.current + 1).strftime('%m/%d')
+    assert_includes result, "例: #{tomorrow}"
+    
+    # テストデータのクリーンアップ
+    requester.destroy
+  end
+
+  test "should handle multiple shifts for same date (redesign)" do
+    # 申請者
+    requester = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # 同じ日付の複数のシフトを作成
+    target_date = Date.current + 1.day
+    shift1 = Shift.create!(
+      employee_id: requester.employee_id,
+      shift_date: target_date,
+      start_time: Time.zone.parse('09:00'),
+      end_time: Time.zone.parse('12:00')
+    )
+    shift2 = Shift.create!(
+      employee_id: requester.employee_id,
+      shift_date: target_date,
+      start_time: Time.zone.parse('13:00'),
+      end_time: Time.zone.parse('17:00')
+    )
+    
+    # 会話状態を設定
+    @line_bot_service.send(:set_conversation_state, @test_user_id, { step: 'waiting_shift_date' })
+    
+    # 日付を入力
+    event = create_mock_event(target_date.strftime('%m/%d'), @test_user_id)
+    result = @line_bot_service.handle_message(event)
+    
+    # 複数のカードが返されることを確認
+    assert_equal Hash, result.class
+    assert_equal 'flex', result[:type]
+    assert_equal 'carousel', result[:contents][:type]
+    assert_equal 2, result[:contents][:contents].length
+    
+    # 各カードの時間を確認
+    times = result[:contents][:contents].map do |bubble|
+      # 時間は2番目のboxの2番目のtext要素
+      bubble[:body][:contents][2][:contents][1][:contents][1][:text]
+    end
+    assert_includes times, "09:00-12:00"
+    assert_includes times, "13:00-17:00"
+    
+    # テストデータのクリーンアップ
+    shift1.destroy
+    shift2.destroy
+    requester.destroy
+  end
+
+  test "should handle past date input (redesign)" do
+    # 申請者
+    requester = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # 会話状態を設定
+    @line_bot_service.send(:set_conversation_state, @test_user_id, { step: 'waiting_shift_date' })
+    
+    # 過去の日付を入力
+    past_date = Date.current - 1.day
+    event = create_mock_event(past_date.strftime('%m/%d'), @test_user_id)
+    result = @line_bot_service.handle_message(event)
+    
+    # エラーメッセージが返されることを確認
+    assert_equal String, result.class
+    assert_includes result, "過去の日付のシフト交代依頼はできません"
+    
+    # テストデータのクリーンアップ
+    requester.destroy
+  end
+
+  # ===== シフト交代基本テスト =====
+
+  test "should display shift cards when shift exchange command is sent (basic)" do
+    # 認証済みユーザーを作成
+    employee = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # シフトを作成
+    today = Date.current
+    shift = Shift.create!(
+      employee_id: employee.employee_id,
+      shift_date: today,
+      start_time: Time.zone.parse('09:00'),
+      end_time: Time.zone.parse('18:00')
+    )
+
+    # シフト交代コマンドのイベント
+    event = {
+      'type' => 'message',
+      'source' => { 'type' => 'user', 'userId' => @test_user_id },
+      'message' => { 'text' => 'シフト交代' }
+    }
+
+    response = @line_bot_service.handle_message(event)
+
+    # 日付入力案内のメッセージが返されることを確認
+    assert response.is_a?(String)
+    assert_includes response, "📋 シフト交代依頼"
+    assert_includes response, "交代したいシフトの日付を入力してください"
+    # 日付例を動的に生成（明日の日付）
+    tomorrow = (Date.current + 1).strftime('%m/%d')
+    assert_includes response, "📝 入力例: #{tomorrow}"
+    assert_includes response, "⚠️ 過去の日付は選択できません"
+
+    # テストデータのクリーンアップ
+    shift.destroy
+    employee.destroy
+  end
+
+  test "should require authentication for shift exchange command (basic)" do
+    # 未認証ユーザーでシフト交代コマンド
+    event = {
+      'type' => 'message',
+      'source' => { 'type' => 'user', 'userId' => @test_user_id },
+      'message' => { 'text' => 'シフト交代' }
+    }
+
+    response = @line_bot_service.handle_message(event)
+
+    assert_includes response, "認証が必要です"
+  end
+
+  test "should show no shifts message when user has no shifts (basic)" do
+    # 認証済みユーザーを作成（シフトなし）
+    employee = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+
+    event = {
+      'type' => 'message',
+      'source' => { 'type' => 'user', 'userId' => @test_user_id },
+      'message' => { 'text' => 'シフト交代' }
+    }
+
+    response = @line_bot_service.handle_message(event)
+
+    # 実装では常に日付入力案内を返す
+    assert_includes response, "📋 シフト交代依頼"
+    assert_includes response, "交代したいシフトの日付を入力してください"
+
+    # テストデータのクリーンアップ
+    employee.destroy
+  end
+
+  test "should display pending requests when request check command is sent (basic)" do
+    # 承認者（現在のユーザー）
+    approver = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # 申請者
+    requester = Employee.create!(employee_id: "888", role: "employee", line_id: "requester_line_id")
+    
+    # シフトを作成
+    today = Date.current
+    shift = Shift.create!(
+      employee_id: requester.employee_id,
+      shift_date: today,
+      start_time: Time.zone.parse('09:00'),
+      end_time: Time.zone.parse('18:00')
+    )
+    
+    # シフト交代リクエストを作成
+    exchange_request = ShiftExchange.create!(
+      requester_id: requester.employee_id,
+      approver_id: approver.employee_id,
+      shift_id: shift.id,
+      status: 'pending',
+      request_id: "req_#{SecureRandom.hex(8)}"
+    )
+
+    event = {
+      'type' => 'message',
+      'source' => { 'type' => 'user', 'userId' => @test_user_id },
+      'message' => { 'text' => 'リクエスト確認' }
+    }
+
+    response = @line_bot_service.handle_message(event)
+
+    # Flex Message形式の承認待ちリクエストが返されることを確認
+    assert response.is_a?(Hash)
+    assert_equal "flex", response[:type]
+    assert_includes response[:altText], "承認待ちのリクエスト"
+
+    # テストデータのクリーンアップ
+    exchange_request.delete
+    shift.delete
+    requester.delete
+    approver.delete
+  end
+
+  test "should show no pending requests message when no requests exist (basic)" do
+    # 認証済みユーザーを作成
+    employee = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+
+    event = {
+      'type' => 'message',
+      'source' => { 'type' => 'user', 'userId' => @test_user_id },
+      'message' => { 'text' => 'リクエスト確認' }
+    }
+
+    response = @line_bot_service.handle_message(event)
+
+    assert_includes response, "承認待ちのリクエストはありません"
+
+    # テストデータのクリーンアップ
+    employee.destroy
+  end
+
+  test "should require authentication for request check command (basic)" do
+    # 未認証ユーザーでリクエスト確認コマンド
+    event = {
+      'type' => 'message',
+      'source' => { 'type' => 'user', 'userId' => @test_user_id },
+      'message' => { 'text' => 'リクエスト確認' }
+    }
+
+    response = @line_bot_service.handle_message(event)
+
+    assert_includes response, "認証が必要です"
+  end
+
+  test "should handle shift selection postback event (basic)" do
+    # 認証済みユーザーを作成
+    employee = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # シフトを作成
+    today = Date.current
+    shift = Shift.create!(
+      employee_id: employee.employee_id,
+      shift_date: today,
+      start_time: Time.zone.parse('09:00'),
+      end_time: Time.zone.parse('18:00')
+    )
+
+    # シフト選択のPostbackイベント
+    event = {
+      'type' => 'postback',
+      'source' => { 'type' => 'user', 'userId' => @test_user_id },
+      'postback' => { 'data' => "shift_#{shift.id}" }
+    }
+
+    response = @line_bot_service.handle_message(event)
+
+    # 従業員選択のメッセージが返されることを確認
+    assert_includes response, "従業員名を入力してください"
+
+    # テストデータのクリーンアップ
+    shift.destroy
+    employee.destroy
+  end
+
+  test "should handle approval postback event (basic)" do
+    # 承認者（現在のユーザー）
+    approver = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # 申請者
+    requester = Employee.create!(employee_id: "888", role: "employee", line_id: "requester_line_id")
+    
+    # シフトを作成
+    today = Date.current
+    shift = Shift.create!(
+      employee_id: requester.employee_id,
+      shift_date: today,
+      start_time: Time.zone.parse('09:00'),
+      end_time: Time.zone.parse('18:00')
+    )
+    
+    # シフト交代リクエストを作成
+    exchange_request = ShiftExchange.create!(
+      requester_id: requester.employee_id,
+      approver_id: approver.employee_id,
+      shift_id: shift.id,
+      status: 'pending',
+      request_id: "req_#{SecureRandom.hex(8)}"
+    )
+
+    # 承認のPostbackイベント
+    event = {
+      'type' => 'postback',
+      'source' => { 'type' => 'user', 'userId' => @test_user_id },
+      'postback' => { 'data' => "approve_#{exchange_request.id}" }
+    }
+
+    response = @line_bot_service.handle_message(event)
+
+    # 承認完了メッセージが返されることを確認
+    assert_includes response, "✅ シフト交代リクエストを承認しました"
+    assert_includes response, today.strftime('%m/%d')
+
+    # リクエストが承認されたことを確認
+    exchange_request.reload
+    assert_equal 'approved', exchange_request.status
+
+    # テストデータのクリーンアップ
+    # 外部キー制約のため、クリーンアップを削除
+  end
+
+  test "should handle rejection postback event (basic)" do
+    # 承認者（現在のユーザー）
+    approver = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
+    
+    # 申請者
+    requester = Employee.create!(employee_id: "888", role: "employee", line_id: "requester_line_id")
+    
+    # シフトを作成
+    today = Date.current
+    shift = Shift.create!(
+      employee_id: requester.employee_id,
+      shift_date: today,
+      start_time: Time.zone.parse('09:00'),
+      end_time: Time.zone.parse('18:00')
+    )
+    
+    # シフト交代リクエストを作成
+    exchange_request = ShiftExchange.create!(
+      requester_id: requester.employee_id,
+      approver_id: approver.employee_id,
+      shift_id: shift.id,
+      status: 'pending',
+      request_id: "req_#{SecureRandom.hex(8)}"
+    )
+
+    # 拒否のPostbackイベント
+    event = {
+      'type' => 'postback',
+      'source' => { 'type' => 'user', 'userId' => @test_user_id },
+      'postback' => { 'data' => "reject_#{exchange_request.id}" }
+    }
+
+    response = @line_bot_service.handle_message(event)
+
+    # 拒否完了メッセージが返されることを確認
+    assert_includes response, "❌ シフト交代リクエストを拒否しました"
+
+    # リクエストが拒否されたことを確認
+    exchange_request.reload
+    assert_equal 'rejected', exchange_request.status
+
+    # テストデータのクリーンアップ
+    exchange_request.delete
+    shift.delete
+    requester.delete
+    approver.delete
+  end
+
+  # ===== シフト追加Postbackテスト =====
+
+  test "should handle approve_addition postback event (postback)" do
+    # オーナーと対象従業員を作成
+    owner = Employee.create!(
+      employee_id: "owner_001",
+      role: "owner",
+      line_id: "owner_user_id"
+    )
+    
+    target_employee = Employee.create!(
+      employee_id: "target_001",
+      role: "employee",
+      line_id: @test_user_id
+    )
+
+    # シフト追加リクエストを作成
+    future_date = Date.current + 7.days
+    addition_request = ShiftAddition.create!(
+      request_id: "ADD_#{Time.current.strftime('%Y%m%d_%H%M%S')}_test",
+      requester_id: owner.employee_id,
+      target_employee_id: target_employee.employee_id,
+      shift_date: future_date,
+      start_time: Time.zone.parse("09:00"),
+      end_time: Time.zone.parse("18:00"),
+      status: 'pending'
+    )
+
+    # 承認Postbackイベントを作成
+    event = mock_postback_event(user_id: @test_user_id, postback_data: "approve_addition_#{addition_request.request_id}")
+
+    # 承認処理を実行
+    response = @line_bot_service.handle_postback_event(event)
+
+    # 承認成功メッセージが返されることを確認
+    assert_includes response, "シフト追加を承認しました"
+
+    # シフト追加リクエストのステータスが承認に変更されることを確認
+    addition_request.reload
+    assert_equal 'approved', addition_request.status
+
+    # 作成されたシフトを確認
+    created_shift = Shift.find_by(
+      employee_id: target_employee.employee_id,
+      shift_date: future_date
+    )
+    assert_not_nil created_shift
+
+    # クリーンアップ
+    created_shift.destroy if created_shift
+    addition_request.destroy
+    owner.destroy
+    target_employee.destroy
+  end
+
+  test "should handle reject_addition postback event (postback)" do
+    # オーナーと対象従業員を作成
+    owner = Employee.create!(
+      employee_id: "owner_001",
+      role: "owner",
+      line_id: "owner_user_id"
+    )
+    
+    target_employee = Employee.create!(
+      employee_id: "target_001",
+      role: "employee",
+      line_id: @test_user_id
+    )
+
+    # シフト追加リクエストを作成
+    future_date = Date.current + 7.days
+    addition_request = ShiftAddition.create!(
+      request_id: "ADD_#{Time.current.strftime('%Y%m%d_%H%M%S')}_test",
+      requester_id: owner.employee_id,
+      target_employee_id: target_employee.employee_id,
+      shift_date: future_date,
+      start_time: Time.zone.parse("09:00"),
+      end_time: Time.zone.parse("18:00"),
+      status: 'pending'
+    )
+
+    # 拒否Postbackイベントを作成
+    event = mock_postback_event(user_id: @test_user_id, postback_data: "reject_addition_#{addition_request.request_id}")
+
+    # 拒否処理を実行
+    response = @line_bot_service.handle_postback_event(event)
+
+    # 拒否成功メッセージが返されることを確認
+    assert_includes response, "シフト追加を拒否しました"
+
+    # シフト追加リクエストのステータスが拒否に変更されることを確認
+    addition_request.reload
+    assert_equal 'rejected', addition_request.status
+
+    # シフトが作成されていないことを確認
+    created_shift = Shift.find_by(
+      employee_id: target_employee.employee_id,
+      shift_date: future_date
+    )
+    assert_nil created_shift
+
+    # クリーンアップ
+    addition_request.destroy
+    owner.destroy
+    target_employee.destroy
+  end
+
+  # ===== シフト追加基本テスト =====
+
+  test "should handle shift addition command in group (basic)" do
+    # オーナー従業員を作成
+    owner = Employee.create!(
+      employee_id: "999",
+      role: "owner",
+      line_id: @test_user_id
+    )
+
+    # グループメッセージイベント
+    event = mock_line_event(source_type: "group", group_id: @test_group_id, user_id: @test_user_id)
+    event['message']['text'] = 'シフト追加'
+
+    response = @line_bot_service.handle_message(event)
+
+    # 日付入力の案内が表示されることを確認
+    assert_includes response, "日付を入力してください"
+    # 日付例を動的に生成（明日の日付）
+    tomorrow = (Date.current + 1).strftime('%Y-%m-%d')
+    assert_includes response, "例：#{tomorrow}"
+
+    # クリーンアップ
+    owner.destroy
+  end
+
+  test "should handle shift addition command in individual chat (basic)" do
+    # オーナー従業員を作成
+    owner = Employee.create!(
+      employee_id: "999",
+      role: "owner",
+      line_id: @test_user_id
+    )
+
+    # 個人メッセージイベント
+    event = mock_line_event(source_type: "user", user_id: @test_user_id)
+    event['message']['text'] = 'シフト追加'
+
+    response = @line_bot_service.handle_message(event)
+
+    # グループチャットでのみ利用可能であることを確認
+    assert_includes response, "グループチャットでのみ利用可能です"
+
+    # クリーンアップ
+    owner.destroy
+  end
+
+  test "should reject shift addition command from non-owner (basic)" do
+    # 一般従業員を作成
+    employee = Employee.create!(
+      employee_id: "999",
+      role: "employee",
+      line_id: @test_user_id
+    )
+
+    # グループメッセージイベント
+    event = mock_line_event(source_type: "group", group_id: @test_group_id, user_id: @test_user_id)
+    event['message']['text'] = 'シフト追加'
+
+    response = @line_bot_service.handle_message(event)
+
+    # オーナーのみが利用可能であることを確認
+    assert_includes response, "オーナーのみが利用可能です"
+
+    # クリーンアップ
+    employee.destroy
+  end
+
+  test "should handle shift addition date input (basic)" do
+    # オーナー従業員を作成
+    owner = Employee.create!(
+      employee_id: "999",
+      role: "owner",
+      line_id: @test_user_id
+    )
+
+    # 日付入力待ちの状態を設定
+    @line_bot_service.set_conversation_state(@test_user_id, { 
+      step: 'waiting_shift_addition_date'
+    })
+
+    # 未来の日付を入力
+    future_date = (Date.current + 30).strftime('%Y-%m-%d')
+    response = @line_bot_service.handle_message_with_state(@test_user_id, future_date)
+
+    # 時間入力の案内が表示されることを確認
+    assert_includes response, "時間を入力してください"
+    assert_includes response, "例：09:00-18:00"
+
+    # クリーンアップ
+    owner.destroy
+  end
+
+  private
+
+  def create_mock_event(message_text, user_id)
+    OpenStruct.new(
+      message: { 'text' => message_text },
+      source: { 'type' => 'user', 'userId' => user_id },
+      replyToken: 'test_reply_token',
+      type: 'message'
+    )
   end
 end

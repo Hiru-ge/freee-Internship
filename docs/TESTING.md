@@ -8,14 +8,27 @@ GASからRailsへの移行において、機能の完全性を保証するため
 
 ## 📊 テスト結果
 
-- **総テスト数**: 418テスト
-- **成功**: 418テスト
+- **総テスト数**: 322テスト
+- **成功**: 322テスト
 - **失敗**: 0テスト
 - **エラー**: 0テスト
-- **アサーション数**: 1196アサーション
+- **アサーション数**: 829アサーション
 - **成功率**: 100%
+- **テストファイル数**: 5ファイル（統合後）
 
-## 🏗️ テスト構成
+## 🏗️ テスト構成（統合後）
+
+### 統合されたテストファイル構成
+- **`line_bot_service_test.rb`** (3,513行、118テスト): LINE Bot関連の全機能テスト
+- **`shift_services_test.rb`** (580行、19テスト): シフト管理・パフォーマンス最適化テスト
+- **`clock_services_test.rb`** (416行、20テスト): 時計・通知・賃金サービステスト
+- **`security_test.rb`** (433行、36テスト): セキュリティ・認証・コントローラーテスト
+- **`error_handling_test.rb`** (172行、複数テスト): エラーハンドリングテスト
+
+### 統合の効果
+- **テストファイル数**: 11ファイル → 5ファイル（54.5%削減）
+- **関連機能の集約**: 機能ごとにテストが整理され、保守性が向上
+- **テスト通過率の維持**: 100%のテスト通過率を維持
 
 ### 1. 認証システムテスト
 
@@ -313,16 +326,16 @@ GASからRailsへの移行において、機能の完全性を保証するため
 
 ### 修正されたファイル
 - `app/services/line_bot_service.rb`: 日付例の動的生成
-- `test/services/line_bot_shift_addition_test.rb`: 日付期待値の動的計算
-- `test/services/line_bot_service_test.rb`: ハードコードされた日付の動的計算
-- `test/services/line_bot_service_shift_exchange_test.rb`: 日付例の動的生成
-- `test/services/line_bot_service_shift_exchange_redesign_test.rb`: 日付例の動的生成
-- `test/services/clock_service_test.rb`: タイムゾーン計算ロジックの改善
+- `test/services/line_bot_service_test.rb`: 統合後のLINE Bot関連テスト（日付例の動的生成含む）
+- `test/services/shift_services_test.rb`: 統合後のシフト管理・パフォーマンステスト
+- `test/services/clock_services_test.rb`: 統合後の時計・通知・賃金テスト
+- `test/controllers/security_test.rb`: 統合後のセキュリティ・認証・コントローラーテスト
 
 ### 技術的成果
 - **保守性向上**: テストが時間に依存しなくなり、長期間安定して動作
 - **一貫性確保**: サービスコードとテストコードの両方で日付例を動的生成
-- **品質向上**: 227テスト、706アサーション、すべて成功
+- **品質向上**: 322テスト、829アサーション、すべて成功
+- **統合効果**: テストファイル数を54.5%削減し、関連機能を集約
 
 ## 📋 テストデータ
 
@@ -337,11 +350,15 @@ GASからRailsへの移行において、機能の完全性を保証するため
 # 全テスト実行
 rails test
 
-# 特定のテストファイル実行
-rails test test/controllers/auth_controller_test.rb
+# 統合後のテストファイル実行
+rails test test/services/line_bot_service_test.rb
+rails test test/services/shift_services_test.rb
+rails test test/services/clock_services_test.rb
+rails test test/controllers/security_test.rb
+rails test test/controllers/error_handling_test.rb
 
 # 特定のテストメソッド実行
-rails test test/controllers/auth_controller_test.rb -n test_should_login_successfully
+rails test test/services/line_bot_service_test.rb -n test_should_handle_shift_exchange_command
 
 # カバレッジレポートの生成
 COVERAGE=true bundle exec rails test

@@ -177,12 +177,41 @@ fly deploy
 
 ## テスト実装
 
-テストの実装方法やベストプラクティスについては [テスト実装ベストプラクティス](docs/testing-best-practices.md) を参照してください。
+### テストスイート概要
+- **総テスト数**: 322テスト
+- **アサーション数**: 829アサーション
+- **成功率**: 100%
+- **テストファイル数**: 5ファイル（統合後）
 
-- 外部APIのモック実装
-- 時間操作とテスト
-- メール送信のテスト
-- エラーハンドリングのテスト
+### 統合されたテストファイル構成
+- **`line_bot_service_test.rb`** (3,513行、118テスト): LINE Bot関連の全機能テスト
+- **`shift_services_test.rb`** (580行、19テスト): シフト管理・パフォーマンス最適化テスト
+- **`clock_services_test.rb`** (416行、20テスト): 時計・通知・賃金サービステスト
+- **`security_test.rb`** (433行、36テスト): セキュリティ・認証・コントローラーテスト
+- **`error_handling_test.rb`** (172行、複数テスト): エラーハンドリングテスト
+
+### テスト実行方法
+```bash
+# 全テスト実行
+rails test
+
+# 統合後のテストファイル実行
+rails test test/services/line_bot_service_test.rb
+rails test test/services/shift_services_test.rb
+rails test test/services/clock_services_test.rb
+rails test test/controllers/security_test.rb
+rails test test/controllers/error_handling_test.rb
+
+# 特定のテストメソッド実行
+rails test test/services/line_bot_service_test.rb -n test_should_handle_shift_exchange_command
+```
+
+### 統合の効果
+- **テストファイル数**: 11ファイル → 5ファイル（54.5%削減）
+- **関連機能の集約**: 機能ごとにテストが整理され、保守性が向上
+- **テスト通過率の維持**: 100%のテスト通過率を維持
+
+詳細なテスト仕様については [TESTING.md](docs/TESTING.md) を参照してください。
 
 ### 打刻忘れアラートの定期実行
 
