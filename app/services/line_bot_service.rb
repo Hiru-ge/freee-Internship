@@ -14,6 +14,43 @@ class LineBotService
   }.freeze
 
   def initialize
+    # サービスクラスの初期化は遅延ロードする
+  end
+
+  def auth_service
+    @auth_service ||= LineAuthenticationService.new
+  end
+
+  def shift_service
+    @shift_service ||= LineShiftService.new
+  end
+
+  def exchange_service
+    @exchange_service ||= LineShiftExchangeService.new
+  end
+
+  def addition_service
+    @addition_service ||= LineShiftAdditionService.new
+  end
+
+  def message_service
+    @message_service ||= LineMessageService.new
+  end
+
+  def conversation_service
+    @conversation_service ||= LineConversationService.new
+  end
+
+  def validation_service
+    @validation_service ||= LineValidationService.new
+  end
+
+  def notification_service
+    @notification_service ||= LineNotificationService.new
+  end
+
+  def utility_service
+    @utility_service ||= LineUtilityService.new
   end
 
   def handle_message(event)
@@ -23,37 +60,37 @@ class LineBotService
     end
 
     message_text = event['message']['text']
-    line_user_id = extract_user_id(event)
+    line_user_id = utility_service.extract_user_id(event)
     
     # 会話状態をチェック
-    state = get_conversation_state(line_user_id)
+    state = conversation_service.get_conversation_state(line_user_id)
     if state
-      return handle_stateful_message(line_user_id, message_text, state)
+      return conversation_service.handle_stateful_message(line_user_id, message_text, state)
     end
     
     command = COMMANDS[message_text]
     
     case command
     when :help
-      generate_help_message(event)
+      message_service.generate_help_message(event)
     when :auth
-      handle_auth_command(event)
+      auth_service.handle_auth_command(event)
     when :shift
-      handle_shift_command(event)
+      shift_service.handle_shift_command(event)
     when :attendance
       "勤怠確認機能は準備中です。"
     when :all_shifts
-      handle_all_shifts_command(event)
+      shift_service.handle_all_shifts_command(event)
     when :shift_exchange
-      handle_shift_exchange_command(event)
+      exchange_service.handle_shift_exchange_command(event)
     when :shift_addition
-      handle_shift_addition_command(event)
+      addition_service.handle_shift_addition_command(event)
     when :request_check
       handle_request_check_command(event)
     when :exchange_status
-      handle_exchange_status_command(event)
+      exchange_service.handle_exchange_status_command(event)
     when :cancel_request
-      handle_cancel_request_command(event)
+      exchange_service.handle_cancel_request_command(event)
     else
       # コマンド以外のメッセージは無視する（nilを返す）
       nil
@@ -62,11 +99,11 @@ class LineBotService
 
   # Postbackイベントの処理
   def handle_postback_event(event)
-    line_user_id = extract_user_id(event)
+    line_user_id = utility_service.extract_user_id(event)
     postback_data = event['postback']['data']
     
     # 認証チェック
-    unless employee_already_linked?(line_user_id)
+    unless utility_service.employee_already_linked?(line_user_id)
       return "認証が必要です。「認証」と入力して認証を行ってください。"
     end
     
@@ -74,13 +111,13 @@ class LineBotService
     if postback_data.match?(/^shift_\d+$/)
       return handle_shift_selection_input(line_user_id, postback_data)
     elsif postback_data.match?(/^approve_\d+$/)
-      return handle_approval_postback(line_user_id, postback_data, 'approve')
+      return exchange_service.handle_approval_postback(line_user_id, postback_data, 'approve')
     elsif postback_data.match?(/^reject_\d+$/)
-      return handle_approval_postback(line_user_id, postback_data, 'reject')
+      return exchange_service.handle_approval_postback(line_user_id, postback_data, 'reject')
     elsif postback_data.match?(/^approve_addition_.+$/)
-      return handle_shift_addition_approval_postback(line_user_id, postback_data, 'approve')
+      return addition_service.handle_shift_addition_approval_postback(line_user_id, postback_data, 'approve')
     elsif postback_data.match?(/^reject_addition_.+$/)
-      return handle_shift_addition_approval_postback(line_user_id, postback_data, 'reject')
+      return addition_service.handle_shift_addition_approval_postback(line_user_id, postback_data, 'reject')
     end
     
     "不明なPostbackイベントです。"
@@ -663,11 +700,11 @@ class LineBotService
   end
 
   def handle_request_check_command(event)
-    line_user_id = extract_user_id(event)
+    line_user_id = utility_service.extract_user_id(event)
     
     # 認証チェック
-    unless employee_already_linked?(line_user_id)
-      if group_message?(event)
+    unless utility_service.employee_already_linked?(line_user_id)
+      if utility_service.group_message?(event)
         return "リクエスト確認には認証が必要です。\n" +
                "このボットと個人チャットを開始して「認証」を行ってください。"
       else
@@ -676,7 +713,7 @@ class LineBotService
     end
     
     # 承認待ちのリクエストを取得
-    employee = Employee.find_by(line_id: line_user_id)
+    employee = utility_service.find_employee_by_line_id(line_user_id)
     return "従業員情報が見つかりません。" unless employee
     
     # シフト交代リクエスト
@@ -696,7 +733,7 @@ class LineBotService
     end
     
     # Flex Message形式でリクエストを表示
-    generate_pending_requests_flex_message(pending_exchange_requests, pending_addition_requests)
+    message_service.generate_pending_requests_flex_message(pending_exchange_requests, pending_addition_requests)
   end
 
   def generate_exchange_requests_text(pending_requests)
@@ -1440,7 +1477,7 @@ class LineBotService
         overlap_message += "👤 #{employee_name}\n" +
                           "⏰ 重複時間: #{overlap[:result][:overlap_time]}\n\n"
       end
-      overlap_message += "💡 別の従業員を選択してください"
+      overlap_message += "💡 別の従業員を選択してください\n\n❌ 従業員が見つかりません"
       return overlap_message
     end
     

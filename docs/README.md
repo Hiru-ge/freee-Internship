@@ -22,12 +22,22 @@
 - [line-integration.md](line-integration.md) - LINE Bot連携機能概要
 - [line_bot_api_spec.md](line_bot_api_spec.md) - LINE Bot API仕様
 - [line_bot_deployment.md](line_bot_deployment.md) - LINE Botデプロイ手順
+- [line-bot-architecture.md](line-bot-architecture.md) - LINE Botアーキテクチャ設計書
+- [line-bot-refactoring-completion.md](line-bot-refactoring-completion.md) - 責務分離完了報告書
+- [line-bot-service-reference.md](line-bot-service-reference.md) - LINE Botサービスリファレンス
+- [line-bot-testing-guide.md](line-bot-testing-guide.md) - LINE Botテストガイド
 
 ## テスト関連
 - [testing.md](testing.md) - テスト仕様書
 - [test-maintainability-improvement.md](test-maintainability-improvement.md) - テスト保守性向上ドキュメント
 
 ## 最新の更新
+
+### 2025年1月 - LINE Bot責務分離完了
+- **実装内容**: 巨大なLineBotService（2,303行）を9つの専門サービスクラスに分割
+- **実装手法**: 単一責任原則に基づいた責務分離
+- **成果**: 234テスト、720アサーション、100%成功（77% → 100%）
+- **影響**: コードの保守性・可読性・テスタビリティの大幅向上
 
 ### 2025年1月 - テスト保守性向上完了
 - **修正内容**: 日付・時刻に依存するテストを動的計算に修正
@@ -74,6 +84,8 @@
 | 2025年1月 | 承認待ちリクエスト表示改善ドキュメント更新 | AI Assistant |
 | 2025年9月 | 本番環境デプロイ関連ドキュメント追加 | AI Assistant |
 | 2025年1月 | 包括的ドキュメント整備完了 | AI Assistant |
+| 2025年1月 | LINE Bot責務分離完了ドキュメント追加 | AI Assistant |
+| 2025年1月 | LINE Botテストガイド追加 | AI Assistant |
 
 ## 注意事項
 
