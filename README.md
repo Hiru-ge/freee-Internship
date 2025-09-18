@@ -25,7 +25,7 @@
 - **勤怠状況確認**: 日別・月別勤怠記録の表示
 - **勤怠統計**: 勤務時間の集計と表示
 - **タイムゾーン対応**: Asia/Tokyoタイムゾーンでの正確な時刻処理
-- **打刻忘れアラート**: 出勤・退勤打刻忘れの自動検知とメール通知
+- **打刻忘れアラート**: 出勤・退勤打刻忘れの自動検知とメール通知 ✅ **実装完了**
 
 ### 給与管理
 - **103万の壁ゲージ**: 年収103万円の壁を視覚的に表示
@@ -186,20 +186,25 @@ fly deploy
 
 ### 打刻忘れアラートの定期実行
 
-本番環境では、`fly.toml`に設定されたcronジョブにより、打刻忘れアラートが自動実行されます：
+本番環境では、GitHub Actionsにより打刻忘れアラートが自動実行されます：
 
-```toml
-# 15分間隔で打刻忘れチェックを実行
-[[cron]]
-  schedule = "*/15 * * * *"
-  command = "bundle exec rails clock_reminder:check_all"
+```yaml
+# .github/workflows/clock-reminder.yml
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # 15分間隔で実行
 ```
 
 **手動実行**:
 ```bash
 # 本番環境で手動実行
 fly ssh console -a your-app-name -C "bundle exec rails clock_reminder:check_all"
+
+# GitHub Actionsで手動実行
+# GitHubのActionsタブから「Clock Reminder Check」を手動実行
 ```
+
+**注意**: fly.ioの無料枠では一定時間アクセスがないとマシンが停止するため、GitHub Actionsを使用して定期実行を行います。
 
 ## 開発状況
 

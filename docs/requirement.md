@@ -162,10 +162,12 @@ graph TD
 - **出勤打刻アラート**: シフト予定開始時刻から15分経過しても出勤打刻がない場合、対象従業員にメールで通知する。
 - **退勤打刻リマインダー**: 退勤予定時刻から15分間隔で退勤打刻が完了していない場合、対象従業員にメールで通知する。
 - **ロジック**: スプレッドシートのシフト予定と、freee APIから取得した勤怠実績を定期的に比較して検知する。
-- **実装状況**: ✅ 完了
-  - 出勤打刻アラート機能（`checkForgottenClockIns()`）
-  - 退勤打刻リマインダー機能（`checkForgottenClockOuts()`）
-- **備考**: バックグラウンド処理のため、専用画面は設けない。
+- **実装状況**: ✅ 完了（2025年9月18日）
+  - 出勤打刻アラート機能（`ClockReminderService.check_forgotten_clock_ins`）
+  - 退勤打刻リマインダー機能（`ClockReminderService.check_forgotten_clock_outs`）
+  - HTTP APIエンドポイント（`/clock_reminder/trigger`）
+  - GitHub Actionsによる自動実行（15分間隔）
+- **備考**: バックグラウンド処理のため、専用画面は設けない。TDD手法で実装。
 
 
 

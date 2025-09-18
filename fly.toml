@@ -20,10 +20,8 @@ console_command = '/rails/bin/rails console'
 [deploy]
   release_command = "sh -c 'bundle exec rails db:migrate && bundle exec rails db:seed'"
 
-# 打刻忘れアラートの定期実行設定（15分間隔）
-[[cron]]
-  schedule = "*/15 * * * *"  # 15分間隔で実行
-  command = "bundle exec rails clock_reminder:check_all"
+# 打刻忘れアラートの定期実行はGitHub Actionsで実行
+# fly.ioの無料枠ではcronが信頼性が低いため
 
 [[vm]]
   cpu_kind = 'shared'

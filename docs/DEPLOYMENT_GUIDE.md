@@ -353,20 +353,35 @@ Error: failed to acquire leases: Unrecoverable error: failed to get lease on VM
 
 ## 7. 打刻忘れアラートの定期実行設定
 
-### 7.1 Fly.ioでのcron設定
+### 7.1 GitHub Actionsでの定期実行
 
-**fly.toml の設定**:
-```toml
-# 打刻忘れアラートの定期実行設定（15分間隔）
-[[cron]]
-  schedule = "*/15 * * * *"  # 15分間隔で実行
-  command = "bundle exec rails clock_reminder:check_all"
+**fly.ioの制限事項**:
+- 無料枠では一定時間アクセスがないとマシンが停止
+- 停止中のマシンではcronジョブが実行されない
+- 信頼性の高い定期実行には外部サービスが必要
+
+**GitHub Actions の設定**:
+```yaml
+# .github/workflows/clock-reminder.yml
+name: Clock Reminder Check
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # 15分間隔で実行（UTC時間）
+  workflow_dispatch: # 手動実行も可能
+
+jobs:
+  clock-reminder:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Run clock reminder check
+      run: fly ssh console -a freee-internship -C "bundle exec rails clock_reminder:check_all"
 ```
 
 **設定の効果**:
 - 15分間隔で打刻忘れチェックが自動実行されます
+- fly.ioのマシンが停止していても実行されます
 - 出勤・退勤両方の打刻忘れをチェックします
-- 退勤打刻リマインダーが15分間隔で正しく動作します
 - 条件に合致する従業員にメール通知が送信されます
 
 ### 7.2 スケジュール設定のカスタマイズ

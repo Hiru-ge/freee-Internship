@@ -147,7 +147,8 @@ CREATE TABLE verification_codes (
 **スケジューリング**
 - Rakeタスク: `rails clock_reminder:check_all`
 - 個別実行: `rails clock_reminder:check_clock_ins`, `rails clock_reminder:check_clock_outs`
-- 定期実行: cronやスケジューラーで設定可能
+- 定期実行: GitHub Actions（15分間隔）で自動実行
+- HTTP API: `/clock_reminder/trigger`エンドポイントで手動実行可能
 
 ### 設定
 
@@ -701,6 +702,196 @@ end
 - 独立したテストの実行
 - TDD手法による品質保証
 
+---
+
+## 打刻忘れアラート機能（Phase 10）
+
+### 概要
+
+2025年9月に実装完了した打刻忘れアラート機能について説明します。TDD手法により実装し、GitHub ActionsとHTTP APIを組み合わせた自動実行システムを構築しました。
+
+### 実装完了日時
+
+- **実装完了**: 2025年9月18日
+- **実装手法**: t-wadaのTDD手法（Red-Green-Refactor）
+- **実装時間**: 8時間
+
+### アーキテクチャ
+
+#### 主要コンポーネント
+
+1. **ClockReminderService**: 打刻忘れチェックの核心ロジック
+2. **ClockReminderMailer**: アラートメールの送信
+3. **ClockReminderJob**: バックグラウンド処理
+4. **ClockReminderController**: HTTP APIエンドポイント
+5. **GitHub Actions**: 定期実行システム
+
+#### データフロー
+
+```
+GitHub Actions (15分間隔)
+    ↓
+HTTP API (/clock_reminder/trigger)
+    ↓
+ClockReminderService
+    ↓
+ClockReminderMailer
+    ↓
+従業員メールアドレス
+```
+
+### 実装詳細
+
+#### 1. ClockReminderService
+
+**出勤打刻アラート**
+- シフト開始時刻から15分経過後に送信
+- 対象: 出勤打刻が未完了の従業員
+- 実装: `check_forgotten_clock_ins`
+
+**退勤打刻アラート**
+- 退勤予定時刻から2時間以内、15分間隔で送信
+- 対象: 退勤打刻が未完了の従業員
+- 実装: `check_forgotten_clock_outs`
+
+#### 2. HTTP APIエンドポイント
+
+**エンドポイント**: `POST /clock_reminder/trigger`
+- 認証: なし（無害な処理のため）
+- レスポンス: JSON形式の実行結果
+- エラーハンドリング: 適切なHTTPステータスコード
+
+#### 3. GitHub Actionsワークフロー
+
+**実行頻度**: 15分間隔（UTC時間）
+**処理内容**:
+1. Fly.ioアプリの起動確認
+2. HTTP APIエンドポイントの呼び出し
+3. リトライ機能（3回まで、5秒間隔）
+
+### 技術的成果
+
+#### TDD実装による品質保証
+
+**Red Phase**: 失敗するテストの作成
+- `ClockReminderService`のテスト
+- `ClockReminderMailer`のテスト
+- `ClockReminderJob`のテスト
+
+**Green Phase**: テストを通す実装
+- サービスクラスの実装
+- メーラークラスの実装
+- ジョブクラスの実装
+
+**Refactor Phase**: コードの改善
+- ヘルパーメソッドの抽出
+- ロジックの整理
+- 可読性の向上
+
+#### 問題解決
+
+**SSH接続問題**
+- Fly.ioの無料プランでのSSH接続制限
+- WireGuardの設定問題
+- 解決策: HTTP APIエンドポイントの実装
+
+**認証問題**
+- APIトークンの不一致
+- 環境変数の設定問題
+- 解決策: 認証なしのシンプルな実装
+
+**スケジューリング問題**
+- Fly.ioのcron制限
+- アプリの自動停止問題
+- 解決策: GitHub Actionsによる外部スケジューリング
+
+### 運用監視
+
+#### ログ監視
+
+```ruby
+# アラート送信のログ
+Rails.logger.info "Clock reminder check triggered via HTTP API"
+Rails.logger.info "Sending clock-in reminder to #{employee_email}"
+Rails.logger.info "Sending clock-out reminder to #{employee_email}"
+```
+
+#### エラーハンドリング
+
+```ruby
+begin
+  ClockReminderService.new.check_forgotten_clock_ins
+  ClockReminderService.new.check_forgotten_clock_outs
+  
+  render json: { 
+    status: 'success', 
+    message: 'Clock reminder check completed',
+    timestamp: Time.current
+  }
+rescue => e
+  Rails.logger.error "Clock reminder check failed: #{e.message}"
+  render json: { 
+    status: 'error', 
+    message: e.message,
+    timestamp: Time.current
+  }, status: :internal_server_error
+end
+```
+
+### 設定ファイル
+
+#### GitHub Actionsワークフロー
+
+```yaml
+name: Clock Reminder Check
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # 15分間隔
+  workflow_dispatch:  # 手動実行可能
+
+jobs:
+  clock-reminder:
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - name: Start fly.io app if stopped
+      run: |
+        # アプリ起動確認と自動起動
+        
+    - name: Run clock reminder check
+      run: |
+        # HTTP APIで打刻忘れチェック実行
+        curl -X POST "https://freee-internship.fly.dev/clock_reminder/trigger" \
+          -H "Content-Type: application/json" \
+          --max-time 30 \
+          --retry 3 \
+          --retry-delay 5
+```
+
+### テスト実装
+
+#### テストファイル構成
+
+- `test/services/clock_reminder_service_test.rb`
+- `test/mailers/clock_reminder_mailer_test.rb`
+- `test/jobs/clock_reminder_job_test.rb`
+
+#### テストカバレッジ
+
+- 正常系: アラート送信の成功
+- 異常系: エラーハンドリング
+- 境界値: 時間条件のテスト
+- モック: 外部APIのモック
+
+### 今後の改善点
+
+1. **メトリクス収集**: アラート送信数の監視
+2. **通知チャネル拡張**: LINE Bot連携
+3. **カスタマイズ**: 従業員別の通知設定
+4. **パフォーマンス**: 大量データでの最適化
+
 ## 関連ドキュメント
 
 - [要件定義](./requirement.md)
@@ -713,3 +904,4 @@ end
 - [Rails移行ガイド](./rails-migration-complete-guide.md)
 - [LINE Bot連携](./line_bot_integration.md)
 - [LINE Bot データベース設計](./line_bot_database_design.md)
+- [テストベストプラクティス](./testing-best-practices.md)
