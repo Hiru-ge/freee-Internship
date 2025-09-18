@@ -59,6 +59,5 @@ module LineBotTestHelper
     assert_includes message, "ヘルプ"
     assert_includes message, "認証"
     assert_includes message, "シフト"
-    assert_includes message, "勤怠"
   end
 end

@@ -185,24 +185,6 @@ class WebhookControllerTest < ActionDispatch::IntegrationTest
     }.to_json
   end
 
-  def attendance_command_payload
-    {
-      events: [
-        {
-          type: "message",
-          message: {
-            type: "text",
-            text: "勤怠"
-          },
-          source: {
-            type: "user",
-            userId: "test_user_id"
-          },
-          replyToken: "test_reply_token"
-        }
-      ]
-    }.to_json
-  end
 
   def unknown_command_payload
     {

@@ -4,13 +4,10 @@ class LineBotService
     'help' => :help,
     '認証' => :auth,
     'シフト' => :shift,
-    '勤怠' => :attendance,
     '全員シフト' => :all_shifts,
     'シフト交代' => :shift_exchange,
     'シフト追加' => :shift_addition,
-    'リクエスト確認' => :request_check,
-    '交代状況' => :exchange_status,
-    '依頼キャンセル' => :cancel_request
+    'リクエスト確認' => :request_check
   }.freeze
 
   def initialize
@@ -77,8 +74,6 @@ class LineBotService
       auth_service.handle_auth_command(event)
     when :shift
       shift_service.handle_shift_command(event)
-    when :attendance
-      "勤怠確認機能は準備中です。"
     when :all_shifts
       shift_service.handle_all_shifts_command(event)
     when :shift_exchange
@@ -87,10 +82,6 @@ class LineBotService
       addition_service.handle_shift_addition_command(event)
     when :request_check
       handle_request_check_command(event)
-    when :exchange_status
-      exchange_service.handle_exchange_status_command(event)
-    when :cancel_request
-      exchange_service.handle_cancel_request_command(event)
     else
       # コマンド以外のメッセージは無視する（nilを返す）
       nil
@@ -498,8 +489,6 @@ class LineBotService
       :auth
     when 'シフト'
       :shift
-    when '勤怠'
-      :attendance
     when '全員シフト'
       :all_shifts
     when 'シフト交代'
@@ -508,8 +497,6 @@ class LineBotService
       :approve
     when '否認'
       :reject
-    when '交代状況'
-      :exchange_status
     else
       :unknown
     end
@@ -537,9 +524,9 @@ class LineBotService
 
   def generate_help_message(event = nil)
     if event && group_message?(event)
-      "👋 勤怠管理システムへようこそ！\n\n【グループで利用可能なコマンド】\n📋 ヘルプ: このメッセージを表示\n👥 全員シフト: 全従業員のシフト情報を確認（認証必要）\n➕ シフト追加: シフト追加依頼（オーナーのみ、認証必要）\n\n【個人チャットで利用可能なコマンド】\n🔐 認証: LINEアカウントと従業員アカウントを紐付け\n📅 シフト: 個人のシフト情報を確認（認証必要）\n👥 全員シフト: 全従業員のシフト情報を確認（認証必要）\n🔄 シフト交代: シフト交代依頼（認証必要）\n📋 リクエスト確認: 承認待ちのシフト交代リクエスト確認（認証必要）\n📊 交代状況: シフト交代状況確認（認証必要）\n⏰ 勤怠: 勤怠状況を確認（準備中）\n\n💡 シフト確認機能を利用するには、このボットと個人チャットを開始して「認証」を行ってください"
+      "👋 勤怠管理システムへようこそ！\n\n【グループで利用可能なコマンド】\n📋 ヘルプ: このメッセージを表示\n👥 全員シフト: 全従業員のシフト情報を確認（認証必要）\n➕ シフト追加: シフト追加依頼（オーナーのみ、認証必要）\n\n【個人チャットで利用可能なコマンド】\n🔐 認証: LINEアカウントと従業員アカウントを紐付け\n📅 シフト: 個人のシフト情報を確認（認証必要）\n👥 全員シフト: 全従業員のシフト情報を確認（認証必要）\n🔄 シフト交代: シフト交代依頼（認証必要）\n📋 リクエスト確認: 承認待ちのシフト交代リクエスト確認（認証必要）\n\n💡 シフト確認機能を利用するには、このボットと個人チャットを開始して「認証」を行ってください"
     else
-      "👋 勤怠管理システムへようこそ！\n\n【利用可能なコマンド】\n📋 ヘルプ: このメッセージを表示\n🔐 認証: LINEアカウントと従業員アカウントを紐付け\n📅 シフト: 個人のシフト情報を確認（認証必要）\n👥 全員シフト: 全従業員のシフト情報を確認（認証必要）\n🔄 シフト交代: シフト交代依頼（認証必要）\n📋 リクエスト確認: 承認待ちのシフト交代リクエスト確認（認証必要）\n📊 交代状況: シフト交代状況確認（認証必要）\n⏰ 勤怠: 勤怠状況を確認（準備中）\n\n💡 シフト確認機能を利用するには認証が必要です"
+      "👋 勤怠管理システムへようこそ！\n\n【利用可能なコマンド】\n📋 ヘルプ: このメッセージを表示\n🔐 認証: LINEアカウントと従業員アカウントを紐付け\n📅 シフト: 個人のシフト情報を確認（認証必要）\n👥 全員シフト: 全従業員のシフト情報を確認（認証必要）\n🔄 シフト交代: シフト交代依頼（認証必要）\n📋 リクエスト確認: 承認待ちのシフト交代リクエスト確認（認証必要）\n\n💡 シフト確認機能を利用するには認証が必要です"
     end
   end
 
@@ -904,143 +891,7 @@ class LineBotService
   end
 
 
-  def handle_exchange_status_command(event)
-    line_user_id = extract_user_id(event)
-    
-    # 認証チェック
-    unless employee_already_linked?(line_user_id)
-      if group_message?(event)
-        return "シフト交代状況確認には認証が必要です。\n" +
-               "このボットと個人チャットを開始して「認証」を行ってください。"
-      else
-        return "認証が必要です。「認証」と入力して認証を行ってください。"
-      end
-    end
-    
-    # 申請者のシフト交代リクエストを取得
-    employee = Employee.find_by(line_id: line_user_id)
-    return "従業員情報が見つかりません。" unless employee
-    
-    my_requests = ShiftExchange.where(requester_id: employee.employee_id)
-                              .includes(:shift)
-                              .order(created_at: :desc)
-    
-    if my_requests.empty?
-      return "シフト交代リクエストはありません"
-    end
-    
-    # 状況別にリクエストを分類
-    pending_requests = my_requests.select { |r| r.status == 'pending' }
-    approved_requests = my_requests.select { |r| r.status == 'approved' }
-    rejected_requests = my_requests.select { |r| r.status == 'rejected' }
-    cancelled_requests = my_requests.select { |r| r.status == 'cancelled' }
-    
-    # 状況を表示
-    status_message = "📊 シフト交代状況\n\n"
-    
-    if pending_requests.any?
-      status_message += "⏳ 承認待ち (#{pending_requests.count}件)\n"
-      pending_requests.each do |request|
-        shift = request.shift
-        approver = Employee.find_by(employee_id: request.approver_id)
-        approver_name = approver&.display_name || "ID: #{request.approver_id}"
-        day_of_week = %w[日 月 火 水 木 金 土][shift.shift_date.wday]
-        status_message += "  📅 #{shift.shift_date.strftime('%m/%d')} (#{day_of_week}) #{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}\n"
-        status_message += "  👤 承認者: #{approver_name}\n\n"
-      end
-    end
-    
-    if approved_requests.any?
-      status_message += "✅ 承認済み (#{approved_requests.count}件)\n"
-      approved_requests.each do |request|
-        shift = request.shift
-        approver = Employee.find_by(employee_id: request.approver_id)
-        approver_name = approver&.display_name || "ID: #{request.approver_id}"
-        day_of_week = %w[日 月 火 水 木 金 土][shift.shift_date.wday]
-        status_message += "  📅 #{shift.shift_date.strftime('%m/%d')} (#{day_of_week}) #{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}\n"
-        status_message += "  👤 承認者: #{approver_name}\n\n"
-      end
-    end
-    
-    if rejected_requests.any?
-      status_message += "❌ 拒否済み (#{rejected_requests.count}件)\n"
-      rejected_requests.each do |request|
-        shift = request.shift
-        approver = Employee.find_by(employee_id: request.approver_id)
-        approver_name = approver&.display_name || "ID: #{request.approver_id}"
-        day_of_week = %w[日 月 火 水 木 金 土][shift.shift_date.wday]
-        status_message += "  📅 #{shift.shift_date.strftime('%m/%d')} (#{day_of_week}) #{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}\n"
-        status_message += "  👤 承認者: #{approver_name}\n\n"
-      end
-    end
-    
-    if cancelled_requests.any?
-      status_message += "🚫 キャンセル済み (#{cancelled_requests.count}件)\n"
-      cancelled_requests.each do |request|
-        shift = request.shift
-        approver = Employee.find_by(employee_id: request.approver_id)
-        approver_name = approver&.display_name || "ID: #{request.approver_id}"
-        day_of_week = %w[日 月 火 水 木 金 土][shift.shift_date.wday]
-        status_message += "  📅 #{shift.shift_date.strftime('%m/%d')} (#{day_of_week}) #{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}\n"
-        status_message += "  👤 承認者: #{approver_name}\n\n"
-      end
-    end
-    
-    status_message
-  end
 
-  # 依頼キャンセルコマンド処理
-  def handle_cancel_request_command(event)
-    line_user_id = extract_user_id(event)
-    
-    # 認証チェック
-    unless employee_already_linked?(line_user_id)
-      if group_message?(event)
-        return "依頼キャンセルには認証が必要です。\n" +
-               "このボットと個人チャットを開始して「認証」を行ってください。"
-      else
-        return "認証が必要です。「認証」と入力して認証を行ってください。"
-      end
-    end
-    
-    # 申請者のpendingリクエストを取得
-    employee = Employee.find_by(line_id: line_user_id)
-    return "従業員情報が見つかりません。" unless employee
-    
-    pending_requests = ShiftExchange.where(
-      requester_id: employee.employee_id,
-      status: 'pending'
-    ).includes(:shift).order(created_at: :desc)
-    
-    if pending_requests.empty?
-      return "キャンセル可能なシフト交代依頼はありません。"
-    end
-    
-    # キャンセル可能なリクエスト一覧を表示
-    cancel_message = "📋 キャンセル可能なシフト交代依頼\n\n"
-    
-    pending_requests.each_with_index do |request, index|
-      shift = request.shift
-      approver = Employee.find_by(employee_id: request.approver_id)
-      approver_name = approver&.display_name || "ID: #{request.approver_id}"
-      day_of_week = %w[日 月 火 水 木 金 土][shift.shift_date.wday]
-      
-      cancel_message += "#{index + 1}. 📅 #{shift.shift_date.strftime('%m/%d')} (#{day_of_week})\n"
-      cancel_message += "   ⏰ #{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}\n"
-      cancel_message += "   👤 承認者: #{approver_name}\n"
-      cancel_message += "   🆔 リクエストID: #{request.id}\n\n"
-    end
-    
-    cancel_message += "キャンセルしたいリクエストのIDを入力してください。\n"
-    cancel_message += "例: #{pending_requests.first.id}"
-    
-    # 会話状態を設定（キャンセル待ち）
-    unless group_message?(event)
-      set_conversation_state(line_user_id, { step: 'waiting_cancel_confirmation' })
-    end
-    
-    cancel_message
-  end
 
   # 認証コマンド処理
   def handle_auth_command(event)
@@ -1220,8 +1071,6 @@ class LineBotService
       "• 全員シフト: グループ全体のシフト確認\n" +
       "• シフト交代: シフト交代依頼の送信\n" +
       "• リクエスト確認: 承認待ちのシフト交代リクエスト確認\n" +
-      "• 交代状況: シフト交代状況確認\n" +
-      "• 依頼キャンセル: 未承認のシフト交代依頼のキャンセル\n" +
       "• ヘルプ: 利用可能なコマンド一覧"
     rescue => e
       Rails.logger.error "認証コード検証エラー: #{e.message}"

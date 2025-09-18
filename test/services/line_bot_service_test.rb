@@ -211,7 +211,6 @@ class LineBotServiceTest < ActiveSupport::TestCase
     assert_includes message, "ヘルプ"
     assert_includes message, "認証"
     assert_includes message, "シフト"
-    assert_includes message, "勤怠"
   end
 
   test "should handle help command" do
@@ -558,16 +557,6 @@ class LineBotServiceTest < ActiveSupport::TestCase
   end
 
 
-  test "should handle shift exchange status command" do
-    # シフト交代状況確認コマンドの処理テスト（未認証ユーザー）
-    event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event['message']['text'] = '交代状況'
-    
-    response = @line_bot_service.handle_message(event)
-    
-    # 未認証ユーザーのため、認証が必要なメッセージが返されることを確認
-    assert_includes response, "認証が必要です"
-  end
 
   test "should handle shift exchange request check command for authenticated user" do
     # 認証済みユーザーのシフト交代リクエスト確認コマンド処理テスト
@@ -589,24 +578,6 @@ class LineBotServiceTest < ActiveSupport::TestCase
   end
 
 
-  test "should handle shift exchange status command for authenticated user" do
-    # 認証済みユーザーのシフト交代状況確認コマンド処理テスト
-    employee = Employee.create!(
-      employee_id: 999,
-      role: "employee",
-      line_id: @test_user_id
-    )
-    
-    event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event['message']['text'] = '交代状況'
-    
-    response = @line_bot_service.handle_message(event)
-    
-    # 認証済みユーザーのため、シフト交代リクエストがないメッセージが返されることを確認
-    assert_includes response, "シフト交代リクエストはありません"
-    
-    employee.destroy
-  end
 
   test "should require authentication for shift exchange commands" do
     # シフト交代コマンドは認証が必要
@@ -1650,75 +1621,6 @@ class LineBotServiceTest < ActiveSupport::TestCase
     approver.destroy
   end
 
-  # シフト交代状況確認機能のテスト
-  test "should handle exchange status command for authenticated user with requests" do
-    # 申請者（現在のユーザー）
-    requester = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
-    
-    # 承認者
-    approver = Employee.create!(employee_id: "888", role: "employee", line_id: "other_user")
-    
-    # 申請者のシフト
-    today = Date.current
-    shift = Shift.create!(employee_id: requester.employee_id, shift_date: today, start_time: Time.zone.parse('09:00'), end_time: Time.zone.parse('18:00'))
-    
-    # シフト交代リクエスト（承認待ち）
-    pending_request = ShiftExchange.create!(
-      request_id: "req_pending_#{SecureRandom.hex(8)}",
-      requester_id: requester.employee_id,
-      approver_id: approver.employee_id,
-      shift_id: shift.id,
-      status: 'pending'
-    )
-    
-    # シフト交代リクエスト（承認済み）
-    approved_request = ShiftExchange.create!(
-      request_id: "req_approved_#{SecureRandom.hex(8)}",
-      requester_id: requester.employee_id,
-      approver_id: approver.employee_id,
-      shift_id: shift.id,
-      status: 'approved'
-    )
-
-    event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event['message']['text'] = '交代状況'
-
-    response = @line_bot_service.handle_message(event)
-
-    # 承認待ちと承認済みのリクエストが表示されることを確認
-    assert_includes response, "シフト交代状況"
-    assert_includes response, "承認待ち"
-    assert_includes response, "承認済み"
-
-    # テストデータのクリーンアップ
-    pending_request.destroy
-    approved_request.destroy
-    shift.destroy
-    approver.destroy
-    requester.destroy
-  end
-
-  test "should handle exchange status command for authenticated user with no requests" do
-    employee = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
-
-    event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event['message']['text'] = '交代状況'
-
-    response = @line_bot_service.handle_message(event)
-
-    assert_includes response, "シフト交代リクエストはありません"
-
-    employee.destroy
-  end
-
-  test "should handle exchange status command for unauthenticated user" do
-    event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event['message']['text'] = '交代状況'
-
-    response = @line_bot_service.handle_message(event)
-
-    assert_includes response, "認証が必要です"
-  end
 
   # 承認後の通知機能のテスト
   test "should create notification message when shift exchange is approved" do
@@ -2525,109 +2427,6 @@ class LineBotServiceTest < ActiveSupport::TestCase
     employee.destroy
   end
 
-  # 履歴表示機能のテスト
-  test "should display comprehensive shift exchange history" do
-    # 申請者
-    requester = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
-    
-    # 承認者
-    approver = Employee.create!(employee_id: "1000", role: "employee", line_id: "approver_user")
-    
-    # 申請者のシフト
-    today = Date.current
-    shift = Shift.create!(
-      employee_id: requester.employee_id,
-      shift_date: today,
-      start_time: Time.zone.parse('09:00'),
-      end_time: Time.zone.parse('18:00')
-    )
-    
-    # 複数のシフト交代依頼を作成（異なるステータス）
-    pending_request = ShiftExchange.create!(
-      request_id: "REQ_001",
-      requester_id: requester.employee_id,
-      approver_id: approver.employee_id,
-      shift_id: shift.id,
-      status: 'pending',
-      created_at: 1.hour.ago
-    )
-    
-    approved_request = ShiftExchange.create!(
-      request_id: "REQ_002",
-      requester_id: requester.employee_id,
-      approver_id: approver.employee_id,
-      shift_id: shift.id,
-      status: 'approved',
-      created_at: 2.hours.ago,
-      responded_at: 1.hour.ago
-    )
-    
-    rejected_request = ShiftExchange.create!(
-      request_id: "REQ_003",
-      requester_id: requester.employee_id,
-      approver_id: approver.employee_id,
-      shift_id: shift.id,
-      status: 'rejected',
-      created_at: 3.hours.ago,
-      responded_at: 2.hours.ago
-    )
-    
-    cancelled_request = ShiftExchange.create!(
-      request_id: "REQ_004",
-      requester_id: requester.employee_id,
-      approver_id: approver.employee_id,
-      shift_id: shift.id,
-      status: 'cancelled',
-      created_at: 4.hours.ago,
-      responded_at: 3.hours.ago
-    )
-    
-    # 履歴表示コマンドを実行
-    event = {
-      'type' => 'message',
-      'source' => { 'type' => 'user', 'userId' => @test_user_id },
-      'message' => { 'text' => '交代状況' }
-    }
-    
-    response = @line_bot_service.handle_message(event)
-    
-    # 各ステータスのリクエストが表示されることを確認
-    assert_includes response, "📊 シフト交代状況"
-    assert_includes response, "⏳ 承認待ち (1件)"
-    assert_includes response, "✅ 承認済み (1件)"
-    assert_includes response, "❌ 拒否済み (1件)"
-    assert_includes response, "🚫 キャンセル済み (1件)"
-    
-    # 各リクエストの詳細情報が表示されることを確認
-    assert_includes response, today.strftime('%m/%d')
-    assert_includes response, "09:00-18:00"
-    
-    # テストデータのクリーンアップ
-    [pending_request, approved_request, rejected_request, cancelled_request].each(&:destroy)
-    shift.destroy
-    approver.destroy
-    requester.destroy
-  end
-
-  test "should display empty history when no requests exist" do
-    # 申請者
-    requester = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
-    
-    # 履歴表示コマンドを実行
-    event = {
-      'type' => 'message',
-      'source' => { 'type' => 'user', 'userId' => @test_user_id },
-      'message' => { 'text' => '交代状況' }
-    }
-    
-    response = @line_bot_service.handle_message(event)
-    
-    # リクエストがない場合のメッセージが表示されることを確認
-    assert_includes response, "シフト交代リクエストはありません"
-    
-    # テストデータのクリーンアップ
-    requester.destroy
-  end
 
   # シフト追加承認・否認機能のテスト
   test "should approve shift addition request via LINE Bot" do

@@ -179,34 +179,6 @@ class ShiftExchangeService
     end
   end
 
-  # シフト交代リクエストの状況取得
-  def get_exchange_status(employee_id)
-    begin
-      requests = ShiftExchange.where(requester_id: employee_id)
-      
-      if requests.empty?
-        return { success: true, message: "シフト交代リクエストはありません。" }
-      end
-
-      status_counts = {
-        pending: requests.where(status: 'pending').count,
-        approved: requests.where(status: 'approved').count,
-        rejected: requests.where(status: 'rejected').count,
-        cancelled: requests.where(status: 'cancelled').count
-      }
-
-      {
-        success: true,
-        requests: requests,
-        status_counts: status_counts,
-        message: generate_status_message(status_counts)
-      }
-
-    rescue => e
-      Rails.logger.error "シフト交代状況取得エラー: #{e.message}"
-      { success: false, message: "シフト交代状況の取得に失敗しました。" }
-    end
-  end
 
   private
 
@@ -321,24 +293,5 @@ class ShiftExchangeService
     end
   end
 
-  # 状況メッセージの生成
-  def generate_status_message(status_counts)
-    message = "📊 シフト交代状況\n\n"
-    
-    if status_counts[:pending] > 0
-      message += "⏳ 承認待ち (#{status_counts[:pending]}件)\n"
-    end
-    if status_counts[:approved] > 0
-      message += "✅ 承認済み (#{status_counts[:approved]}件)\n"
-    end
-    if status_counts[:rejected] > 0
-      message += "❌ 拒否済み (#{status_counts[:rejected]}件)\n"
-    end
-    if status_counts[:cancelled] > 0
-      message += "🚫 キャンセル済み (#{status_counts[:cancelled]}件)\n"
-    end
-
-    message
-  end
 
 end
