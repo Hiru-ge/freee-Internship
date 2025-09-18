@@ -49,29 +49,25 @@ class ShiftAdditionsController < ApplicationController
         redirect_to new_shift_addition_path and return
       end
 
-      # シフト追加リクエストの作成
-      ShiftAddition.create!(
-        request_id: generate_request_id,
+      # 共通サービスを使用してシフト追加リクエストを作成
+      request_params = {
         requester_id: current_employee_id,
-        target_employee_id: params[:employee_id],
-        shift_date: Date.parse(params[:shift_date]),
-        start_time: Time.zone.parse(params[:start_time]),
-        end_time: Time.zone.parse(params[:end_time]),
-        status: 'pending'
-      )
+        shift_date: params[:shift_date],
+        start_time: params[:start_time],
+        end_time: params[:end_time],
+        target_employee_ids: [params[:employee_id]]
+      }
 
-      # 通知送信（テスト環境ではスキップ）
-      unless Rails.env.test?
-        EmailNotificationService.new.send_shift_addition_request(
-          params[:employee_id],
-          Date.parse(params[:shift_date]),
-          Time.zone.parse(params[:start_time]),
-          Time.zone.parse(params[:end_time])
-        )
+      shift_addition_service = ShiftAdditionService.new
+      result = shift_addition_service.create_addition_request(request_params)
+
+      if result[:success]
+        flash[:notice] = result[:message]
+        redirect_to shifts_path
+      else
+        flash[:error] = result[:message]
+        redirect_to new_shift_addition_path
       end
-
-      flash[:notice] = "シフト追加リクエストを送信しました。"
-      redirect_to shifts_path
 
     rescue => error
       handle_api_error(error, 'シフト追加リクエスト作成')

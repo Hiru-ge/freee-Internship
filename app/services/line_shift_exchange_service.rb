@@ -38,30 +38,31 @@ class LineShiftExchangeService
   # 承認Postbackの処理
   def handle_approval_postback(line_user_id, postback_data, action)
     request_id = postback_data.split('_')[1]
-    # IDまたはrequest_idで検索
-    exchange_request = ShiftExchange.find_by(id: request_id) || ShiftExchange.find_by(request_id: request_id)
     
-    unless exchange_request
-      return "シフト交代リクエストが見つかりません。"
-    end
+    # 従業員情報を取得
+    employee = find_employee_by_line_id(line_user_id)
+    return "従業員情報が見つかりません。" unless employee
+
+    # 共通サービスを使用して承認・拒否処理を実行
+    shift_exchange_service = ShiftExchangeService.new
     
     if action == 'approve'
-      # シフト交代を実行
-      exchange_request.update!(status: 'approved', responded_at: Time.current)
-      
-      # シフトの所有者を変更
-      shift = Shift.find(exchange_request.shift_id)
-      shift.update!(employee_id: exchange_request.approver_id)
-      
-      return "✅ シフト交代リクエストを承認しました。\n#{shift.shift_date.strftime('%m/%d')}"
+      result = shift_exchange_service.approve_exchange_request(request_id, employee.employee_id)
+      if result[:success]
+        "✅ シフト交代リクエストを承認しました。\n#{result[:shift_date]}"
+      else
+        result[:message]
+      end
     elsif action == 'reject'
-      # リクエストを拒否
-      exchange_request.update!(status: 'rejected', responded_at: Time.current)
-      
-      return "❌ シフト交代リクエストを拒否しました。"
+      result = shift_exchange_service.reject_exchange_request(request_id, employee.employee_id)
+      if result[:success]
+        "❌ シフト交代リクエストを拒否しました。"
+      else
+        result[:message]
+      end
+    else
+      "不明なアクションです。"
     end
-    
-    "不明なアクションです。"
   end
 
   # シフト交代状況確認コマンドの処理
@@ -80,55 +81,41 @@ class LineShiftExchangeService
     employee = find_employee_by_line_id(line_user_id)
     return "従業員情報が見つかりません。" unless employee
     
-    # 申請者のシフト交代リクエストを取得
-    sent_requests = ShiftExchange.where(requester_id: employee.employee_id)
+    # 共通サービスを使用してシフト交代状況を取得
+    shift_exchange_service = ShiftExchangeService.new
+    result = shift_exchange_service.get_exchange_status(employee.employee_id)
     
-    if sent_requests.empty?
-      return "シフト交代リクエストはありません。"
-    end
-    
-    message = "📊 シフト交代状況\n\n"
-    
-    # 承認待ちの件数を計算
-    pending_count = sent_requests.where(status: 'pending').count
-    approved_count = sent_requests.where(status: 'approved').count
-    rejected_count = sent_requests.where(status: 'rejected').count
-    cancelled_count = sent_requests.where(status: 'cancelled').count
-    
-    if pending_count > 0
-      message += "⏳ 承認待ち (#{pending_count}件)\n"
-    end
-    if approved_count > 0
-      message += "✅ 承認済み (#{approved_count}件)\n"
-    end
-    if rejected_count > 0
-      message += "❌ 拒否済み (#{rejected_count}件)\n"
-    end
-    if cancelled_count > 0
-      message += "🚫 キャンセル済み (#{cancelled_count}件)\n"
-    end
-    
-    message += "\n"
-    
-    sent_requests.each do |request|
-      shift = Shift.find(request.shift_id)
-      approver = Employee.find_by(employee_id: request.approver_id)
-      
-      status_text = case request.status
-      when 'pending' then "⏳ 承認待ち"
-      when 'approved' then "✅ 承認済み"
-      when 'rejected' then "❌ 拒否"
-      when 'cancelled' then "🚫 キャンセル"
-      else request.status
+    if result[:success]
+      if result[:requests].nil? || result[:requests].empty?
+        result[:message]
+      else
+        # 詳細情報を追加
+        message = result[:message]
+        message += "\n"
+        
+        result[:requests].each do |request|
+          shift = request.shift
+          approver = Employee.find_by(employee_id: request.approver_id)
+          
+          status_text = case request.status
+          when 'pending' then "⏳ 承認待ち"
+          when 'approved' then "✅ 承認済み"
+          when 'rejected' then "❌ 拒否"
+          when 'cancelled' then "🚫 キャンセル"
+          else request.status
+          end
+          
+          message += "日付: #{shift.shift_date.strftime('%m/%d')}\n"
+          message += "時間: #{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}\n"
+          message += "対象: #{approver&.employee_id || '不明'}\n"
+          message += "状況: #{status_text}\n\n"
+        end
+        
+        message
       end
-      
-      message += "日付: #{shift.shift_date.strftime('%m/%d')}\n"
-      message += "時間: #{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}\n"
-      message += "対象: #{approver&.employee_id || '不明'}\n"
-      message += "状況: #{status_text}\n\n"
+    else
+      result[:message]
     end
-    
-    message
   end
 
   # 依頼キャンセルコマンドの処理
@@ -153,11 +140,15 @@ class LineShiftExchangeService
       return "キャンセル可能なリクエストはありません。"
     end
     
-    # 最初のリクエストをキャンセル
-    request = pending_requests.first
-    request.update!(status: 'cancelled', responded_at: Time.current)
+    # 共通サービスを使用して最初のリクエストをキャンセル
+    shift_exchange_service = ShiftExchangeService.new
+    result = shift_exchange_service.cancel_exchange_request(pending_requests.first.id, employee.employee_id)
     
-    "シフト交代リクエストをキャンセルしました。"
+    if result[:success]
+      "シフト交代リクエストをキャンセルしました。"
+    else
+      result[:message]
+    end
   end
 
   # シフト交代日付入力の処理
@@ -287,28 +278,27 @@ class LineShiftExchangeService
     employee = find_employee_by_line_id(line_user_id)
     return "従業員情報が見つかりません。" unless employee
 
-    # 既に同じシフトに対して同じ申請者から同じ承認者へのリクエストが存在しないかチェック
-    existing_request = ShiftExchange.find_by(
-      requester_id: employee.employee_id,
-      shift_id: shift_id,
-      approver_id: target_employee_id,
-      status: ['pending', 'approved']
-    )
-    return "既に同じシフト交代リクエストが申請されています。" if existing_request
+    # シフト情報を取得
+    shift = Shift.find_by(id: shift_id)
+    return "シフトが見つかりません。" unless shift
 
-    # シフト交代リクエストを作成
-    exchange_request = ShiftExchange.create!(
-      requester_id: employee.employee_id,
-      approver_id: target_employee_id,
-      shift_id: shift_id,
-      status: 'pending',
-      request_id: "req_#{SecureRandom.hex(8)}"
-    )
+    # 共通サービスを使用してシフト交代リクエストを作成
+    request_params = {
+      applicant_id: employee.employee_id,
+      shift_date: shift.shift_date.strftime('%Y-%m-%d'),
+      start_time: shift.start_time.strftime('%H:%M'),
+      end_time: shift.end_time.strftime('%H:%M'),
+      approver_ids: [target_employee_id]
+    }
 
-    # 通知を送信
-    send_shift_exchange_notification(exchange_request)
+    shift_exchange_service = ShiftExchangeService.new
+    result = shift_exchange_service.create_exchange_request(request_params)
 
-    "シフト交代リクエストを送信しました。\n承認をお待ちください。"
+    if result[:success]
+      "シフト交代リクエストを送信しました。\n承認をお待ちください。"
+    else
+      result[:message]
+    end
   end
 
   # 会話状態の設定
@@ -340,11 +330,6 @@ class LineShiftExchangeService
     end
   end
 
-  # シフト交代通知の送信
-  def send_shift_exchange_notification(exchange_request)
-    # 通知処理は後で実装
-    Rails.logger.info "シフト交代リクエスト通知: #{exchange_request.request_id}"
-  end
 
   private
 

@@ -188,54 +188,43 @@ class LineShiftAdditionService
       available_employees = state['available_employees']
       overlapping_employees = state['overlapping_employees']
       
-      # 各従業員に対してシフト追加依頼を作成
-      created_requests = []
-      failed_requests = []
-      
-      available_employees.each do |target_employee|
-        begin
-          # シフト追加依頼を作成
-          addition_request = ShiftAddition.create!(
-            requester_employee_id: employee.employee_id,
-            target_employee_id: target_employee[:id],
-            date: date,
-            start_time: start_time,
-            end_time: end_time,
-            status: 'pending',
-            request_id: generate_request_id
-          )
-          
-          created_requests << target_employee[:display_name]
-          
-          # 通知を送信
-          send_shift_addition_notification(addition_request)
-        rescue => e
-          Rails.logger.error "シフト追加依頼作成エラー: #{e.message}"
-          failed_requests << target_employee[:display_name]
-        end
-      end
+      # 共通サービスを使用してシフト追加リクエストを作成
+      request_params = {
+        requester_id: employee.employee_id,
+        shift_date: date.strftime('%Y-%m-%d'),
+        start_time: start_time.strftime('%H:%M'),
+        end_time: end_time.strftime('%H:%M'),
+        target_employee_ids: available_employees.map { |emp| emp[:id] }
+      }
+
+      shift_addition_service = ShiftAdditionService.new
+      result = shift_addition_service.create_addition_request(request_params)
       
       # 会話状態をクリア
       clear_conversation_state(line_user_id)
       
-      # 結果メッセージを生成
-      message = "✅ シフト追加依頼を送信しました！\n\n"
-      
-      if created_requests.any?
-        message += "📤 送信先: #{created_requests.join(', ')}\n"
+      if result[:success]
+        # 結果メッセージを生成
+        message = "✅ シフト追加依頼を送信しました！\n\n"
+        
+        if result[:created_requests].any?
+          created_names = result[:created_requests].map do |request|
+            target_employee = Employee.find_by(employee_id: request.target_employee_id)
+            target_employee&.display_name || "従業員ID: #{request.target_employee_id}"
+          end
+          message += "📤 送信先: #{created_names.join(', ')}\n"
+        end
+        
+        if result[:overlapping_employees].any?
+          message += "⚠️ 時間重複で除外: #{result[:overlapping_employees].join(', ')}\n"
+        end
+        
+        message += "\n承認状況は「リクエスト確認」コマンドで確認できます。"
+        
+        message
+      else
+        result[:message]
       end
-      
-      if failed_requests.any?
-        message += "❌ 送信失敗: #{failed_requests.join(', ')}\n"
-      end
-      
-      if overlapping_employees.any?
-        message += "⚠️ 時間重複で除外: #{overlapping_employees.join(', ')}\n"
-      end
-      
-      message += "\n承認状況は「リクエスト確認」コマンドで確認できます。"
-      
-      message
     rescue => e
       Rails.logger.error "シフト追加依頼作成エラー: #{e.message}"
       "❌ シフト追加依頼の作成に失敗しました。"
@@ -249,57 +238,27 @@ class LineShiftAdditionService
     
     return "シフト追加リクエストが見つかりません。" unless addition_request
     
-    # 権限チェック（承認者は対象従業員である必要がある）
-    employee = Employee.find_by(line_id: line_user_id)
-    unless addition_request.target_employee_id == employee.employee_id
-      return "このリクエストを承認する権限がありません。"
-    end
+    # 従業員情報を取得
+    employee = find_employee_by_line_id(line_user_id)
+    return "従業員情報が見つかりません。" unless employee
+
+    # 共通サービスを使用して承認・拒否処理を実行
+    shift_addition_service = ShiftAdditionService.new
     
     if action == 'approve'
-      # 承認処理
-      addition_request.update!(status: 'approved')
-      
-      # 既存のシフトをチェック
-      existing_shift = Shift.find_by(
-        employee_id: addition_request.target_employee_id,
-        shift_date: addition_request.shift_date
-      )
-      
-      if existing_shift
-        # 既存のシフトとマージ
-        new_start_time = [existing_shift.start_time, addition_request.start_time].min
-        new_end_time = [existing_shift.end_time, addition_request.end_time].max
-        
-        existing_shift.update!(
-          start_time: new_start_time,
-          end_time: new_end_time,
-          is_modified: true,
-          original_employee_id: addition_request.requester_id
-        )
+      result = shift_addition_service.approve_addition_request(request_id, employee.employee_id)
+      if result[:success]
+        "✅ シフト追加を承認しました。"
       else
-        # 新しいシフトを作成
-        Shift.create!(
-          employee_id: addition_request.target_employee_id,
-          shift_date: addition_request.shift_date,
-          start_time: addition_request.start_time,
-          end_time: addition_request.end_time,
-          is_modified: true,
-          original_employee_id: addition_request.requester_id
-        )
+        result[:message]
       end
-      
-      # 通知を送信
-      send_shift_addition_approval_notification(addition_request)
-      
-      "✅ シフト追加を承認しました。"
     else
-      # 否認処理
-      addition_request.update!(status: 'rejected')
-      
-      # 通知を送信
-      send_shift_addition_rejection_notification(addition_request)
-      
-      "❌ シフト追加を拒否しました。"
+      result = shift_addition_service.reject_addition_request(request_id, employee.employee_id)
+      if result[:success]
+        "❌ シフト追加を拒否しました。"
+      else
+        result[:message]
+      end
     end
   end
 
@@ -316,6 +275,10 @@ class LineShiftAdditionService
 
   def employee_already_linked?(line_user_id)
     Employee.exists?(line_id: line_user_id)
+  end
+
+  def find_employee_by_line_id(line_id)
+    Employee.find_by(line_id: line_id)
   end
 
   def get_conversation_state(line_user_id)
@@ -436,9 +399,6 @@ class LineShiftAdditionService
     end
   end
 
-  def generate_request_id
-    "shift_addition_#{SecureRandom.hex(8)}"
-  end
 
   def extract_request_id_from_postback(postback_data, type)
     # approve_addition_XXX または reject_addition_XXX から XXX を抽出

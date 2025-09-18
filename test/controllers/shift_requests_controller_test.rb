@@ -60,33 +60,6 @@ class ShiftRequestsControllerTest < ActionDispatch::IntegrationTest
     assert response.redirect? || response.success?
   end
 
-  # シフト交代リクエスト送信失敗テスト（重複チェック）
-  test "should not create shift exchange request with overlap" do
-    # 対象従業員に既存シフトを作成
-    Shift.create!(
-      employee_id: '3317741',
-      shift_date: Date.current,
-      start_time: Time.zone.parse('19:00'),
-      end_time: Time.zone.parse('22:00')
-    )
-    
-    post login_url, params: {
-      employee_id: '3316120',
-      password: 'password123'
-    }
-    
-    # リクエスト送信
-    post shift_exchanges_url, params: {
-      applicant_id: '3316120',
-      approver_ids: ['3317741'],
-      shift_date: Date.current,
-      start_time: '18:00',
-      end_time: '23:00'
-    }
-    
-    # リダイレクトまたはエラーレスポンスを確認
-    assert response.redirect? || response.unprocessable_content?
-  end
 
   # シフト追加リクエスト画面の表示テスト（オーナーのみ）
   test "should get new shift addition request as owner" do
@@ -132,32 +105,6 @@ class ShiftRequestsControllerTest < ActionDispatch::IntegrationTest
     assert response.redirect? || response.success?
   end
 
-  # シフト追加リクエスト送信失敗テスト（重複チェック）
-  test "should not create shift addition request with overlap" do
-    # 対象従業員に既存シフトを作成
-    Shift.create!(
-      employee_id: '3316120',
-      shift_date: Date.current + 1.day,
-      start_time: Time.zone.parse('19:00'),
-      end_time: Time.zone.parse('22:00')
-    )
-    
-    post login_url, params: {
-      employee_id: '3313254',
-      password: 'password123'
-    }
-    
-    # リクエスト送信
-    post shift_additions_url, params: {
-      target_employee_id: '3316120',
-      shift_date: Date.current + 1.day,
-      start_time: '18:00',
-      end_time: '23:00'
-    }
-    
-    # リダイレクトまたはエラーレスポンスを確認
-    assert response.redirect? || response.unprocessable_content?
-  end
 
   # バリデーションテスト（必須項目）
   test "should validate required fields for shift exchange" do

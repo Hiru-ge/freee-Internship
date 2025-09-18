@@ -79,15 +79,6 @@ class LineUtilityService
     "#{prefix}_#{Time.current.strftime('%Y%m%d_%H%M%S')}_#{SecureRandom.hex(4)}"
   end
 
-  # シフト交代リクエストIDの生成
-  def generate_shift_exchange_request_id
-    generate_request_id('EXCHANGE')
-  end
-
-  # シフト追加リクエストIDの生成
-  def generate_shift_addition_request_id
-    generate_request_id('ADDITION')
-  end
 
   # 日付フォーマット
   def format_date(date)

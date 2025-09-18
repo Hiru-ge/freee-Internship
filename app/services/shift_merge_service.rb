@@ -97,4 +97,33 @@ class ShiftMergeService
     
     merged_shift
   end
+
+  # シフトをマージする
+  def self.merge_shifts(existing_shift, new_shift)
+    return new_shift unless existing_shift
+    
+    # 既存シフトと新しいシフトの時間を比較してマージ
+    # 時間のみを比較するため、同じ日付のTimeオブジェクトを作成
+    existing_start_time = Time.zone.parse("#{existing_shift.shift_date} #{existing_shift.start_time.strftime('%H:%M')}")
+    existing_end_time = Time.zone.parse("#{existing_shift.shift_date} #{existing_shift.end_time.strftime('%H:%M')}")
+    new_start_time = Time.zone.parse("#{new_shift.shift_date} #{new_shift.start_time.strftime('%H:%M')}")
+    new_end_time = Time.zone.parse("#{new_shift.shift_date} #{new_shift.end_time.strftime('%H:%M')}")
+    
+    merged_start_time = [existing_start_time, new_start_time].min
+    merged_end_time = [existing_end_time, new_end_time].max
+    
+    # 時間のみを抽出してTime型で保存
+    merged_start_time_only = Time.zone.parse(merged_start_time.strftime('%H:%M'))
+    merged_end_time_only = Time.zone.parse(merged_end_time.strftime('%H:%M'))
+    
+    # 既存シフトを更新
+    existing_shift.update!(
+      start_time: merged_start_time_only,
+      end_time: merged_end_time_only,
+      is_modified: true,
+      original_employee_id: new_shift.original_employee_id || new_shift.employee_id
+    )
+    
+    existing_shift
+  end
 end
