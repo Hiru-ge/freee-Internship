@@ -18,10 +18,11 @@ class LineConversationService
     # 既存の状態を削除
     ConversationState.where(line_user_id: line_user_id).delete_all
 
-    # 新しい状態を保存
+    # 新しい状態を保存（24時間後に期限切れ）
     ConversationState.create!(
       line_user_id: line_user_id,
-      state_hash: state
+      state_data: state.to_json,
+      expires_at: 24.hours.from_now
     )
     true
   rescue StandardError => e
@@ -85,6 +86,12 @@ class LineConversationService
     when "waiting_for_shift_addition_confirmation"
       # シフト追加: 確認待ち
       addition_service.handle_shift_addition_confirmation_input(line_user_id, message_text, state)
+    when "waiting_shift_selection"
+      # 欠勤申請: シフト選択待ち
+      deletion_service.handle_shift_selection(line_user_id, message_text, state)
+    when "waiting_deletion_reason"
+      # 欠勤申請: 理由入力待ち
+      deletion_service.handle_shift_deletion_reason_input(line_user_id, message_text, state)
     else
       # 不明な状態の場合は状態をクリア
       clear_conversation_state(line_user_id)
@@ -122,6 +129,10 @@ class LineConversationService
 
   def addition_service
     @addition_service ||= LineShiftAdditionService.new
+  end
+
+  def deletion_service
+    @deletion_service ||= LineShiftDeletionService.new
   end
 
   def validation_service

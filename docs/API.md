@@ -81,6 +81,99 @@
 }
 ```
 
+### 欠勤申請関連 ✅ **新機能**
+
+#### GET /shift_deletions/new
+欠勤申請フォーム表示
+
+**認証**: 必要
+**権限**: 従業員以上
+
+**レスポンス**
+- 成功時: 欠勤申請フォーム（未来のシフト一覧）
+- 失敗時: エラーページ
+
+#### POST /shift_deletions
+欠勤申請作成
+
+**認証**: 必要
+**権限**: 従業員以上
+
+**リクエスト**
+```json
+{
+  "shift_deletion": {
+    "shift_id": "integer",
+    "reason": "string"
+  }
+}
+```
+
+**レスポンス**
+- 成功時: 302リダイレクト（シフト一覧へ）
+- 失敗時: 申請フォームにエラーメッセージ表示
+
+**バリデーション**
+- `shift_id`: 必須、自分のシフトのみ
+- `reason`: 必須、1文字以上
+- 未来のシフトのみ申請可能
+- 重複申請不可
+
+**データベーススキーマ**
+```sql
+CREATE TABLE shift_deletions (
+  id BIGINT PRIMARY KEY,
+  request_id VARCHAR NOT NULL UNIQUE,
+  requester_id VARCHAR NOT NULL,
+  shift_id BIGINT NOT NULL REFERENCES shifts(id),
+  reason TEXT NOT NULL,
+  status VARCHAR NOT NULL DEFAULT 'pending',
+  responded_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL,
+  updated_at TIMESTAMP NOT NULL
+);
+```
+
+**実装ファイル**
+- `app/models/shift_deletion.rb`: モデル実装
+- `app/controllers/shift_deletions_controller.rb`: コントローラー実装
+- `app/services/shift_deletion_service.rb`: ビジネスロジック
+- `app/views/shift_deletions/new.html.erb`: 申請フォーム
+
+#### POST /shift_approvals/approve
+欠勤申請承認
+
+**認証**: 必要
+**権限**: オーナーのみ
+
+**リクエスト**
+```json
+{
+  "request_id": "string"
+}
+```
+
+**レスポンス**
+- 成功時: 302リダイレクト（承認一覧へ）
+- 失敗時: エラーメッセージ表示
+
+#### POST /shift_approvals/reject
+欠勤申請拒否
+
+**認証**: 必要
+**権限**: オーナーのみ
+
+**リクエスト**
+```json
+{
+  "request_id": "string"
+}
+```
+
+**レスポンス**
+- 成功時: 302リダイレクト（承認一覧へ）
+- 失敗時: エラーメッセージ表示
+
 ### シフト管理
 
 #### GET /shifts

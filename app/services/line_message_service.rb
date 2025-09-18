@@ -297,6 +297,77 @@ class LineMessageService
     }
   end
 
+  # 欠勤申請用シフト選択Flex Messageの生成
+  def generate_shift_deletion_flex_message(shifts)
+    bubbles = shifts.map do |shift|
+      day_of_week = %w[日 月 火 水 木 金 土][shift.shift_date.wday]
+
+      {
+        type: "bubble",
+        header: {
+          type: "box",
+          layout: "vertical",
+          contents: [
+            {
+              type: "text",
+              text: "🚫 欠勤申請",
+              weight: "bold",
+              color: "#ffffff",
+              size: "sm"
+            }
+          ],
+          backgroundColor: "#FF6B6B"
+        },
+        body: {
+          type: "box",
+          layout: "vertical",
+          contents: [
+            {
+              type: "text",
+              text: "#{shift.shift_date.strftime('%m/%d')} (#{day_of_week})",
+              weight: "bold",
+              size: "lg"
+            },
+            {
+              type: "text",
+              text: "#{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}",
+              size: "md",
+              color: "#666666",
+              margin: "md"
+            }
+          ]
+        },
+        footer: {
+          type: "box",
+          layout: "vertical",
+          contents: [
+            {
+              type: "button",
+              style: "primary",
+              height: "sm",
+              color: "#FF6B6B",
+              action: {
+                type: "postback",
+                label: "このシフトを欠勤申請",
+                data: "deletion_shift_#{shift.id}",
+                displayText: "#{shift.shift_date.strftime('%m/%d')}のシフトを欠勤申請します"
+              }
+            }
+          ]
+        }
+      }
+    end
+
+    {
+      type: "flex",
+      altText: "欠勤申請 - シフトを選択してください",
+      contents: {
+        type: "carousel",
+        contents: bubbles
+      }
+    }
+  end
+
   private
 
   # ユーティリティメソッド

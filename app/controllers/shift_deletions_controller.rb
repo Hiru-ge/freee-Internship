@@ -30,7 +30,7 @@ class ShiftDeletionsController < ApplicationController
                      .where('shift_date >= ?', Date.current)
                      .order(:shift_date, :start_time)
       @shift_deletion = ShiftDeletion.new(shift_deletion_params)
-      render :new, status: :unprocessable_entity
+      render :new, status: :unprocessable_content
     end
   end
 

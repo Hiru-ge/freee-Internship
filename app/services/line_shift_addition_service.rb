@@ -28,9 +28,10 @@ class LineShiftAdditionService
                              "created_at" => Time.current
                            })
 
+    tomorrow = (Date.current + 1).strftime("%Y-%m-%d")
     "シフト追加を開始します。\n" \
       "追加するシフトの日付を入力してください。\n" \
-      "例：2025-09-19\n" \
+      "例：#{tomorrow}\n" \
       "⚠️ 過去の日付は指定できません"
   end
 

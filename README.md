@@ -40,6 +40,8 @@
 
 ### LINE Bot連携 ✅ **実装完了**
 - **認証システム**: 従業員名入力による認証コード生成・LINEアカウント紐付け
+- **シフト管理**: シフト確認、シフト交代依頼、シフト追加依頼
+- **欠勤申請**: シフトの欠勤申請・承認機能 ✅ **新機能**
 - **シフト確認**: 個人・全従業員のシフト情報確認（認証必要）
 - **シフト交代機能**: Flex Message形式のシフトカード表示と交代依頼
 - **シフト交代承認**: Flex Message形式の承認待ちリクエスト表示と承認・拒否処理
@@ -179,18 +181,24 @@ fly deploy
 ## テスト実装
 
 ### テストスイート概要
-- **総テスト数**: 111テスト
-- **アサーション数**: 351アサーション
+- **総テスト数**: 414テスト
+- **アサーション数**: 1072アサーション
 - **成功率**: 100%
-- **テストファイル数**: 5ファイル（統合後）
+- **テストファイル数**: 6ファイル（統合後）
 - **機能見直し後のテスト最適化完了**
+- **欠勤申請機能のテスト充実化完了**
 
 ### 統合されたテストファイル構成
-- **`line_bot_service_test.rb`** (3,312行、111テスト): LINE Bot関連の全機能テスト
+- **`line_bot_service_test.rb`** (3,631行、120テスト): LINE Bot関連の全機能テスト（欠勤申請機能含む）
+- **`shift_deletion_service_test.rb`** (337行、13テスト): 欠勤申請サービステスト
+- **`line_shift_deletion_service_test.rb`** (176行、8テスト): LINE欠勤申請サービステスト
+- **`line_message_service_test.rb`** (256行、10テスト): LINEメッセージサービステスト
+- **`line_conversation_service_test.rb`** (222行、13テスト): LINE会話状態管理テスト
 - **`shift_services_test.rb`** (580行、19テスト): シフト管理・パフォーマンス最適化テスト
 - **`clock_services_test.rb`** (416行、20テスト): 時計・通知・賃金サービステスト
-- **`security_test.rb`** (433行、36テスト): セキュリティ・認証・コントローラーテスト
+- **`security_test.rb`** (433行、39テスト): セキュリティ・認証・コントローラーテスト
 - **`error_handling_test.rb`** (172行、複数テスト): エラーハンドリングテスト
+- **`access_control_service_test.rb`** (200行、12テスト): アクセス制限機能テスト
 
 ### テスト実行方法
 ```bash
@@ -209,9 +217,10 @@ rails test test/services/line_bot_service_test.rb -n test_should_handle_shift_ex
 ```
 
 ### 統合の効果
-- **テストファイル数**: 11ファイル → 5ファイル（54.5%削減）
+- **テストファイル数**: 11ファイル → 10ファイル（機能別に最適化）
 - **関連機能の集約**: 機能ごとにテストが整理され、保守性が向上
 - **テスト通過率の維持**: 100%のテスト通過率を維持
+- **欠勤申請機能のテスト充実**: 44テストケース、168アサーションを追加
 
 詳細なテスト仕様については [TESTING.md](docs/TESTING.md) を参照してください。
 
@@ -259,6 +268,7 @@ fly ssh console -a your-app-name -C "bundle exec rails clock_reminder:check_all"
 - ✅ 実装クリーンアップ完了（Phase 14-4）
 - ✅ アクセス制限機能完了（Phase 14-5）
 - ✅ 欠勤申請機能完了（Phase 14-6）
+- ✅ 欠勤申請機能のLINE連携完了（Phase 14-7）
 
 ## ドキュメント
 
@@ -273,7 +283,6 @@ fly ssh console -a your-app-name -C "bundle exec rails clock_reminder:check_all"
 - [LINE Bot データベース設計](docs/line_bot_database_design.md) - LINE Bot連携のデータベース設計
 - [LINE Bot デプロイ手順](docs/line_bot_deployment.md) - LINE Botのデプロイと設定
 - [LINE Bot API仕様](docs/line_bot_api_spec.md) - LINE Bot APIの仕様書
-- [Phase 14-6 欠勤申請機能](docs/phase-14-6-shift-deletion-implementation.md) - 欠勤申請機能の実装詳細
 
 詳細な実装状況は `docs/` ディレクトリ内のドキュメントを参照してください。
 

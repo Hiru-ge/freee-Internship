@@ -47,7 +47,7 @@ class LineMessageGeneratorService
   def self.generate_success_message(action_type, _context = {})
     case action_type
     when :authentication_completed
-      "認証が完了しました！\n\n以下の機能が利用可能になりました:\n・シフト確認\n・全員シフト確認\n・交代依頼\n・追加依頼\n・依頼確認"
+      "認証が完了しました！\n\n以下の機能が利用可能になりました:\n・シフト確認\n・全員シフト確認\n・交代依頼\n・追加依頼\n・欠勤申請\n・依頼確認"
     when :shift_exchange_request_created
       "シフト交代依頼を作成しました。\n承認をお待ちください。"
     when :shift_addition_request_created
@@ -90,6 +90,7 @@ class LineMessageGeneratorService
       "・全員シフト確認 - 全従業員のシフト情報を確認\n" \
       "・交代依頼 - シフト交代依頼\n" \
       "・追加依頼 - シフト追加依頼（オーナーのみ）\n" \
+      "・欠勤申請 - シフトの欠勤申請\n" \
       "・依頼確認 - 承認待ちの依頼を確認\n\n" \
       "コマンドを入力してください。"
   end

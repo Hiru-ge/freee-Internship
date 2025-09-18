@@ -8,6 +8,7 @@ class LineBotService
     "全員シフト確認" => :all_shifts,
     "交代依頼" => :shift_exchange,
     "追加依頼" => :shift_addition,
+    "欠勤申請" => :shift_deletion,
     "依頼確認" => :request_check
   }.freeze
 
@@ -29,6 +30,10 @@ class LineBotService
 
   def addition_service
     @addition_service ||= LineShiftAdditionService.new
+  end
+
+  def deletion_service
+    @deletion_service ||= LineShiftDeletionService.new
   end
 
   def message_service
@@ -77,6 +82,8 @@ class LineBotService
       exchange_service.handle_shift_exchange_command(event)
     when :shift_addition
       addition_service.handle_shift_addition_command(event)
+    when :shift_deletion
+      deletion_service.handle_shift_deletion_command(event)
     when :request_check
       handle_request_check_command(event)
     else
@@ -105,6 +112,12 @@ class LineBotService
       return addition_service.handle_shift_addition_approval_postback(line_user_id, postback_data, "approve")
     when /^reject_addition_.+$/
       return addition_service.handle_shift_addition_approval_postback(line_user_id, postback_data, "reject")
+    when /^deletion_shift_\d+$/
+      return handle_deletion_shift_selection(line_user_id, postback_data)
+    when /^approve_deletion_.+$/
+      return deletion_service.handle_deletion_approval_postback(line_user_id, postback_data, "approve")
+    when /^reject_deletion_.+$/
+      return deletion_service.handle_deletion_approval_postback(line_user_id, postback_data, "reject")
     end
 
     "不明なPostbackイベントです。"
@@ -125,6 +138,23 @@ class LineBotService
     else
       reject_shift_addition(addition_request)
     end
+  end
+
+  # 欠勤申請のシフト選択処理
+  def handle_deletion_shift_selection(line_user_id, postback_data)
+    shift_id = postback_data.split("_")[2] # deletion_shift_XXX -> XXX
+    shift = Shift.find_by(id: shift_id)
+
+    return "選択されたシフトが見つかりません。" unless shift
+
+    # 会話状態を設定
+    conversation_service.set_conversation_state(line_user_id, {
+      step: "waiting_deletion_reason",
+      shift_id: shift_id
+    })
+
+    "欠勤理由を入力してください。\n\n" \
+      "例: 体調不良のため、急用ができたため、など"
   end
 
   private

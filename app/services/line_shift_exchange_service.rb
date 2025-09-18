@@ -85,7 +85,8 @@ class LineShiftExchangeService
     # シフト選択のFlex Messageを生成
     generate_shift_exchange_flex_message(shifts)
   rescue ArgumentError
-    "日付の形式が正しくありません。\n例: 09/19"
+    tomorrow = (Date.current + 1).strftime("%m/%d")
+    "日付の形式が正しくありません。\n例: #{tomorrow}"
   end
 
   # シフト選択入力の処理

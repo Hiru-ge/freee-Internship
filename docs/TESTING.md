@@ -8,23 +8,28 @@ GASからRailsへの移行において、機能の完全性を保証するため
 
 ## 📊 テスト結果
 
-- **総テスト数**: 126テスト
-- **成功**: 126テスト
+- **総テスト数**: 414テスト
+- **成功**: 414テスト
 - **失敗**: 0テスト
 - **エラー**: 0テスト
-- **アサーション数**: 408アサーション
+- **アサーション数**: 1072アサーション
 - **成功率**: 100%
-- **テストファイル数**: 6ファイル（統合後）
+- **テストファイル数**: 10ファイル（機能別最適化後）
 - **機能見直し後のテスト最適化完了**
 - **リファクタリング後のテスト安定性確保**
 - **実装クリーンアップ後のテスト一貫性確保**
 - **アクセス制限機能のテスト完了**
 - **GitHubActions API認証機能のテスト完了**
+- **欠勤申請機能のテスト充実化完了**
 
 ## 🏗️ テスト構成（統合後）
 
 ### 統合されたテストファイル構成
-- **`line_bot_service_test.rb`** (3,312行、111テスト): LINE Bot関連の全機能テスト
+- **`line_bot_service_test.rb`** (3,631行、120テスト): LINE Bot関連の全機能テスト（欠勤申請機能含む）
+- **`shift_deletion_service_test.rb`** (337行、13テスト): 欠勤申請サービステスト
+- **`line_shift_deletion_service_test.rb`** (176行、8テスト): LINE欠勤申請サービステスト
+- **`line_message_service_test.rb`** (256行、10テスト): LINEメッセージサービステスト
+- **`line_conversation_service_test.rb`** (222行、13テスト): LINE会話状態管理テスト
 - **`shift_services_test.rb`** (580行、19テスト): シフト管理・パフォーマンス最適化テスト
 - **`clock_services_test.rb`** (416行、20テスト): 時計・通知・賃金サービステスト
 - **`security_test.rb`** (433行、39テスト): セキュリティ・認証・コントローラーテスト
@@ -32,9 +37,10 @@ GASからRailsへの移行において、機能の完全性を保証するため
 - **`access_control_service_test.rb`** (200行、12テスト): アクセス制限機能テスト
 
 ### 統合の効果
-- **テストファイル数**: 11ファイル → 6ファイル（45.5%削減）
+- **テストファイル数**: 11ファイル → 10ファイル（機能別最適化）
 - **関連機能の集約**: 機能ごとにテストが整理され、保守性が向上
 - **テスト通過率の維持**: 100%のテスト通過率を維持
+- **欠勤申請機能のテスト充実**: 44テストケース、168アサーションを追加
 
 ### 1. アクセス制限機能テスト
 
@@ -232,7 +238,54 @@ GASからRailsへの移行において、機能の完全性を保証するため
 - [x] 承認・拒否通知
 - [x] エラーハンドリング
 
-### 9. LINE Bot機能テスト
+### 9. 欠勤申請機能テスト ✅ **新機能**
+
+#### ShiftDeletionService
+- [x] 正常な欠勤申請作成
+- [x] 過去のシフトの申請拒否
+- [x] 他の従業員のシフト申請拒否
+- [x] 重複申請の拒否
+- [x] 申請承認処理
+- [x] 申請拒否処理
+- [x] 存在しない申請の処理
+- [x] 既に処理済み申請の処理
+- [x] エラーハンドリング
+
+#### LineShiftDeletionService
+- [x] 欠勤申請コマンド処理
+- [x] 未認証ユーザーの処理
+- [x] シフト選択処理（未来のシフト存在時）
+- [x] シフト選択処理（未来のシフト不在時）
+- [x] 欠勤理由入力処理
+- [x] 空の理由入力処理
+- [x] 申請作成処理
+- [x] 承認・拒否処理
+
+#### LineMessageService
+- [x] 欠勤申請用Flex Message生成
+- [x] 空のシフトリスト対応
+- [x] ヘルプメッセージ生成
+- [x] テキストメッセージ生成
+- [x] エラーメッセージ生成
+- [x] 成功メッセージ生成
+
+#### LineConversationService
+- [x] 会話状態の設定・取得・クリア
+- [x] 欠勤申請シフト選択状態処理
+- [x] 欠勤申請理由入力状態処理
+- [x] 空の理由入力処理
+- [x] 不明な状態の処理
+- [x] エラーハンドリング
+
+#### 実装詳細
+- **TDD実装**: Red, Green, Refactoringサイクルでの実装
+- **テストファイル**: 5つのテストファイルで44テストケース
+- **アサーション数**: 168アサーション
+- **成功率**: 100%
+- **モック戦略**: `Object.new`と`define_singleton_method`を使用
+- **データベース整合性**: `ConversationState`モデルとの整合性確保
+
+### 10. LINE Bot機能テスト
 
 #### 認証フロー
 - [x] 認証コマンド処理
@@ -278,7 +331,7 @@ GASからRailsへの移行において、機能の完全性を保証するため
 - [x] 依頼通知送信
 - [x] プッシュメッセージ送信
 
-### 10. パフォーマンステスト
+### 11. パフォーマンステスト
 
 #### 負荷テスト
 - [x] 同時リクエスト処理
@@ -292,7 +345,7 @@ GASからRailsへの移行において、機能の完全性を保証するため
 - [x] キャッシュ無効化
 - [x] キャッシュヒット率
 
-### 11. 統合テスト
+### 12. 統合テスト
 
 #### エンドツーエンドテスト
 - [x] 認証からシフト管理までの完全フロー
@@ -432,27 +485,27 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     services:
       sqlite3:
         image: sqlite3:latest
-        
+
     steps:
     - uses: actions/checkout@v2
-    
+
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
         ruby-version: 3.2.2
-        
+
     - name: Install dependencies
       run: |
         gem install bundler
         bundle install
-        
+
     - name: Run tests
       run: bundle exec rails test
-      
+
     - name: Generate coverage report
       run: COVERAGE=true bundle exec rails test
 ```
@@ -478,10 +531,10 @@ test "should handle specific scenario" do
   # Arrange: テストデータの準備
   employee = create_test_employee
   event = create_mock_event("認証", "user_123")
-  
+
   # Act: テスト対象の実行
   result = @service.handle_auth_command(event)
-  
+
   # Assert: 結果の検証
   assert_includes result, "従業員名を入力してください"
 end
@@ -536,14 +589,14 @@ class LineBotPerformanceTest < ActiveSupport::TestCase
   test "should handle multiple concurrent requests" do
     threads = []
     results = []
-    
+
     10.times do |i|
       threads << Thread.new do
         start_time = Time.current
         event = create_mock_event("ヘルプ", "user_#{i}")
         result = LineBotService.new.handle_message(event)
         end_time = Time.current
-        
+
         results << {
           user_id: "user_#{i}",
           response_time: end_time - start_time,
@@ -551,13 +604,13 @@ class LineBotPerformanceTest < ActiveSupport::TestCase
         }
       end
     end
-    
+
     threads.each(&:join)
-    
+
     # パフォーマンスの検証
     average_response_time = results.map { |r| r[:response_time] }.sum / results.size
     assert average_response_time < 1.0, "平均応答時間が1秒を超えています: #{average_response_time}"
-    
+
     success_rate = results.count { |r| r[:success] } / results.size.to_f
     assert success_rate > 0.95, "成功率が95%を下回っています: #{success_rate}"
   end
@@ -583,10 +636,10 @@ end
 # データベースの状態確認
 test "should create employee" do
   @service.create_employee(attributes)
-  
+
   # データベースの状態を確認
   assert Employee.exists?(employee_id: attributes[:employee_id])
-  
+
   # 詳細な確認
   employee = Employee.find_by(employee_id: attributes[:employee_id])
   assert_equal attributes[:display_name], employee.display_name
