@@ -289,11 +289,11 @@ Error: failed to acquire leases: Unrecoverable error: failed to get lease on VM
    # freee API設定
    fly secrets set FREEE_ACCESS_TOKEN=your_token -a your-app-name
    fly secrets set FREEE_COMPANY_ID=your_company_id -a your-app-name
-   
+
    # Gmail SMTP設定
    fly secrets set GMAIL_USERNAME=your_email -a your-app-name
    fly secrets set GMAIL_APP_PASSWORD=your_app_password -a your-app-name
-   
+
    # Rails設定
    fly secrets set RAILS_MASTER_KEY=your_master_key -a your-app-name
    ```
@@ -324,7 +324,7 @@ name: Clock Reminder Check
 
 on:
   schedule:
-    - cron: '*/15 * * * *'  # 15分間隔で実行（UTC時間）
+    - cron: '15,30,45,0 * * * *'  # 毎時0分、15分、30分、45分に実行（日本時間 JST）
   workflow_dispatch: # 手動実行も可能
 
 jobs:

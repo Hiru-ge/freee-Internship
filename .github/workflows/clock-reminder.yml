@@ -2,33 +2,33 @@ name: Clock Reminder Check
 
 on:
   schedule:
-    # 15分間隔で実行（UTC時間）
-    - cron: '*/15 * * * *'
+    # 毎時0分、15分、30分、45分に実行（日本時間 JST）
+    - cron: '15,30,45,0 * * * *'
   workflow_dispatch: # 手動実行も可能
 
 jobs:
   clock-reminder:
     runs-on: ubuntu-latest
     environment: production
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Setup Ruby
       uses: ruby/setup-ruby@v1
       with:
         ruby-version: 3.2.2
         bundler-cache: true
-        
+
     - name: Install dependencies
       run: bundle install
-      
+
     - name: Install flyctl
       run: |
         curl -L https://fly.io/install.sh | sh
         echo "$HOME/.fly/bin" >> $GITHUB_PATH
-        
+
     - name: Start fly.io app if stopped
       env:
         FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
@@ -37,29 +37,29 @@ jobs:
         echo "Checking app status..."
         status_output=$(fly status -a freee-internship 2>&1 || true)
         echo "$status_output"
-        
+
         # stoppedが含まれている場合は起動
         if echo "$status_output" | grep -q "stopped"; then
           echo "App is stopped, starting all machines..."
           fly machine start -a freee-internship
           echo "Waiting for machines to start..."
           sleep 15
-          
+
           # 起動確認
           echo "Verifying app is started..."
           fly status -a freee-internship
         else
           echo "App is already running"
         fi
-        
+
     - name: Run clock reminder check
       run: |
         # HTTP APIで打刻忘れチェックを実行
         echo "Using HTTP API to trigger clock reminder check..."
-        
+
         # アプリのURLを取得
         APP_URL="https://freee-internship.fly.dev"
-        
+
         # HTTP APIで打刻忘れチェックを実行
         echo "Triggering clock reminder check via HTTP..."
         curl -X POST "$APP_URL/clock_reminder/trigger" \

@@ -222,7 +222,7 @@ rails test test/services/line_bot_service_test.rb -n test_should_handle_shift_ex
 # .github/workflows/clock-reminder.yml
 on:
   schedule:
-    - cron: '*/15 * * * *'  # 15分間隔で実行
+    - cron: '15,30,45,0 * * * *'  # 毎時0分、15分、30分、45分に実行（日本時間 JST）
 ```
 
 **手動実行**:
