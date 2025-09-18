@@ -25,8 +25,9 @@ class LineAuthenticationService
     })
     
     "認証を開始します。\n" +
-    "あなたの従業員名（姓名）を入力してください。\n" +
-    "例: 田中太郎"
+    "あなたの従業員名を入力してください。\n" +
+    "フルネームでも部分入力でも検索できます。\n" +
+    "例: 田中太郎、田中、太郎"
   end
 
   # 従業員名入力の処理
@@ -36,14 +37,15 @@ class LineAuthenticationService
     
     if matches.empty?
       # 明らかに従業員名でない文字列（長すぎる、特殊文字が多い等）の場合は無視
-      if employee_name.length > 20 || employee_name.match?(/[^\p{Hiragana}\p{Katakana}\p{Han}a-zA-Z\s]/)
-        return "有効な従業員名を入力してください。\n" +
-               "例: 田中太郎"
+      if employee_name.length > 20 || employee_name.match?(/[^\p{Hiragana}\p{Katakana}\p{Han}a-zA-Z]/)
+      return "有効な従業員名を入力してください。\n" +
+             "フルネームでも部分入力でも検索できます。\n" +
+             "例: 田中太郎、田中、太郎"
       end
       
       return "「#{employee_name}」に該当する従業員が見つかりませんでした。\n" +
-             "正確な従業員名を入力してください。\n" +
-             "例: 田中太郎"
+             "フルネームでも部分入力でも検索できます。\n" +
+             "例: 田中太郎、田中、太郎"
     elsif matches.length == 1
       # 1件の場合は直接認証コード生成
       return generate_verification_code_for_employee(line_user_id, matches.first)
@@ -62,25 +64,27 @@ class LineAuthenticationService
       )
       
       employees = freee_service.get_employees
+      normalized_name = normalize_employee_name(name)
       
       # 部分一致で検索
-      matches = employees.select do |employee|
+      employees.select do |employee|
         display_name = employee[:display_name] || employee['display_name']
         next false unless display_name
         
-        # ひらがな・カタカナ・漢字の正規化
-        normalized_name = name.tr('ァ-ヶ', 'ぁ-ゟ').tr('ー', 'ー')
-        normalized_display_name = display_name.tr('ァ-ヶ', 'ぁ-ゟ').tr('ー', 'ー')
+        normalized_display_name = normalize_employee_name(display_name)
         
         normalized_display_name.include?(normalized_name) || 
         normalized_name.include?(normalized_display_name)
       end
-      
-      matches
     rescue => e
       Rails.logger.error "従業員検索エラー: #{e.message}"
       []
     end
+  end
+
+  # 従業員名の正規化
+  def normalize_employee_name(name)
+    name.tr('ァ-ヶ', 'ぁ-ゟ').tr('ー', 'ー')
   end
 
   # 複数従業員マッチ時の処理

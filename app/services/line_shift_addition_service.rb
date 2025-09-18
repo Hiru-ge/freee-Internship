@@ -16,9 +16,6 @@ class LineShiftAdditionService
     end
     
     # グループメッセージかチェック
-    unless group_message?(event)
-      return "シフト追加はグループチャットでのみ利用可能です。"
-    end
     
     # オーナー権限チェック
     employee = Employee.find_by(line_id: line_user_id)
@@ -81,6 +78,7 @@ class LineShiftAdditionService
     
     "⏰ 時間: #{start_time.strftime('%H:%M')}-#{end_time.strftime('%H:%M')}\n\n" +
     "対象となる従業員名を入力してください。\n" +
+    "フルネームでも部分入力でも検索できます。\n" +
     "複数の場合はカンマで区切って入力してください。\n" +
     "例: 田中太郎, 佐藤花子"
   end
@@ -106,7 +104,8 @@ class LineShiftAdditionService
     if invalid_names.any?
       return "以下の従業員が見つかりませんでした:\n" +
              invalid_names.join(', ') + "\n\n" +
-             "正確な従業員名を入力してください。"
+             "フルネームでも部分入力でも検索できます。\n" +
+             "例: 田中太郎、田中、太郎"
     end
     
     if selected_employees.empty?

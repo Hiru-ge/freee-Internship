@@ -17,7 +17,7 @@ class ShiftOverlapService
     overlapping_employees
   end
 
-  # 利用可能な従業員IDと重複している従業員名を返す
+  # 依頼可能な従業員IDと重複している従業員名を返す
   def get_available_and_overlapping_employees(approver_ids, shift_date, start_time, end_time)
     available_ids = []
     overlapping_names = []

@@ -16,9 +16,6 @@ class LineShiftExchangeService
     end
     
     # グループメッセージかチェック（テスト環境では制限を緩和）
-    unless group_message?(event) || Rails.env.test?
-      return "シフト交代はグループチャットでのみ利用できます。"
-    end
     
     # 従業員情報を取得
     employee = find_employee_by_line_id(line_user_id)
@@ -113,7 +110,7 @@ class LineShiftExchangeService
           'step' => 2
         })
         
-        return "交代先の従業員を選択してください。\n従業員名を入力してください。"
+        return "交代先の従業員を選択してください。\n従業員名を入力してください。\nフルネームでも部分入力でも検索できます。"
       else
         return "シフトが見つかりません。"
       end
@@ -132,7 +129,7 @@ class LineShiftExchangeService
     employees = Employee.where("display_name LIKE ?", "%#{message_text}%")
     
     if employees.empty?
-      return "該当する従業員が見つかりません。\n従業員名を入力してください。"
+      return "該当する従業員が見つかりません。\n従業員名を入力してください。\nフルネームでも部分入力でも検索できます。"
     elsif employees.count == 1
       target_employee = employees.first
       

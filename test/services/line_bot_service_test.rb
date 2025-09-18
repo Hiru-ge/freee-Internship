@@ -88,7 +88,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
   test "should handle group commands" do
     # グループコマンドの処理テスト
     event = mock_line_event(source_type: "group", group_id: @test_group_id, user_id: @test_user_id)
-    event['message']['text'] = '全員シフト'
+    event['message']['text'] = '全員シフト確認'
     
     response = @line_bot_service.handle_message(event)
     
@@ -99,7 +99,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
   test "should handle individual commands" do
     # 個人コマンドの処理テスト
     event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event['message']['text'] = 'シフト'
+    event['message']['text'] = 'シフト確認'
     
     response = @line_bot_service.handle_message(event)
     
@@ -113,7 +113,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     group_event['message']['text'] = 'ヘルプ'
     
     individual_event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    individual_event['message']['text'] = 'シフト'
+    individual_event['message']['text'] = 'シフト確認'
     
     group_context = @line_bot_service.determine_command_context(group_event)
     individual_context = @line_bot_service.determine_command_context(individual_event)
@@ -210,7 +210,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     assert_includes message, "勤怠管理システムへようこそ"
     assert_includes message, "ヘルプ"
     assert_includes message, "認証"
-    assert_includes message, "シフト"
+    assert_includes message, "シフト確認"
   end
 
   test "should handle help command" do
@@ -320,7 +320,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
   test "should handle shift command for individual user" do
     # 個人ユーザーのシフトコマンド処理テスト
     event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event['message']['text'] = 'シフト'
+    event['message']['text'] = 'シフト確認'
     
     response = @line_bot_service.handle_message(event)
     
@@ -331,7 +331,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
   test "should handle all shifts command for group" do
     # グループの全員シフトコマンド処理テスト
     event = mock_line_event(source_type: "group", group_id: @test_group_id, user_id: @test_user_id)
-    event['message']['text'] = '全員シフト'
+    event['message']['text'] = '全員シフト確認'
     
     response = @line_bot_service.handle_message(event)
     
@@ -342,7 +342,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
   test "should handle all shifts command for individual user" do
     # 個人ユーザーの全員シフトコマンド処理テスト
     event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event['message']['text'] = '全員シフト'
+    event['message']['text'] = '全員シフト確認'
     
     response = @line_bot_service.handle_message(event)
     
@@ -360,7 +360,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     )
     
     event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event['message']['text'] = '全員シフト'
+    event['message']['text'] = '全員シフト確認'
     
     response = @line_bot_service.handle_message(event)
     
@@ -537,7 +537,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
   test "should handle shift exchange request command" do
     # シフト交代依頼コマンドの処理テスト（未認証ユーザー）
     event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event['message']['text'] = 'シフト交代'
+    event['message']['text'] = '交代依頼'
     
     response = @line_bot_service.handle_message(event)
     
@@ -548,7 +548,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
   test "should handle shift exchange request check command" do
     # シフト交代リクエスト確認コマンドの処理テスト（未認証ユーザー）
     event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event['message']['text'] = 'リクエスト確認'
+    event['message']['text'] = '依頼確認'
     
     response = @line_bot_service.handle_message(event)
     
@@ -567,7 +567,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     )
     
     event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event['message']['text'] = 'リクエスト確認'
+    event['message']['text'] = '依頼確認'
     
     response = @line_bot_service.handle_message(event)
     
@@ -582,7 +582,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
   test "should require authentication for shift exchange commands" do
     # シフト交代コマンドは認証が必要
     event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event['message']['text'] = 'シフト交代'
+    event['message']['text'] = '交代依頼'
     
     response = @line_bot_service.handle_message(event)
     
@@ -609,7 +609,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     )
     
     event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event['message']['text'] = 'シフト交代'
+    event['message']['text'] = '交代依頼'
     
     response = @line_bot_service.handle_message(event)
     
@@ -662,8 +662,8 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # 会話状態を考慮したメッセージ処理を使用
     response = @line_bot_service.handle_message_with_state(@test_user_id, '09:00-18:00')
     
-    # 利用可能な従業員リストが表示されることを確認
-    assert_includes response, "利用可能な従業員一覧"
+    # 依頼可能な従業員リストが表示されることを確認
+    assert_includes response, "依頼可能な従業員一覧"
     
     employee.destroy
   end
@@ -812,7 +812,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
   end
 
   test "should show available employees for shift exchange" do
-    # 利用可能な従業員表示テスト
+    # 依頼可能な従業員表示テスト
     employee = Employee.create!(
       employee_id: "999",
       role: "employee",
@@ -1222,7 +1222,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
       shift_date: (Date.current + 30).strftime('%Y-%m-%d')
     })
     response = @line_bot_service.handle_message_with_state(@test_user_id, '09:00-18:00')
-    assert_includes response, "利用可能な従業員一覧"
+    assert_includes response, "依頼可能な従業員一覧"
     
     # 3. 従業員名で選択
     @line_bot_service.set_conversation_state(@test_user_id, { 
@@ -1334,7 +1334,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
       shift_date: (Date.current + 30).strftime('%Y-%m-%d')
     })
     response = @line_bot_service.handle_message_with_state(@test_user_id, '09:00-18:00')
-    assert_includes response, "利用可能な従業員一覧"
+    assert_includes response, "依頼可能な従業員一覧"
     
     # 3. 複数の従業員名で選択
     @line_bot_service.set_conversation_state(@test_user_id, { 
@@ -1507,7 +1507,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     )
 
     event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event['message']['text'] = 'リクエスト確認'
+    event['message']['text'] = '依頼確認'
 
     response = @line_bot_service.handle_message(event)
 
@@ -1527,7 +1527,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     employee = Employee.create!(employee_id: "999", role: "employee", line_id: @test_user_id)
 
     event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event['message']['text'] = 'リクエスト確認'
+    event['message']['text'] = '依頼確認'
 
     response = @line_bot_service.handle_message(event)
 
@@ -1538,7 +1538,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
 
   test "should handle request check command for unauthenticated user" do
     event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event['message']['text'] = 'リクエスト確認'
+    event['message']['text'] = '依頼確認'
 
     response = @line_bot_service.handle_message(event)
 
@@ -1773,8 +1773,8 @@ class LineBotServiceTest < ActiveSupport::TestCase
     # 時間入力
     response = @line_bot_service.handle_message_with_state(@test_user_id, '09:00-18:00')
     
-    # 利用可能な従業員リストが表示されることを確認
-    assert_includes response, "利用可能な従業員一覧"
+    # 依頼可能な従業員リストが表示されることを確認
+    assert_includes response, "依頼可能な従業員一覧"
     assert_includes response, "テスト 太郎"
     assert_includes response, "複数選択の場合は「,」で区切って入力"
     
@@ -2667,7 +2667,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     )
     
     # シフト交代コマンドを実行
-    event = create_mock_event("シフト交代", @test_user_id)
+    event = create_mock_event("交代依頼", @test_user_id)
     result = @line_bot_service.handle_message(event)
     
     # 日付入力の案内が返されることを確認
@@ -2846,7 +2846,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     event = {
       'type' => 'message',
       'source' => { 'type' => 'user', 'userId' => @test_user_id },
-      'message' => { 'text' => 'シフト交代' }
+      'message' => { 'text' => '交代依頼' }
     }
 
     response = @line_bot_service.handle_message(event)
@@ -2870,7 +2870,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     event = {
       'type' => 'message',
       'source' => { 'type' => 'user', 'userId' => @test_user_id },
-      'message' => { 'text' => 'シフト交代' }
+      'message' => { 'text' => '交代依頼' }
     }
 
     response = @line_bot_service.handle_message(event)
@@ -2885,7 +2885,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     event = {
       'type' => 'message',
       'source' => { 'type' => 'user', 'userId' => @test_user_id },
-      'message' => { 'text' => 'シフト交代' }
+      'message' => { 'text' => '交代依頼' }
     }
 
     response = @line_bot_service.handle_message(event)
@@ -2926,7 +2926,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     event = {
       'type' => 'message',
       'source' => { 'type' => 'user', 'userId' => @test_user_id },
-      'message' => { 'text' => 'リクエスト確認' }
+      'message' => { 'text' => '依頼確認' }
     }
 
     response = @line_bot_service.handle_message(event)
@@ -2950,7 +2950,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     event = {
       'type' => 'message',
       'source' => { 'type' => 'user', 'userId' => @test_user_id },
-      'message' => { 'text' => 'リクエスト確認' }
+      'message' => { 'text' => '依頼確認' }
     }
 
     response = @line_bot_service.handle_message(event)
@@ -2966,7 +2966,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     event = {
       'type' => 'message',
       'source' => { 'type' => 'user', 'userId' => @test_user_id },
-      'message' => { 'text' => 'リクエスト確認' }
+      'message' => { 'text' => '依頼確認' }
     }
 
     response = @line_bot_service.handle_message(event)
@@ -3217,7 +3217,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
 
     # グループメッセージイベント
     event = mock_line_event(source_type: "group", group_id: @test_group_id, user_id: @test_user_id)
-    event['message']['text'] = 'シフト追加'
+    event['message']['text'] = '追加依頼'
 
     response = @line_bot_service.handle_message(event)
 
@@ -3241,12 +3241,12 @@ class LineBotServiceTest < ActiveSupport::TestCase
 
     # 個人メッセージイベント
     event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event['message']['text'] = 'シフト追加'
+    event['message']['text'] = '追加依頼'
 
     response = @line_bot_service.handle_message(event)
 
-    # グループチャットでのみ利用可能であることを確認
-    assert_includes response, "グループチャットでのみ利用可能です"
+    # シフト追加が開始されることを確認
+    assert_includes response, "シフト追加を開始します"
 
     # クリーンアップ
     owner.destroy
@@ -3262,7 +3262,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
 
     # グループメッセージイベント
     event = mock_line_event(source_type: "group", group_id: @test_group_id, user_id: @test_user_id)
-    event['message']['text'] = 'シフト追加'
+    event['message']['text'] = '追加依頼'
 
     response = @line_bot_service.handle_message(event)
 

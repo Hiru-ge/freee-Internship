@@ -1,13 +1,12 @@
 class LineBotService
   COMMANDS = {
     'ヘルプ' => :help,
-    'help' => :help,
     '認証' => :auth,
-    'シフト' => :shift,
-    '全員シフト' => :all_shifts,
-    'シフト交代' => :shift_exchange,
-    'シフト追加' => :shift_addition,
-    'リクエスト確認' => :request_check
+    'シフト確認' => :shift,
+    '全員シフト確認' => :all_shifts,
+    '交代依頼' => :shift_exchange,
+    '追加依頼' => :shift_addition,
+    '依頼確認' => :request_check
   }.freeze
 
   def initialize
@@ -487,12 +486,16 @@ class LineBotService
       :help
     when '認証'
       :auth
-    when 'シフト'
+    when 'シフト確認'
       :shift
-    when '全員シフト'
+    when '全員シフト確認'
       :all_shifts
-    when 'シフト交代'
+    when '交代依頼'
       :shift_exchange
+    when '追加依頼'
+      :shift_addition
+    when '依頼確認'
+      :request_check
     when '承認'
       :approve
     when '否認'
@@ -523,11 +526,7 @@ class LineBotService
   end
 
   def generate_help_message(event = nil)
-    if event && group_message?(event)
-      "👋 勤怠管理システムへようこそ！\n\n【グループで利用可能なコマンド】\n📋 ヘルプ: このメッセージを表示\n👥 全員シフト: 全従業員のシフト情報を確認（認証必要）\n➕ シフト追加: シフト追加依頼（オーナーのみ、認証必要）\n\n【個人チャットで利用可能なコマンド】\n🔐 認証: LINEアカウントと従業員アカウントを紐付け\n📅 シフト: 個人のシフト情報を確認（認証必要）\n👥 全員シフト: 全従業員のシフト情報を確認（認証必要）\n🔄 シフト交代: シフト交代依頼（認証必要）\n📋 リクエスト確認: 承認待ちのシフト交代リクエスト確認（認証必要）\n\n💡 シフト確認機能を利用するには、このボットと個人チャットを開始して「認証」を行ってください"
-    else
-      "👋 勤怠管理システムへようこそ！\n\n【利用可能なコマンド】\n📋 ヘルプ: このメッセージを表示\n🔐 認証: LINEアカウントと従業員アカウントを紐付け\n📅 シフト: 個人のシフト情報を確認（認証必要）\n👥 全員シフト: 全従業員のシフト情報を確認（認証必要）\n🔄 シフト交代: シフト交代依頼（認証必要）\n📋 リクエスト確認: 承認待ちのシフト交代リクエスト確認（認証必要）\n\n💡 シフト確認機能を利用するには認証が必要です"
-    end
+    "勤怠管理システムへようこそ！\n\n【利用可能なコマンド】\n・ヘルプ: このメッセージを表示\n・認証: LINEアカウントと従業員アカウントを紐付け\n・シフト確認: 個人のシフト情報を確認（認証必要）\n・全員シフト確認: 全従業員のシフト情報を確認（認証必要）\n・交代依頼: シフト交代依頼（認証必要）\n・依頼確認: 承認待ちのシフト交代リクエスト確認（認証必要）\n・追加依頼: シフト追加依頼（オーナーのみ、認証必要）\n\n認証は個人チャットでのみ可能です。このボットと個人チャットを開始して「認証」を行ってください"
   end
 
   # シフト確認機能
@@ -680,10 +679,10 @@ class LineBotService
     
     # 日付入力の案内を返す
     tomorrow = (Date.current + 1).strftime('%m/%d')
-    "📋 シフト交代依頼\n\n" +
+    "シフト交代依頼\n\n" +
     "交代したいシフトの日付を入力してください。\n\n" +
-    "📝 入力例: #{tomorrow}\n" +
-    "⚠️ 過去の日付は選択できません"
+    "入力例: #{tomorrow}\n" +
+    "過去の日付は選択できません"
   end
 
   def handle_request_check_command(event)
@@ -915,8 +914,8 @@ class LineBotService
     "LINEアカウントと従業員アカウントを紐付ける認証を行います。\n\n" +
     "手順:\n" +
     "1. 従業員名を入力してください\n" +
-    "   ※苗字と名前の間に半角スペースを入れてください\n" +
-    "   ※例: 田中 太郎、佐藤 花子\n" +
+    "   ※フルネームでも部分入力でも検索できます\n" +
+    "   ※例: 田中太郎、田中、太郎\n" +
     "2. 認証コードがメールで送信されます\n" +
     "3. 認証コードを入力してください\n\n" +
     "従業員名を入力してください:"
@@ -953,20 +952,28 @@ class LineBotService
         ENV['FREEE_COMPANY_ID']
       )
       
-      # 全従業員を取得
-      all_employees = freee_service.get_employees
+      employees = freee_service.get_employees
+      normalized_name = normalize_employee_name(name)
       
-      # 名前で部分一致検索（大文字小文字を区別しない）
-      matches = all_employees.select do |employee|
+      # 部分一致で検索
+      employees.select do |employee|
         display_name = employee[:display_name] || employee['display_name']
-        display_name&.downcase&.include?(name.downcase)
+        next false unless display_name
+        
+        normalized_display_name = normalize_employee_name(display_name)
+        
+        normalized_display_name.include?(normalized_name) || 
+        normalized_name.include?(normalized_display_name)
       end
-      
-      matches
     rescue => e
       Rails.logger.error "従業員検索エラー: #{e.message}"
       []
     end
+  end
+
+  # 従業員名の正規化
+  def normalize_employee_name(name)
+    name.tr('ァ-ヶ', 'ぁ-ゟ').tr('ー', 'ー')
   end
 
   def handle_multiple_employee_matches(line_user_id, employee_name, matches)
@@ -1067,11 +1074,12 @@ class LineBotService
 
       "認証が完了しました！\n\n" +
       "これで以下の機能をご利用いただけます:\n" +
-      "• シフト: 個人のシフト確認\n" +
-      "• 全員シフト: グループ全体のシフト確認\n" +
-      "• シフト交代: シフト交代依頼の送信\n" +
-      "• リクエスト確認: 承認待ちのシフト交代リクエスト確認\n" +
-      "• ヘルプ: 利用可能なコマンド一覧"
+      "・シフト確認: 個人のシフト確認\n" +
+      "・全員シフト確認: グループ全体のシフト確認\n" +
+      "・交代依頼: シフト交代依頼の送信\n" +
+      "・追加依頼: シフト追加依頼の送信\n" +
+      "・依頼確認: 承認待ちのシフト交代リクエスト確認\n" +
+      "・ヘルプ: 利用可能なコマンド一覧"
     rescue => e
       Rails.logger.error "認証コード検証エラー: #{e.message}"
       "認証中にエラーが発生しました。しばらく時間をおいてから再度お試しください。"
@@ -1233,7 +1241,7 @@ class LineBotService
     begin
       date = Date.parse(message_text)
       if date < Date.current
-        return "⚠️ 過去の日付のシフト交代依頼はできません\n📅 今日以降の日付を入力してください"
+        return "過去の日付のシフト交代依頼はできません\n今日以降の日付を入力してください"
       end
       
       # 申請者の指定日付のシフトを取得
@@ -1263,12 +1271,11 @@ class LineBotService
   def handle_shift_time_input(line_user_id, message_text, state)
     # 時間の形式をチェック
     if message_text.match?(/^\d{2}:\d{2}-\d{2}:\d{2}$/)
-      # 利用可能な従業員を取得
+      # 依頼可能な従業員を取得
       available_employees = get_available_employees_for_exchange(state['shift_date'], message_text)
       
       if available_employees.empty?
-        return "⚠️ 指定された時間にシフトが入っていない従業員はいません\n" +
-               "💡 別の時間を選択してください"
+        return "指定された時間は、全従業員が既にシフトに入っています\n別の時間を選択してください"
       end
       
       # 次のステップに進む
@@ -1278,18 +1285,19 @@ class LineBotService
         shift_time: message_text
       })
       
-      # 利用可能な従業員リストを表示
-      employee_list = "👥 利用可能な従業員一覧\n\n"
+      # 依頼可能な従業員リストを表示
+      employee_list = "👥 依頼可能な従業員一覧\n\n"
       available_employees.each_with_index do |employee, index|
         employee_list += "#{index + 1}. #{employee[:display_name]}\n"
       end
-      employee_list += "\n📝 従業員名を入力してください\n" +
-                       "💡 複数選択の場合は「,」で区切って入力"
+      employee_list += "\n従業員名を入力してください\n" +
+                       "フルネームでも部分入力でも検索できます\n" +
+                       "複数選択の場合は「,」で区切って入力"
       
       employee_list
     else
-      "⚠️ 時間の形式が正しくありません\n" +
-      "📝 HH:MM-HH:MM形式で入力してください（例: 09:00-18:00）"
+      "時間の形式が正しくありません\n" +
+      "HH:MM-HH:MM形式で入力してください（例: 09:00-18:00）"
     end
   end
 
@@ -1319,14 +1327,14 @@ class LineBotService
     overlapping_employees = overlap_results.select { |r| r[:result][:has_overlap] }
     
     if overlapping_employees.any?
-      overlap_message = "⚠️ 以下の従業員は指定された時間にシフトが入っています:\n\n"
+      overlap_message = "以下の従業員は指定された時間にシフトが入っています:\n\n"
       overlapping_employees.each do |overlap|
         employee = Employee.find_by(employee_id: overlap[:employee_id])
         employee_name = employee&.display_name || "ID: #{overlap[:employee_id]}"
         overlap_message += "👤 #{employee_name}\n" +
                           "⏰ 重複時間: #{overlap[:result][:overlap_time]}\n\n"
       end
-      overlap_message += "💡 別の従業員を選択してください\n\n❌ 従業員が見つかりません"
+      overlap_message += "別の従業員を選択してください\n\n× 従業員が見つかりません"
       return overlap_message
     end
     
@@ -1388,7 +1396,7 @@ class LineBotService
     error_messages = []
     
     if ambiguous_names.any?
-      error_messages << "⚠️ 複数の従業員が見つかりました: #{ambiguous_names.join(', ')}\n💡 より具体的な名前を入力してください"
+      error_messages << "複数の従業員が見つかりました: #{ambiguous_names.join(', ')}\nより具体的な名前を入力してください"
     end
     
     if not_found_names.any?
@@ -1404,10 +1412,28 @@ class LineBotService
 
   # 名前での従業員検索
   def find_employees_by_name(name)
-    # 全従業員を取得してdisplay_nameでフィルタリング
-    Employee.all.select do |employee|
-      display_name = employee.display_name
-      display_name.include?(name)
+    begin
+      freee_service = FreeeApiService.new(
+        ENV['FREEE_ACCESS_TOKEN'],
+        ENV['FREEE_COMPANY_ID']
+      )
+      
+      employees = freee_service.get_employees
+      normalized_name = normalize_employee_name(name)
+      
+      # 部分一致で検索
+      employees.select do |employee|
+        display_name = employee[:display_name] || employee['display_name']
+        next false unless display_name
+        
+        normalized_display_name = normalize_employee_name(display_name)
+        
+        normalized_display_name.include?(normalized_name) || 
+        normalized_name.include?(normalized_display_name)
+      end
+    rescue => e
+      Rails.logger.error "従業員検索エラー: #{e.message}"
+      []
     end
   end
 
@@ -1449,7 +1475,7 @@ class LineBotService
     end
   end
 
-  # 利用可能な従業員を取得
+  # 依頼可能な従業員を取得
   def get_available_employees_for_exchange(shift_date, shift_time)
     return [] if shift_date.nil? || shift_time.nil?
     
@@ -1833,24 +1859,24 @@ class LineBotService
         shift_time: "#{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}"
       })
       
-      # 利用可能な従業員を取得
+      # 依頼可能な従業員を取得
       available_employees = get_available_employees_for_exchange(shift.shift_date.strftime('%Y-%m-%d'), "#{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}")
       
       if available_employees.empty?
-        return "⚠️ 指定された時間にシフトが入っていない従業員はいません\n" +
-               "💡 別の時間を選択してください"
+        return "指定された時間は、全従業員が既にシフトに入っています\n別の時間を選択してください"
       end
       
-      # 利用可能な従業員リストを表示
+      # 依頼可能な従業員リストを表示
       employee_list = "選択されたシフト:\n" +
                      "📅 #{shift.shift_date.strftime('%m/%d')} (#{%w[日 月 火 水 木 金 土][shift.shift_date.wday]})\n" +
                      "⏰ #{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}\n\n" +
-                     "👥 利用可能な従業員一覧\n\n"
+                     "👥 依頼可能な従業員一覧\n\n"
       available_employees.each_with_index do |employee, index|
         employee_list += "#{index + 1}. #{employee[:display_name]}\n"
       end
-      employee_list += "\n📝 従業員名を入力してください\n" +
-                       "💡 複数選択の場合は「,」で区切って入力"
+      employee_list += "\n従業員名を入力してください\n" +
+                       "フルネームでも部分入力でも検索できます\n" +
+                       "複数選択の場合は「,」で区切って入力"
       
       employee_list
     else
@@ -1879,10 +1905,6 @@ class LineBotService
       return "シフト追加はオーナーのみが利用可能です。"
     end
     
-    # グループチャットでのみ利用可能
-    unless group_message?(event)
-      return "シフト追加はグループチャットでのみ利用可能です。"
-    end
     
     # 日付入力待ちの状態を設定
     set_conversation_state(line_user_id, { 
@@ -1960,7 +1982,8 @@ class LineBotService
     # 見つからない従業員がいる場合
     if not_found_names.any?
       return "❌ 従業員が見つかりません: #{not_found_names.join(', ')}\n\n" +
-             "正しい従業員名を入力してください。"
+             "フルネームでも部分入力でも検索できます。\n" +
+             "例: 田中太郎、田中、太郎"
     end
     
     # 重複チェック
@@ -1993,7 +2016,7 @@ class LineBotService
         # 一部重複がある場合
         overlap_message = "⚠️ 以下の従業員は指定された時間にシフトが入っています：\n" +
                          "#{overlapping_employees.join(', ')}\n\n" +
-                         "利用可能な従業員のみに送信しますか？\n\n"
+                         "依頼可能な従業員のみに送信しますか？\n\n"
       end
     end
     

@@ -163,7 +163,7 @@ class LineUtilityService
     end
   end
 
-  # 利用可能な従業員と重複している従業員を取得
+  # 依頼可能な従業員と重複している従業員を取得
   def get_available_and_overlapping_employees(employee_ids, date, start_time, end_time)
     available = []
     overlapping = []

@@ -287,7 +287,7 @@ class ShiftExchangeService
   # 成功メッセージの生成
   def generate_success_message(overlapping_employees)
     if overlapping_employees.any?
-      "リクエストを送信しました。一部の従業員は指定時間にシフトが入っているため、利用可能な従業員のみに送信されました。"
+      "リクエストを送信しました。一部の従業員は指定時間にシフトが入っているため、依頼可能な従業員のみに送信されました。"
     else
       "リクエストを送信しました。承認をお待ちください。"
     end
