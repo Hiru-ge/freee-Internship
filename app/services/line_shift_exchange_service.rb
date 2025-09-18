@@ -216,31 +216,12 @@ class LineShiftExchangeService
 
   # 会話状態の設定
   def set_conversation_state(line_user_id, state)
-    begin
-      # 既存の状態を削除
-      ConversationState.where(line_user_id: line_user_id).delete_all
-      
-      # 新しい状態を保存
-      ConversationState.create!(
-        line_user_id: line_user_id,
-        state_hash: state
-      )
-      true
-    rescue => e
-      Rails.logger.error "会話状態設定エラー: #{e.message}"
-      false
-    end
+    LineConversationService.new.set_conversation_state(line_user_id, state)
   end
 
   # 会話状態のクリア
   def clear_conversation_state(line_user_id)
-    begin
-      ConversationState.where(line_user_id: line_user_id).delete_all
-      true
-    rescue => e
-      Rails.logger.error "会話状態クリアエラー: #{e.message}"
-      false
-    end
+    LineConversationService.new.clear_conversation_state(line_user_id)
   end
 
 

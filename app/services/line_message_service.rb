@@ -4,70 +4,36 @@ class LineMessageService
 
   # ヘルプメッセージの生成
   def generate_help_message(event = nil)
-    "勤怠管理システムへようこそ！\n\n【利用可能なコマンド】\n・ヘルプ: このメッセージを表示\n・認証: LINEアカウントと従業員アカウントを紐付け\n・シフト確認: 個人のシフト情報を確認（認証必要）\n・全員シフト確認: 全従業員のシフト情報を確認（認証必要）\n・交代依頼: シフト交代依頼（認証必要）\n・依頼確認: 承認待ちのシフト交代リクエスト確認（認証必要）\n・追加依頼: シフト追加依頼（オーナーのみ、認証必要）\n\n認証は個人チャットでのみ可能です。このボットと個人チャットを開始して「認証」を行ってください"
+    LineMessageGeneratorService.generate_help_message
   end
 
   # シフトFlex Messageの生成
   def generate_shift_flex_message_for_date(shifts)
     # カルーセル形式のFlex Messageを生成
     bubbles = shifts.map do |shift|
-      day_of_week = %w[日 月 火 水 木 金 土][shift.shift_date.wday]
-      
-      {
-        type: "bubble",
-        body: {
-          type: "box",
-          layout: "vertical",
-          contents: [
-            {
-              type: "text",
-              text: "#{shift.shift_date.strftime('%m/%d')} (#{day_of_week})",
-              weight: "bold",
-              size: "lg",
-              color: "#1DB446"
-            },
-            {
-              type: "text",
-              text: "#{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}",
-              size: "md",
-              color: "#666666",
-              margin: "md"
-            },
-            {
-              type: "text",
-              text: "#{shift.employee.display_name}さん",
-              size: "sm",
-              color: "#999999",
-              margin: "sm"
-            }
-          ]
-        },
-        footer: {
-          type: "box",
-          layout: "vertical",
-          contents: [
-            {
-              type: "button",
-              style: "primary",
-              height: "sm",
-              action: {
-                type: "postback",
-                label: "このシフトを選択",
-                data: "shift_#{shift.id}"
-              }
-            }
-          ]
-        }
+      shift_data = {
+        date: shift.shift_date,
+        start_time: shift.start_time,
+        end_time: shift.end_time,
+        employee_name: shift.employee.display_name
       }
+      
+      actions = [
+        LineFlexMessageBuilderService.build_button(
+          "このシフトを選択",
+          "shift_#{shift.id}",
+          "primary",
+          "#1DB446"
+        )
+      ]
+      
+      LineFlexMessageBuilderService.build_shift_card(shift_data, actions)
     end
     
     {
       type: "flex",
       altText: "シフト選択",
-      contents: {
-        type: "carousel",
-        contents: bubbles
-      }
+      contents: LineFlexMessageBuilderService.build_carousel(bubbles)
     }
   end
 

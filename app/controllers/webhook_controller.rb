@@ -206,15 +206,8 @@ class WebhookController < ApplicationController
     
     line_bot_service = LineBotService.new
     
-    # グループメッセージの場合は直接handle_messageを使用
-    if event.source['type'] == 'group'
-      reply_text = line_bot_service.handle_message(event)
-    else
-      # 個人メッセージの場合は会話状態管理を使用
-      line_user_id = event.source['userId']
-      message_text = event.message['text']
-      reply_text = line_bot_service.handle_message_with_state(line_user_id, message_text)
-    end
+    # 統一されたメッセージ処理（個人・グループ共通）
+    reply_text = line_bot_service.handle_message(event)
     
     Rails.logger.info "Generated reply: #{reply_text}"
 

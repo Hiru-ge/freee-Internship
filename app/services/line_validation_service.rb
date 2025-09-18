@@ -105,35 +105,9 @@ class LineValidationService
 
   # 従業員名で検索
   def find_employees_by_name(name)
-    begin
-      freee_service = FreeeApiService.new(
-        ENV['FREEE_ACCESS_TOKEN'],
-        ENV['FREEE_COMPANY_ID']
-      )
-      
-      employees = freee_service.get_employees
-      normalized_name = normalize_employee_name(name)
-      
-      # 部分一致で検索
-      employees.select do |employee|
-        display_name = employee[:display_name] || employee['display_name']
-        next false unless display_name
-        
-        normalized_display_name = normalize_employee_name(display_name)
-        
-        normalized_display_name.include?(normalized_name) || 
-        normalized_name.include?(normalized_display_name)
-      end
-    rescue => e
-      Rails.logger.error "従業員検索エラー: #{e.message}"
-      []
-    end
+    LineUtilityService.new.find_employees_by_name(name)
   end
 
-  # 従業員名の正規化
-  def normalize_employee_name(name)
-    name.tr('ァ-ヶ', 'ぁ-ゟ').tr('ー', 'ー')
-  end
 
   # シフト重複の検証
   def validate_shift_overlap(employee_id, date, start_time, end_time)

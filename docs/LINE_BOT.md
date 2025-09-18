@@ -10,7 +10,7 @@ LINE Bot機能は、従業員がLINE経由でシフト管理を行うための�
 
 ### 責務分離後のサービス構成
 
-巨大な `LineBotService` クラス（2,303行）を9つの専門サービスクラスに分割し、単一責任原則に基づいた設計を実現しました。
+巨大な `LineBotService` クラス（2,303行）を9つの専門サービスクラスに分割し、単一責任原則に基づいた設計を実現しました。さらに、リファクタリングにより共通化サービスを追加し、コードの重複を削減しました。
 
 #### 1. LineBotService（メインコントローラー）
 - **責任**: LINE Bot のメインエントリーポイント、メッセージルーティング
@@ -52,6 +52,18 @@ LINE Bot機能は、従業員がLINE経由でシフト管理を行うための�
 - **責任**: 共通的なユーティリティ機能
 - **主要メソッド**: `extract_user_id`, `format_date`, `format_time`
 
+#### 11. LineMessageGeneratorService（メッセージ生成統一サービス）
+- **責任**: 統一されたメッセージ生成処理
+- **主要メソッド**: `generate_help_message`, `generate_multiple_employee_selection_message`
+
+#### 12. LineValidationManagerService（バリデーション統一サービス）
+- **責任**: 統一されたバリデーション処理
+- **主要メソッド**: `validate_and_format_date`, `validate_and_format_time`
+
+#### 13. LineFlexMessageBuilderService（Flex Message統一サービス）
+- **責任**: 統一されたFlex Message生成処理
+- **主要メソッド**: `build_shift_card`, `build_button`, `build_carousel`
+
 ## 📱 対応機能
 
 ### 認証システム
@@ -89,13 +101,17 @@ LINE Bot機能は、従業員がLINE経由でシフト管理を行うための�
 
 ## 🔄 処理フロー
 
-### 認証フロー
+### 統一されたメッセージ処理フロー
 ```
-ユーザー → LineBotService → LineAuthenticationService → LineNotificationService
+LINE Webhook → WebhookController → LineBotService.handle_message
                 ↓
-        LineConversationService (状態管理)
+        会話状態チェック → 状態に応じた処理
                 ↓
-        データベース (Employee, VerificationCode)
+        各専門サービス（認証、シフト管理、交代、追加等）
+                ↓
+        統一サービス（メッセージ生成、バリデーション、Flex Message）
+                ↓
+        レスポンス生成
 ```
 
 ### シフト交代フロー
@@ -383,6 +399,8 @@ LINE webhookの署名検証を実装しています。
 - ✅ テスト保守性向上完了（227テスト、706アサーション、100%成功）
 - ✅ 不要機能削除完了（Phase 14-1）
 - ✅ 機能見直し完了（Phase 14-2）
+- ✅ リファクタリング完了（Phase 14-3）
+- ✅ 実装クリーンアップ完了（Phase 14-4）
 
 ### 技術的成果
 - **保守性の向上**: 機能ごとの独立したクラスにより、変更影響範囲を限定
@@ -390,6 +408,8 @@ LINE webhookの署名検証を実装しています。
 - **可読性の向上**: 明確な責任分離により、コードの理解が容易
 - **拡張性の向上**: 新機能追加時の影響を最小化
 - **パフォーマンスの向上**: 遅延ロードとクエリ最適化による効率化
+- **コード重複の削減**: 共通化サービスによる重複コードの大幅削減
+- **実装の統一**: 個人・グループメッセージの統一処理による一貫性確保
 
 ## 🧪 テスト戦略
 
@@ -408,10 +428,11 @@ LineBotService（統合テスト）
 ```
 
 ### テスト結果
-- **315テスト、797アサーション、100%成功**
+- **111テスト、351アサーション、100%成功**
 - **エラー完全解消（48 → 0）**
 - **失敗完全解消（6 → 0）**
 - **不要機能削除後のテスト最適化完了**
+- **リファクタリング後のテスト安定性確保**
 
 ## 🚀 今後の拡張予定
 

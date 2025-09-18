@@ -57,46 +57,12 @@ class LineAuthenticationService
 
   # 従業員名で検索
   def search_employees_by_name(name)
-    begin
-      freee_service = FreeeApiService.new(
-        ENV['FREEE_ACCESS_TOKEN'],
-        ENV['FREEE_COMPANY_ID']
-      )
-      
-      employees = freee_service.get_employees
-      normalized_name = normalize_employee_name(name)
-      
-      # 部分一致で検索
-      employees.select do |employee|
-        display_name = employee[:display_name] || employee['display_name']
-        next false unless display_name
-        
-        normalized_display_name = normalize_employee_name(display_name)
-        
-        normalized_display_name.include?(normalized_name) || 
-        normalized_name.include?(normalized_display_name)
-      end
-    rescue => e
-      Rails.logger.error "従業員検索エラー: #{e.message}"
-      []
-    end
+    LineUtilityService.new.find_employees_by_name(name)
   end
 
-  # 従業員名の正規化
-  def normalize_employee_name(name)
-    name.tr('ァ-ヶ', 'ぁ-ゟ').tr('ー', 'ー')
-  end
 
   # 複数従業員マッチ時の処理
   def handle_multiple_employee_matches(line_user_id, employee_name, matches)
-    message = "「#{employee_name}」に該当する従業員が複数見つかりました。\n\n"
-    message += "該当する従業員の番号を入力してください:\n\n"
-    
-    matches.each_with_index do |employee, index|
-      display_name = employee[:display_name] || employee['display_name']
-      message += "#{index + 1}. #{display_name}\n"
-    end
-    
     # 状態を更新
     set_conversation_state(line_user_id, {
       'state' => 'waiting_for_employee_selection',
@@ -105,7 +71,7 @@ class LineAuthenticationService
       'created_at' => Time.current
     })
     
-    message
+    LineMessageGeneratorService.generate_multiple_employee_selection_message(employee_name, matches)
   end
 
   # 認証コード生成

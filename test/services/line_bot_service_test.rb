@@ -220,7 +220,7 @@ class LineBotServiceTest < ActiveSupport::TestCase
     
     response = @line_bot_service.handle_message(event)
     
-    assert_includes response, "勤怠管理システムへようこそ"
+    assert_includes response, "利用可能なコマンド"
   end
 
   test "should handle unknown command" do

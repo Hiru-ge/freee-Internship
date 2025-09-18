@@ -1139,6 +1139,7 @@ class LineBotService
     end
   end
 
+  # テスト用メソッド: 会話状態管理を含むメッセージ処理
   def handle_message_with_state(line_user_id, message_text)
     # 現在の会話状態を取得
     current_state = get_conversation_state(line_user_id)
@@ -2199,13 +2200,4 @@ class LineBotService
 
   # テスト用のメソッド
   public
-  def handle_message_with_state(line_user_id, message_text)
-    state = get_conversation_state(line_user_id)
-    if state
-      handle_stateful_message(line_user_id, message_text, state)
-    else
-      event = mock_event_for_user(line_user_id, message_text)
-      handle_message(event)
-    end
-  end
 end

@@ -315,75 +315,36 @@ class LineShiftAdditionService
   end
 
   def validate_shift_date(date_string)
-    begin
-      date = Date.parse(date_string)
-      
-      # 過去の日付は不可
-      if date < Date.current
-        return { error: "過去の日付は指定できません。\n今日以降の日付を入力してください。" }
-      end
-      
-      { date: date }
-    rescue ArgumentError
-      { error: "正しい日付形式で入力してください。\n例: 2024-01-15 または 1/15" }
+    result = LineValidationManagerService.validate_and_format_date(date_string)
+    if result[:valid]
+      { date: result[:date] }
+    else
+      { error: result[:error] }
     end
   end
 
   def validate_shift_time(time_string)
-    begin
-      # 時間形式の検証（例: 9:00-17:00）
-      unless time_string.match?(/^\d{1,2}:\d{2}-\d{1,2}:\d{2}$/)
-        return { error: "正しい時間形式で入力してください。\n例: 9:00-17:00" }
-      end
-      
-      start_time_str, end_time_str = time_string.split('-')
-      start_time = Time.parse(start_time_str)
-      end_time = Time.parse(end_time_str)
-      
-      # 終了時間は開始時間より後である必要がある
-      if end_time <= start_time
-        return { error: "終了時間は開始時間より後である必要があります。" }
-      end
-      
-      { start_time: start_time, end_time: end_time }
-    rescue ArgumentError
-      { error: "正しい時間形式で入力してください。\n例: 9:00-17:00" }
+    result = LineValidationManagerService.validate_and_format_time(time_string)
+    if result[:valid]
+      { start_time: result[:start_time], end_time: result[:end_time] }
+    else
+      { error: result[:error] }
     end
   end
 
   def find_employee_by_name(name)
-    begin
-      freee_service = FreeeApiService.new(
-        ENV['FREEE_ACCESS_TOKEN'],
-        ENV['FREEE_COMPANY_ID']
-      )
-      
-      employees = freee_service.get_employees
-      
-      # 部分一致で検索
-      matches = employees.select do |employee|
-        display_name = employee[:display_name] || employee['display_name']
-        next false unless display_name
-        
-        # ひらがな・カタカナ・漢字の正規化
-        normalized_name = name.tr('ァ-ヶ', 'ぁ-ゟ').tr('ー', 'ー')
-        normalized_display_name = display_name.tr('ァ-ヶ', 'ぁ-ゟ').tr('ー', 'ー')
-        
-        normalized_display_name.include?(normalized_name) || 
-        normalized_name.include?(normalized_display_name)
-      end
-      
-      if matches.empty?
-        { found: false }
-      elsif matches.length > 1
-        { found: false }
-      else
-        { found: true, employee: matches.first }
-      end
-    rescue => e
-      Rails.logger.error "従業員検索エラー: #{e.message}"
+    matches = LineUtilityService.new.find_employees_by_name(name)
+    
+    if matches.empty?
       { found: false }
+    elsif matches.length > 1
+      { found: false }
+    else
+      { found: true, employee: matches.first }
     end
+  rescue => e
+    Rails.logger.error "従業員検索エラー: #{e.message}"
+    { found: false }
   end
 
   def has_shift_overlap?(employee_id, date, start_time, end_time)

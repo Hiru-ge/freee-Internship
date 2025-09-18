@@ -44,6 +44,8 @@ class LineConversationService
   def handle_stateful_message(line_user_id, message_text, state)
     current_state = state['state'] || state[:step] || state['step']
     
+    Rails.logger.debug "LineConversationService: current_state = #{current_state}, message_text = #{message_text}, state = #{state}"
+    
     case current_state
     when 'waiting_for_employee_name'
       # 認証: 従業員名入力待ち
@@ -56,12 +58,14 @@ class LineConversationService
       # 認証: 認証コード入力待ち
       employee_id = state['employee_id']
       return auth_service.handle_verification_code_input(line_user_id, employee_id, message_text)
-    when 'waiting_for_shift_date'
+    when 'waiting_for_shift_date', 'waiting_shift_date'
       # シフト交代: 日付入力待ち
-      return exchange_service.handle_shift_date_input(line_user_id, message_text)
-    when 'waiting_shift_date'
-      # シフト交代: 日付入力待ち（テスト用の旧形式）
-      return exchange_service.handle_shift_date_input(line_user_id, message_text)
+      result = exchange_service.handle_shift_date_input(line_user_id, message_text)
+      Rails.logger.debug "LineConversationService: exchange_service.handle_shift_date_input returned: #{result}"
+      return result
+    when 'waiting_for_shift_time', 'waiting_shift_time'
+      # シフト交代: 時間入力待ち
+      return exchange_service.handle_shift_time_input(line_user_id, message_text, state)
     when 'waiting_for_shift_selection'
       # シフト交代: シフト選択待ち
       return exchange_service.handle_shift_selection_input(line_user_id, message_text, state)
@@ -71,7 +75,7 @@ class LineConversationService
     when 'waiting_for_confirmation_exchange'
       # シフト交代: 確認待ち
       return exchange_service.handle_confirmation_input(line_user_id, message_text, state)
-    when 'waiting_for_shift_addition_date'
+    when 'waiting_for_shift_addition_date', 'waiting_shift_addition_date'
       # シフト追加: 日付入力待ち
       return addition_service.handle_shift_addition_date_input(line_user_id, message_text)
     when 'waiting_for_shift_addition_time'
@@ -99,7 +103,7 @@ class LineConversationService
       # 会話状態に基づいて処理
       handle_stateful_message(line_user_id, message_text, current_state)
     else
-      # 会話状態がない場合はnilを返す
+      # 会話状態がない場合はnilを返す（通常のコマンド処理に委譲）
       nil
     end
   end

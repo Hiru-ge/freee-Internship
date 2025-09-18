@@ -254,6 +254,8 @@ fly ssh console -a your-app-name -C "bundle exec rails clock_reminder:check_all"
 - ✅ LINE Bot連携シフト交代機能完了（Phase 9-2）
 - ✅ 不要機能削除完了（Phase 14-1）
 - ✅ 機能見直し完了（Phase 14-2）
+- ✅ リファクタリング完了（Phase 14-3）
+- ✅ 実装クリーンアップ完了（Phase 14-4）
 
 ## ドキュメント
 
