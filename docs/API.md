@@ -1,34 +1,32 @@
 # API仕様書
 
-## 概要
-
 勤怠管理システムのAPI仕様書です。このシステムはRuby on Rails 8.0.2で構築されており、RESTful APIを提供しています。
 
-## ベースURL
+## 🚀 ベースURL
 
 - 開発環境: `http://localhost:3000`
 - 本番環境: `https://your-app-name.fly.dev`
 
-## タイムゾーン
+## ⏰ タイムゾーン
 
 - **設定**: Asia/Tokyo (JST +09:00)
 - **時刻処理**: すべての時刻処理で`Time.current`を使用
 - **打刻機能**: 日本時間で正確な時刻記録
 
-## 認証
+## 🔐 認証
 
 ### セッション認証
 - ログイン後にセッションCookieで認証状態を維持
 - 未認証の場合はログインページにリダイレクト
-- **セッションタイムアウト**: 24時間（Phase 6-1で実装）
-- **CSRF保護**: 有効（Phase 6-1で強化）
+- **セッションタイムアウト**: 24時間
+- **CSRF保護**: 有効
 
 ### セキュリティ機能
-- **入力値検証**: 全API関数で厳格な入力値検証（Phase 6-2で実装）
-- **権限チェック**: 全API関数で権限検証（Phase 6-2で実装）
-- **外部キー制約**: データベースレベルでの参照整合性保証（Phase 6-3で実装）
+- **入力値検証**: 全API関数で厳格な入力値検証
+- **権限チェック**: 全API関数で権限検証
+- **外部キー制約**: データベースレベルでの参照整合性保証
 
-## エンドポイント一覧
+## 📋 エンドポイント一覧
 
 ### 認証関連
 
@@ -153,7 +151,7 @@
 - 成功時: 302リダイレクト（承認一覧ページへ）
 - 失敗時: エラーメッセージと共にリダイレクト
 
-**処理内容（Phase 9-2.5で修正）**
+**処理内容**
 1. 権限チェック（承認者の確認）
 2. シフト交代リクエストの場合：
    - 他の承認者へのリクエストを先に拒否
@@ -184,7 +182,7 @@
 - 成功時: 302リダイレクト（承認一覧ページへ）
 - 失敗時: エラーメッセージと共にリダイレクト
 
-**処理内容（Phase 9-2.5で修正）**
+**処理内容**
 1. 権限チェック（否認者の確認）
 2. リクエストを否認状態に更新
 3. メール通知を送信
@@ -229,7 +227,7 @@
 **レスポンス**
 - HTML: 従業員一覧表
 
-## 外部API連携
+## 🔗 外部API連携
 
 ### freee API
 
@@ -248,47 +246,7 @@ FreeeApiService.get_all_employees
 FreeeApiService.get_employee_salary(employee_id, year, month)
 ```
 
-## エラーハンドリング
-
-### HTTPステータスコード
-
-- `200 OK`: 正常処理
-- `302 Found`: リダイレクト
-- `400 Bad Request`: リクエストエラー
-- `401 Unauthorized`: 認証エラー
-- `403 Forbidden`: 権限エラー
-- `404 Not Found`: リソースが見つからない
-- `422 Unprocessable Entity`: バリデーションエラー
-- `500 Internal Server Error`: サーバーエラー
-
-### エラーレスポンス形式
-
-```json
-{
-  "error": "エラーメッセージ",
-  "details": "詳細情報（オプション）"
-}
-```
-
-## セキュリティ
-
-### CSRF保護
-- すべてのPOST/PUT/DELETEリクエストでCSRFトークンが必要
-- `X-CSRF-Token`ヘッダーまたはフォームパラメータで送信
-
-### パスワードセキュリティ
-- bcryptによるハッシュ化
-- 最小8文字、英数字混合推奨
-
-### セッション管理
-- セッションタイムアウト: 24時間
-- ログアウト時のセッション破棄
-
-## レート制限
-
-現在、レート制限は実装されていません。本番環境では適切なレート制限の実装を推奨します。
-
-## LINE Bot連携API
+## 📱 LINE Bot連携API
 
 ### Webhook関連
 
@@ -446,140 +404,47 @@ LINE BotのWebhookエンドポイント
 }
 ```
 
-#### 承認待ちリクエスト形式
+## ⚠️ エラーハンドリング
+
+### HTTPステータスコード
+
+- `200 OK`: 正常処理
+- `302 Found`: リダイレクト
+- `400 Bad Request`: リクエストエラー
+- `401 Unauthorized`: 認証エラー
+- `403 Forbidden`: 権限エラー
+- `404 Not Found`: リソースが見つからない
+- `422 Unprocessable Entity`: バリデーションエラー
+- `500 Internal Server Error`: サーバーエラー
+
+### エラーレスポンス形式
+
 ```json
 {
-  "type": "flex",
-  "altText": "承認待ちのシフト交代リクエスト",
-  "contents": {
-    "type": "carousel",
-    "contents": [
-      {
-        "type": "bubble",
-        "body": {
-          "type": "box",
-          "layout": "vertical",
-          "contents": [
-            {
-              "type": "text",
-              "text": "シフト交代承認",
-              "weight": "bold",
-              "size": "xl",
-              "color": "#1DB446"
-            },
-            {
-              "type": "separator",
-              "margin": "md"
-            },
-            {
-              "type": "box",
-              "layout": "vertical",
-              "margin": "md",
-              "spacing": "sm",
-              "contents": [
-                {
-                  "type": "box",
-                  "layout": "baseline",
-                  "spacing": "sm",
-                  "contents": [
-                    {
-                      "type": "text",
-                      "text": "👤",
-                      "size": "sm",
-                      "color": "#666666"
-                    },
-                    {
-                      "type": "text",
-                      "text": "申請者: 田中太郎",
-                      "wrap": true,
-                      "color": "#666666",
-                      "size": "sm",
-                      "flex": 0
-                    }
-                  ]
-                },
-                {
-                  "type": "box",
-                  "layout": "baseline",
-                  "spacing": "sm",
-                  "contents": [
-                    {
-                      "type": "text",
-                      "text": "📅",
-                      "size": "sm",
-                      "color": "#666666"
-                    },
-                    {
-                      "type": "text",
-                      "text": "12/25 (水)",
-                      "wrap": true,
-                      "color": "#666666",
-                      "size": "sm",
-                      "flex": 0
-                    }
-                  ]
-                },
-                {
-                  "type": "box",
-                  "layout": "baseline",
-                  "spacing": "sm",
-                  "contents": [
-                    {
-                      "type": "text",
-                      "text": "⏰",
-                      "size": "sm",
-                      "color": "#666666"
-                    },
-                    {
-                      "type": "text",
-                      "text": "09:00-18:00",
-                      "wrap": true,
-                      "color": "#666666",
-                      "size": "sm",
-                      "flex": 0
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-        "footer": {
-          "type": "box",
-          "layout": "vertical",
-          "spacing": "sm",
-          "contents": [
-            {
-              "type": "button",
-              "style": "primary",
-              "height": "sm",
-              "action": {
-                "type": "postback",
-                "label": "承認",
-                "data": "approve_123",
-                "displayText": "12/25のシフト交代を承認します"
-              }
-            },
-            {
-              "type": "button",
-              "style": "secondary",
-              "height": "sm",
-              "action": {
-                "type": "postback",
-                "label": "拒否",
-                "data": "reject_123",
-                "displayText": "12/25のシフト交代を拒否します"
-              }
-            }
-          ]
-        }
-      }
-    ]
-  }
+  "error": "エラーメッセージ",
+  "details": "詳細情報（オプション）"
 }
 ```
 
-## バージョニング
+## 🔒 セキュリティ
+
+### CSRF保護
+- すべてのPOST/PUT/DELETEリクエストでCSRFトークンが必要
+- `X-CSRF-Token`ヘッダーまたはフォームパラメータで送信
+
+### パスワードセキュリティ
+- bcryptによるハッシュ化
+- 最小8文字、英数字混合推奨
+
+### セッション管理
+- セッションタイムアウト: 24時間
+- ログアウト時のセッション破棄
+
+## 📊 レート制限
+
+現在、レート制限は実装されていません。本番環境では適切なレート制限の実装を推奨します。
+
+## 📝 バージョニング
 
 現在のAPIバージョン: v1
 
