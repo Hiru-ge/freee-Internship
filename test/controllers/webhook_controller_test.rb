@@ -1,27 +1,29 @@
+# frozen_string_literal: true
+
 require "test_helper"
 
 class WebhookControllerTest < ActionDispatch::IntegrationTest
   def setup
     @line_channel_secret = "test_channel_secret"
     @line_channel_token = "test_channel_token"
-    
+
     # 環境変数の設定
-    ENV['LINE_CHANNEL_SECRET'] = @line_channel_secret
-    ENV['LINE_CHANNEL_TOKEN'] = @line_channel_token
+    ENV["LINE_CHANNEL_SECRET"] = @line_channel_secret
+    ENV["LINE_CHANNEL_TOKEN"] = @line_channel_token
   end
 
   def teardown
     # 環境変数のクリーンアップ
-    ENV.delete('LINE_CHANNEL_SECRET')
-    ENV.delete('LINE_CHANNEL_TOKEN')
+    ENV.delete("LINE_CHANNEL_SECRET")
+    ENV.delete("LINE_CHANNEL_TOKEN")
   end
 
   test "should receive webhook callback" do
     # 基本的なWebhook受信テスト
-    post webhook_callback_path, 
+    post webhook_callback_path,
          params: webhook_payload,
          headers: webhook_headers
-    
+
     assert_response :ok
   end
 
@@ -30,7 +32,7 @@ class WebhookControllerTest < ActionDispatch::IntegrationTest
     post webhook_callback_path,
          params: text_message_payload,
          headers: webhook_headers
-    
+
     assert_response :ok
   end
 
@@ -39,13 +41,13 @@ class WebhookControllerTest < ActionDispatch::IntegrationTest
     post webhook_callback_path,
          params: group_message_payload,
          headers: webhook_headers
-    
+
     assert_response :ok
-    
+
     post webhook_callback_path,
          params: individual_message_payload,
          headers: webhook_headers
-    
+
     assert_response :ok
   end
 
@@ -185,7 +187,6 @@ class WebhookControllerTest < ActionDispatch::IntegrationTest
     }.to_json
   end
 
-
   def unknown_command_payload
     {
       events: [
@@ -238,21 +239,21 @@ class WebhookControllerTest < ActionDispatch::IntegrationTest
 
   def webhook_headers
     {
-      'Content-Type' => 'application/json',
-      'X-Line-Signature' => generate_signature(webhook_payload)
+      "Content-Type" => "application/json",
+      "X-Line-Signature" => generate_signature(webhook_payload)
     }
   end
 
   def invalid_signature_headers
     {
-      'Content-Type' => 'application/json',
-      'X-Line-Signature' => 'invalid_signature'
+      "Content-Type" => "application/json",
+      "X-Line-Signature" => "invalid_signature"
     }
   end
 
   def generate_signature(body)
     # テスト用の署名生成（実際のLINE APIの署名生成ロジックを模擬）
-    require 'openssl'
-    OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new('sha256'), @line_channel_secret, body)
+    require "openssl"
+    OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new("sha256"), @line_channel_secret, body)
   end
 end

@@ -1,6 +1,9 @@
+# frozen_string_literal: true
+
 class DashboardController < ApplicationController
   include InputValidation
   include AuthorizationCheck
+
   def index
     @employee = current_employee
     @employee_id = current_employee_id
@@ -12,7 +15,7 @@ class DashboardController < ApplicationController
   def clock_in
     clock_service = ClockService.new(current_employee_id)
     result = clock_service.clock_in
-    
+
     respond_to do |format|
       format.json { render json: result }
     end
@@ -22,7 +25,7 @@ class DashboardController < ApplicationController
   def clock_out
     clock_service = ClockService.new(current_employee_id)
     result = clock_service.clock_out
-    
+
     respond_to do |format|
       format.json { render json: result }
     end
@@ -32,7 +35,7 @@ class DashboardController < ApplicationController
   def clock_status
     clock_service = ClockService.new(current_employee_id)
     status = clock_service.get_clock_status
-    
+
     respond_to do |format|
       format.json { render json: status }
     end
@@ -42,15 +45,12 @@ class DashboardController < ApplicationController
   def attendance_history
     year = params[:year]&.to_i || Date.current.year
     month = params[:month]&.to_i || Date.current.month
-    
+
     clock_service = ClockService.new(current_employee_id)
     attendance_data = clock_service.get_attendance_for_month(year, month)
-    
+
     respond_to do |format|
       format.json { render json: attendance_data }
     end
   end
-
-
-  private
 end

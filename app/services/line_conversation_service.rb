@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class LineConversationService
   def initialize
     # サービスクラスの初期化は遅延ロードする
@@ -13,84 +15,80 @@ class LineConversationService
 
   # 会話状態の設定
   def set_conversation_state(line_user_id, state)
-    begin
-      # 既存の状態を削除
-      ConversationState.where(line_user_id: line_user_id).delete_all
-      
-      # 新しい状態を保存
-      ConversationState.create!(
-        line_user_id: line_user_id,
-        state_hash: state
-      )
-      true
-    rescue => e
-      Rails.logger.error "会話状態設定エラー: #{e.message}"
-      false
-    end
+    # 既存の状態を削除
+    ConversationState.where(line_user_id: line_user_id).delete_all
+
+    # 新しい状態を保存
+    ConversationState.create!(
+      line_user_id: line_user_id,
+      state_hash: state
+    )
+    true
+  rescue StandardError => e
+    Rails.logger.error "会話状態設定エラー: #{e.message}"
+    false
   end
 
   # 会話状態のクリア
   def clear_conversation_state(line_user_id)
-    begin
-      ConversationState.where(line_user_id: line_user_id).delete_all
-      true
-    rescue => e
-      Rails.logger.error "会話状態クリアエラー: #{e.message}"
-      false
-    end
+    ConversationState.where(line_user_id: line_user_id).delete_all
+    true
+  rescue StandardError => e
+    Rails.logger.error "会話状態クリアエラー: #{e.message}"
+    false
   end
 
   # 状態付きメッセージの処理
   def handle_stateful_message(line_user_id, message_text, state)
-    current_state = state['state'] || state[:step] || state['step']
-    
+    current_state = state["state"] || state[:step] || state["step"]
+
     Rails.logger.debug "LineConversationService: current_state = #{current_state}, message_text = #{message_text}, state = #{state}"
-    
+
     case current_state
-    when 'waiting_for_employee_name'
+    when "waiting_for_employee_name"
       # 認証: 従業員名入力待ち
-      return auth_service.handle_employee_name_input(line_user_id, message_text)
-    when 'waiting_for_employee_selection'
+      auth_service.handle_employee_name_input(line_user_id, message_text)
+    when "waiting_for_employee_selection"
       # 認証: 従業員選択待ち
-      employee_matches = state['employee_matches']
-      return auth_service.handle_multiple_employee_matches(line_user_id, message_text, employee_matches)
-    when 'waiting_for_verification_code'
+      employee_matches = state["employee_matches"]
+      auth_service.handle_multiple_employee_matches(line_user_id, message_text, employee_matches)
+    when "waiting_for_verification_code"
       # 認証: 認証コード入力待ち
-      employee_id = state['employee_id']
-      return auth_service.handle_verification_code_input(line_user_id, employee_id, message_text)
-    when 'waiting_for_shift_date', 'waiting_shift_date'
+      employee_id = state["employee_id"]
+      auth_service.handle_verification_code_input(line_user_id, employee_id, message_text)
+    when "waiting_for_shift_date", "waiting_shift_date"
       # シフト交代: 日付入力待ち
       result = exchange_service.handle_shift_date_input(line_user_id, message_text)
       Rails.logger.debug "LineConversationService: exchange_service.handle_shift_date_input returned: #{result}"
-      return result
-    when 'waiting_for_shift_time', 'waiting_shift_time'
+      result
+    when "waiting_for_shift_time", "waiting_shift_time"
       # シフト交代: 時間入力待ち
-      return exchange_service.handle_shift_time_input(line_user_id, message_text, state)
-    when 'waiting_for_shift_selection'
+      exchange_service.handle_shift_time_input(line_user_id, message_text, state)
+    when "waiting_for_shift_selection"
       # シフト交代: シフト選択待ち
-      return exchange_service.handle_shift_selection_input(line_user_id, message_text, state)
-    when 'waiting_for_employee_selection_exchange'
+      exchange_service.handle_shift_selection_input(line_user_id, message_text, state)
+    when "waiting_for_employee_selection_exchange"
       # シフト交代: 従業員選択待ち
-      return exchange_service.handle_employee_selection_input_exchange(line_user_id, message_text, state)
-    when 'waiting_for_confirmation_exchange'
+      exchange_service.handle_employee_selection_input_exchange(line_user_id, message_text, state)
+    when "waiting_for_confirmation_exchange"
       # シフト交代: 確認待ち
-      return exchange_service.handle_confirmation_input(line_user_id, message_text, state)
-    when 'waiting_for_shift_addition_date', 'waiting_shift_addition_date'
+      exchange_service.handle_confirmation_input(line_user_id, message_text, state)
+    when "waiting_for_shift_addition_date", "waiting_shift_addition_date"
       # シフト追加: 日付入力待ち
-      return addition_service.handle_shift_addition_date_input(line_user_id, message_text)
-    when 'waiting_for_shift_addition_time'
+      addition_service.handle_shift_addition_date_input(line_user_id, message_text)
+    when "waiting_for_shift_addition_time"
       # シフト追加: 時間入力待ち
-      return addition_service.handle_shift_addition_time_input(line_user_id, message_text, state)
-    when 'waiting_for_shift_addition_employee'
+      addition_service.handle_shift_addition_time_input(line_user_id, message_text, state)
+    when "waiting_for_shift_addition_employee"
       # シフト追加: 対象従業員選択待ち
-      return addition_service.handle_shift_addition_employee_input(line_user_id, message_text, state)
-    when 'waiting_for_shift_addition_confirmation'
+      addition_service.handle_shift_addition_employee_input(line_user_id, message_text, state)
+    when "waiting_for_shift_addition_confirmation"
       # シフト追加: 確認待ち
-      return addition_service.handle_shift_addition_confirmation_input(line_user_id, message_text, state)
+      addition_service.handle_shift_addition_confirmation_input(line_user_id, message_text, state)
     else
       # 不明な状態の場合は状態をクリア
       clear_conversation_state(line_user_id)
-      return "不明な状態です。最初からやり直してください。"
+      "不明な状態です。最初からやり直してください。"
     end
   end
 
@@ -98,7 +96,7 @@ class LineConversationService
   def handle_message_with_state(line_user_id, message_text)
     # 現在の会話状態を取得
     current_state = get_conversation_state(line_user_id)
-    
+
     if current_state
       # 会話状態に基づいて処理
       handle_stateful_message(line_user_id, message_text, current_state)

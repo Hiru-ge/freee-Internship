@@ -1,26 +1,28 @@
+# frozen_string_literal: true
+
 class LineUtilityService
-  def initialize
-  end
+  def initialize; end
 
   # ユーザーIDの抽出
   def extract_user_id(event)
-    event['source']['userId']
+    event["source"]["userId"]
   end
 
   # グループIDの抽出
   def extract_group_id(event)
     return nil unless group_message?(event)
-    event['source']['groupId']
+
+    event["source"]["groupId"]
   end
 
   # グループメッセージかどうかの判定
   def group_message?(event)
-    event['source']['type'] == 'group'
+    event["source"]["type"] == "group"
   end
 
   # 個人メッセージかどうかの判定
   def individual_message?(event)
-    event['source']['type'] == 'user'
+    event["source"]["type"] == "user"
   end
 
   # 従業員が既にリンクされているかチェック
@@ -48,46 +50,43 @@ class LineUtilityService
 
   # freeeから従業員の役職を取得
   def determine_role_from_freee(employee_id)
-    begin
-      freee_service = FreeeApiService.new(
-        ENV['FREEE_ACCESS_TOKEN'],
-        ENV['FREEE_COMPANY_ID']
-      )
-      
-      employees = freee_service.get_employees
-      employee = employees.find { |emp| (emp[:id] || emp['id']) == employee_id }
-      
-      return 'employee' unless employee
-      
-      # freeeの役職情報から判定
-      role_info = employee[:role] || employee['role']
-      
-      case role_info
-      when 'admin', 'owner'
-        'owner'
-      else
-        'employee'
-      end
-    rescue => e
-      Rails.logger.error "役職取得エラー: #{e.message}"
-      'employee' # デフォルトは従業員
+    freee_service = FreeeApiService.new(
+      ENV.fetch("FREEE_ACCESS_TOKEN", nil),
+      ENV.fetch("FREEE_COMPANY_ID", nil)
+    )
+
+    employees = freee_service.get_employees
+    employee = employees.find { |emp| (emp[:id] || emp["id"]) == employee_id }
+
+    return "employee" unless employee
+
+    # freeeの役職情報から判定
+    role_info = employee[:role] || employee["role"]
+
+    case role_info
+    when "admin", "owner"
+      "owner"
+    else
+      "employee"
     end
+  rescue StandardError => e
+    Rails.logger.error "役職取得エラー: #{e.message}"
+    "employee" # デフォルトは従業員
   end
 
   # リクエストIDの生成
-  def generate_request_id(prefix = 'REQ')
+  def generate_request_id(prefix = "REQ")
     "#{prefix}_#{Time.current.strftime('%Y%m%d_%H%M%S')}_#{SecureRandom.hex(4)}"
   end
 
-
   # 日付フォーマット
   def format_date(date)
-    date.strftime('%m/%d')
+    date.strftime("%m/%d")
   end
 
   # 時間フォーマット
   def format_time(time)
-    time.strftime('%H:%M')
+    time.strftime("%H:%M")
   end
 
   # 日付と曜日のフォーマット
@@ -103,34 +102,32 @@ class LineUtilityService
 
   # 従業員名の正規化
   def normalize_employee_name(name)
-    name.tr('ァ-ヶ', 'ぁ-ゟ').tr('ー', 'ー')
+    name.tr("ァ-ヶ", "ぁ-ゟ").tr("ー", "ー")
   end
 
   # 従業員名の部分一致検索
   def find_employees_by_name(name)
-    begin
-      freee_service = FreeeApiService.new(
-        ENV['FREEE_ACCESS_TOKEN'],
-        ENV['FREEE_COMPANY_ID']
-      )
-      
-      employees = freee_service.get_employees
-      normalized_name = normalize_employee_name(name)
-      
-      # 部分一致で検索
-      employees.select do |employee|
-        display_name = employee[:display_name] || employee['display_name']
-        next false unless display_name
-        
-        normalized_display_name = normalize_employee_name(display_name)
-        
-        normalized_display_name.include?(normalized_name) || 
+    freee_service = FreeeApiService.new(
+      ENV.fetch("FREEE_ACCESS_TOKEN", nil),
+      ENV.fetch("FREEE_COMPANY_ID", nil)
+    )
+
+    employees = freee_service.get_employees
+    normalized_name = normalize_employee_name(name)
+
+    # 部分一致で検索
+    employees.select do |employee|
+      display_name = employee[:display_name] || employee["display_name"]
+      next false unless display_name
+
+      normalized_display_name = normalize_employee_name(display_name)
+
+      normalized_display_name.include?(normalized_name) ||
         normalized_name.include?(normalized_display_name)
-      end
-    rescue => e
-      Rails.logger.error "従業員検索エラー: #{e.message}"
-      []
     end
+  rescue StandardError => e
+    Rails.logger.error "従業員検索エラー: #{e.message}"
+    []
   end
 
   # 従業員IDの有効性チェック
@@ -145,7 +142,7 @@ class LineUtilityService
       employee_id = message_text.to_i
       return { type: :id, value: employee_id } if valid_employee_id_format?(employee_id)
     end
-    
+
     # 文字列の場合は従業員名として扱う
     { type: :name, value: message_text }
   end
@@ -156,7 +153,7 @@ class LineUtilityService
       employee_id: employee_id,
       date: date
     )
-    
+
     existing_shifts.any? do |shift|
       # 時間の重複チェック
       (start_time < shift.end_time) && (end_time > shift.start_time)
@@ -167,17 +164,16 @@ class LineUtilityService
   def get_available_and_overlapping_employees(employee_ids, date, start_time, end_time)
     available = []
     overlapping = []
-    
+
     employee_ids.each do |employee_id|
+      employee = Employee.find_by(employee_id: employee_id)
       if has_shift_overlap?(employee_id, date, start_time, end_time)
-        employee = Employee.find_by(employee_id: employee_id)
         overlapping << employee.display_name if employee
-      else
-        employee = Employee.find_by(employee_id: employee_id)
-        available << employee if employee
+      elsif employee
+        available << employee
       end
     end
-    
+
     { available: available, overlapping: overlapping }
   end
 

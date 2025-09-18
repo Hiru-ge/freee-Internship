@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "test_helper"
 
 class ForeignKeyConstraintsTest < ActiveSupport::TestCase
@@ -100,7 +102,7 @@ class ForeignKeyConstraintsTest < ActiveSupport::TestCase
         request_id: "test_request_5",
         requester_id: "3313254",
         approver_id: "3313254",
-        shift_id: 99999
+        shift_id: 99_999
       )
     end
   end

@@ -5,13 +5,13 @@ class LineMessageGeneratorService
   def self.generate_multiple_employee_selection_message(employee_name, matches)
     message = "「#{employee_name}」に該当する従業員が複数見つかりました。\n\n"
     message += "該当する従業員の番号を入力してください:\n\n"
-    
+
     matches.each_with_index do |employee, index|
-      display_name = employee[:display_name] || employee['display_name']
-      employee_id = employee[:id] || employee['id']
+      display_name = employee[:display_name] || employee["display_name"]
+      employee_id = employee[:id] || employee["id"]
       message += "#{index + 1}. #{display_name} (ID: #{employee_id})\n"
     end
-    
+
     message += "\n番号を入力してください:"
     message
   end
@@ -22,7 +22,7 @@ class LineMessageGeneratorService
   end
 
   # エラーメッセージ生成
-  def self.generate_error_message(error_type, context = {})
+  def self.generate_error_message(error_type, _context = {})
     case error_type
     when :invalid_date
       "正しい日付形式で入力してください。\n例: 2024-01-15"
@@ -44,7 +44,7 @@ class LineMessageGeneratorService
   end
 
   # 成功メッセージ生成
-  def self.generate_success_message(action_type, context = {})
+  def self.generate_success_message(action_type, _context = {})
     case action_type
     when :authentication_completed
       "認証が完了しました！\n\n以下の機能が利用可能になりました:\n・シフト確認\n・全員シフト確認\n・交代依頼\n・追加依頼\n・依頼確認"
@@ -84,14 +84,14 @@ class LineMessageGeneratorService
   # ヘルプメッセージ生成
   def self.generate_help_message
     "利用可能なコマンド:\n\n" \
-    "・ヘルプ - このメッセージを表示\n" \
-    "・認証 - 従業員名入力による認証（個人チャットのみ）\n" \
-    "・シフト確認 - 個人のシフト情報を確認\n" \
-    "・全員シフト確認 - 全従業員のシフト情報を確認\n" \
-    "・交代依頼 - シフト交代依頼\n" \
-    "・追加依頼 - シフト追加依頼（オーナーのみ）\n" \
-    "・依頼確認 - 承認待ちの依頼を確認\n\n" \
-    "コマンドを入力してください。"
+      "・ヘルプ - このメッセージを表示\n" \
+      "・認証 - 従業員名入力による認証（個人チャットのみ）\n" \
+      "・シフト確認 - 個人のシフト情報を確認\n" \
+      "・全員シフト確認 - 全従業員のシフト情報を確認\n" \
+      "・交代依頼 - シフト交代依頼\n" \
+      "・追加依頼 - シフト追加依頼（オーナーのみ）\n" \
+      "・依頼確認 - 承認待ちの依頼を確認\n\n" \
+      "コマンドを入力してください。"
   end
 
   # 認証開始メッセージ生成

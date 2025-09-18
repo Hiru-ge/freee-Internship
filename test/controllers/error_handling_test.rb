@@ -1,4 +1,6 @@
-require 'test_helper'
+# frozen_string_literal: true
+
+require "test_helper"
 
 class ErrorHandlingTest < ActionController::TestCase
   tests AuthController
@@ -7,13 +9,13 @@ class ErrorHandlingTest < ActionController::TestCase
     # テスト用のダミーコントローラー
     @test_controller = Class.new do
       include ErrorHandler
-      
+
       attr_accessor :flash
-      
+
       def initialize
         @flash = {}
       end
-      
+
       def redirect_to(path)
         # テスト用のリダイレクト処理
       end
@@ -23,38 +25,38 @@ class ErrorHandlingTest < ActionController::TestCase
   # ===== 基本的なエラーハンドリングテスト =====
 
   test "should handle empty employee_id with proper error message" do
-    post :login, params: { employee_id: '', password: 'test_password' }
-    
+    post :login, params: { employee_id: "", password: "test_password" }
+
     assert_response :redirect
   end
 
   test "should handle empty password with proper error message" do
-    post :login, params: { employee_id: 'test_employee', password: '' }
-    
+    post :login, params: { employee_id: "test_employee", password: "" }
+
     assert_response :redirect
   end
 
   test "should handle SQL injection attempts with user-friendly message" do
-    post :login, params: { 
-      employee_id: "'; DROP TABLE employees; --", 
-      password: 'test_password' 
+    post :login, params: {
+      employee_id: "'; DROP TABLE employees; --",
+      password: "test_password"
     }
-    
+
     assert_response :success
   end
 
   test "should handle XSS attempts with appropriate message" do
-    post :login, params: { 
-      employee_id: '<script>alert("xss")</script>', 
-      password: 'test_password' 
+    post :login, params: {
+      employee_id: '<script>alert("xss")</script>',
+      password: "test_password"
     }
-    
+
     assert_response :success
   end
 
   test "should maintain security headers on error responses" do
-    post :login, params: { employee_id: '', password: '' }
-    
+    post :login, params: { employee_id: "", password: "" }
+
     assert_response :redirect
   end
 

@@ -1,87 +1,81 @@
+# frozen_string_literal: true
+
 module ErrorHandler
   extend ActiveSupport::Concern
 
   # エラーメッセージの定数定義
   ERROR_MESSAGES = {
     validation: {
-      required: '必須項目を入力してください',
-      format: '入力形式が正しくありません',
-      length: '文字数が制限を超えています',
-      invalid: '無効な値が入力されています'
+      required: "必須項目を入力してください",
+      format: "入力形式が正しくありません",
+      length: "文字数が制限を超えています",
+      invalid: "無効な値が入力されています"
     },
     authorization: {
-      login_required: 'ログインが必要です',
-      permission_denied: 'このページにアクセスする権限がありません',
-      session_expired: 'セッションがタイムアウトしました。再度ログインしてください。',
-      invalid_session: 'セッションが無効です'
+      login_required: "ログインが必要です",
+      permission_denied: "このページにアクセスする権限がありません",
+      session_expired: "セッションがタイムアウトしました。再度ログインしてください。",
+      invalid_session: "セッションが無効です"
     },
     api: {
-      connection_failed: 'システムエラーが発生しました。しばらく時間をおいてから再度お試しください。',
-      timeout: 'システムが混雑しています。しばらく時間をおいてから再度お試しください。',
-      server_error: 'サーバーエラーが発生しました。システム管理者にお問い合わせください。'
+      connection_failed: "システムエラーが発生しました。しばらく時間をおいてから再度お試しください。",
+      timeout: "システムが混雑しています。しばらく時間をおいてから再度お試しください。",
+      server_error: "サーバーエラーが発生しました。システム管理者にお問い合わせください。"
     },
     general: {
-      unknown: '予期しないエラーが発生しました。システム管理者にお問い合わせください。',
-      maintenance: 'システムメンテナンス中です。しばらく時間をおいてから再度アクセスしてください。'
+      unknown: "予期しないエラーが発生しました。システム管理者にお問い合わせください。",
+      maintenance: "システムメンテナンス中です。しばらく時間をおいてから再度アクセスしてください。"
     }
   }.freeze
 
   # バリデーションエラーのハンドリング
   def handle_validation_error(field_name, message, redirect_path = nil)
     error_message = message.presence || ERROR_MESSAGES[:validation][:required]
-    
+
     log_error("Validation error for #{field_name}: #{error_message}")
     set_flash_error(error_message)
-    
-    if redirect_path
-      redirect_to redirect_path
-    end
-    
+
+    redirect_to redirect_path if redirect_path
+
     error_message
   end
 
   # APIエラーのハンドリング
-  def handle_api_error(error, context = '', redirect_path = nil)
+  def handle_api_error(error, context = "", redirect_path = nil)
     # エラーの種類に応じてメッセージを決定
     error_message = determine_api_error_message(error)
-    
+
     # ログ記録（機密情報は除外）
     log_error("#{context} API error: #{sanitize_error_message(error.message)}")
-    
+
     set_flash_error(error_message)
-    
-    if redirect_path
-      redirect_to redirect_path
-    end
-    
+
+    redirect_to redirect_path if redirect_path
+
     error_message
   end
 
   # 認証エラーのハンドリング
   def handle_authorization_error(message, redirect_path = nil)
     error_message = message.presence || ERROR_MESSAGES[:authorization][:permission_denied]
-    
+
     log_error("Authorization error: #{error_message}")
     set_flash_error(error_message)
-    
-    if redirect_path
-      redirect_to redirect_path
-    end
-    
+
+    redirect_to redirect_path if redirect_path
+
     error_message
   end
 
   # 未知のエラーのハンドリング
   def handle_unknown_error(redirect_path = nil)
     error_message = ERROR_MESSAGES[:general][:unknown]
-    
+
     log_error("Unknown error occurred")
     set_flash_error(error_message)
-    
-    if redirect_path
-      redirect_to redirect_path
-    end
-    
+
+    redirect_to redirect_path if redirect_path
+
     error_message
   end
 
@@ -110,13 +104,13 @@ module ErrorHandler
   def handle_standard_error(error)
     case error
     when ActiveRecord::RecordNotFound
-      handle_validation_error('record', '指定されたデータが見つかりません')
+      handle_validation_error("record", "指定されたデータが見つかりません")
     when ActiveRecord::RecordInvalid
-      handle_validation_error('record', 'データの保存に失敗しました')
+      handle_validation_error("record", "データの保存に失敗しました")
     when ActionController::ParameterMissing
-      handle_validation_error('parameter', '必要なパラメータが不足しています')
+      handle_validation_error("parameter", "必要なパラメータが不足しています")
     when StandardError
-      handle_api_error(error, 'General error')
+      handle_api_error(error, "General error")
     else
       handle_unknown_error
     end
@@ -150,9 +144,9 @@ module ErrorHandler
       ERROR_MESSAGES[:api][:connection_failed]
     else
       # エラーメッセージに基づいて判定
-      if error.message.include?('timeout') || error.message.include?('Timeout')
+      if error.message.include?("timeout") || error.message.include?("Timeout")
         ERROR_MESSAGES[:api][:timeout]
-      elsif error.message.include?('500') || error.message.include?('502') || error.message.include?('503')
+      elsif error.message.include?("500") || error.message.include?("502") || error.message.include?("503")
         ERROR_MESSAGES[:api][:server_error]
       else
         ERROR_MESSAGES[:api][:connection_failed]
@@ -162,20 +156,20 @@ module ErrorHandler
 
   # エラーメッセージのサニタイズ（機密情報の除去）
   def sanitize_error_message(message)
-    return '' if message.blank?
-    
+    return "" if message.blank?
+
     # 機密情報のパターンを除去
     sanitized = message.dup
-    
+
     # パスワード関連の情報を除去
-    sanitized.gsub!(/password[=:]\s*\S+/i, 'password=***')
-    sanitized.gsub!(/token[=:]\s*\S+/i, 'token=***')
-    sanitized.gsub!(/key[=:]\s*\S+/i, 'key=***')
-    sanitized.gsub!(/secret[=:]\s*\S+/i, 'secret=***')
-    
+    sanitized.gsub!(/password[=:]\s*\S+/i, "password=***")
+    sanitized.gsub!(/token[=:]\s*\S+/i, "token=***")
+    sanitized.gsub!(/key[=:]\s*\S+/i, "key=***")
+    sanitized.gsub!(/secret[=:]\s*\S+/i, "secret=***")
+
     # ファイルパスの詳細を除去
-    sanitized.gsub!(/\/[^\s]*\//, '/***/')
-    
+    sanitized.gsub!(%r{/[^\s]*/}, "/***/")
+
     sanitized
   end
 
@@ -208,16 +202,16 @@ module ErrorHandler
 
     private
 
-    def handle_record_not_found(exception)
-      handle_validation_error('record', '指定されたデータが見つかりません')
+    def handle_record_not_found(_exception)
+      handle_validation_error("record", "指定されたデータが見つかりません")
     end
 
-    def handle_record_invalid(exception)
-      handle_validation_error('record', 'データの保存に失敗しました')
+    def handle_record_invalid(_exception)
+      handle_validation_error("record", "データの保存に失敗しました")
     end
 
-    def handle_parameter_missing(exception)
-      handle_validation_error('parameter', '必要なパラメータが不足しています')
+    def handle_parameter_missing(_exception)
+      handle_validation_error("parameter", "必要なパラメータが不足しています")
     end
   end
 end

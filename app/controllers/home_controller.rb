@@ -1,6 +1,8 @@
+# frozen_string_literal: true
+
 class HomeController < ApplicationController
   skip_before_action :require_login, only: [:index]
-  
+
   def index
     # メールアドレス認証済みでログイン済みの場合はダッシュボードにリダイレクト
     if session[:authenticated] && session[:employee_id]

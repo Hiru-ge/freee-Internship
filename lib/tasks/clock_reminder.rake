@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 namespace :clock_reminder do
   desc "出勤打刻忘れチェック"
   task check_clock_ins: :environment do

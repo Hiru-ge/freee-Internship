@@ -1,11 +1,13 @@
+# frozen_string_literal: true
+
 # 打刻リマインダーサービス
 # GAS時代のcheckForgottenClockInsとcheckForgottenClockOutsを再現
 
 class ClockReminderService
   def initialize
     @freee_service = FreeeApiService.new(
-      ENV['FREEE_ACCESS_TOKEN'],
-      ENV['FREEE_COMPANY_ID']
+      ENV.fetch("FREEE_ACCESS_TOKEN", nil),
+      ENV.fetch("FREEE_COMPANY_ID", nil)
     )
   end
 
@@ -37,16 +39,14 @@ class ClockReminderService
       next unless today_shift
 
       # シフト開始時刻から15分経過後かチェック
-      if after_shift_start_with_delay?(now, today_shift.start_time)
-        # 今日の打刻記録を取得
-        time_clocks = get_time_clocks_for_today(employee.employee_id)
-        has_clock_in = time_clocks.any? { |record| record['type'] == 'clock_in' }
+      next unless after_shift_start_with_delay?(now, today_shift.start_time)
 
-        # 出勤打刻がない場合、メール送信
-        unless has_clock_in
-          send_clock_in_reminder(employee, today_shift)
-        end
-      end
+      # 今日の打刻記録を取得
+      time_clocks = get_time_clocks_for_today(employee.employee_id)
+      has_clock_in = time_clocks.any? { |record| record["type"] == "clock_in" }
+
+      # 出勤打刻がない場合、メール送信
+      send_clock_in_reminder(employee, today_shift) unless has_clock_in
     end
   end
 
@@ -66,78 +66,70 @@ class ClockReminderService
       next unless today_shift
 
       # シフト終了時刻から2時間以内かチェック
-      if within_shift_end_window?(now, today_shift.end_time)
-        # 15分間隔でリマインダーを送信
-        if should_send_reminder?(now)
-          # 今日の打刻記録を取得
-          time_clocks = get_time_clocks_for_today(employee.employee_id)
-          has_clock_out = time_clocks.any? { |record| record['type'] == 'clock_out' }
+      next unless within_shift_end_window?(now, today_shift.end_time)
 
-          # 退勤打刻がない場合、メール送信
-          unless has_clock_out
-            send_clock_out_reminder(employee, today_shift)
-          end
-        end
-      end
+      # 15分間隔でリマインダーを送信
+      next unless should_send_reminder?(now)
+
+      # 今日の打刻記録を取得
+      time_clocks = get_time_clocks_for_today(employee.employee_id)
+      has_clock_out = time_clocks.any? { |record| record["type"] == "clock_out" }
+
+      # 退勤打刻がない場合、メール送信
+      send_clock_out_reminder(employee, today_shift) unless has_clock_out
     end
   end
 
   # 今日の打刻記録を取得
   def get_time_clocks_for_today(employee_id)
-    begin
-      today = Date.current
-      date_string = today.strftime('%Y-%m-%d')
-      @freee_service.get_time_clocks(employee_id, date_string, date_string)
-    rescue => e
-      Rails.logger.error "打刻記録取得エラー: #{e.message}"
-      []
-    end
+    today = Date.current
+    date_string = today.strftime("%Y-%m-%d")
+    @freee_service.get_time_clocks(employee_id, date_string, date_string)
+  rescue StandardError => e
+    Rails.logger.error "打刻記録取得エラー: #{e.message}"
+    []
   end
 
   # 出勤打刻リマインダーメール送信
   def send_clock_in_reminder(employee, shift)
-    begin
-      # GAS時代のgetEmployeesを再現したAPIから従業員情報を取得
-      all_employees = @freee_service.get_employees_full
-      employee_info = all_employees.find { |emp| emp['id'].to_s == employee.employee_id.to_s }
-      return unless employee_info&.dig('email')
-      
-      shift_time = format_shift_time(shift)
-      
-      ClockReminderMailer.clock_in_reminder(
-        employee_info['email'],
-        employee_info['display_name'],
-        shift_time
-      ).deliver_now
-      
-      Rails.logger.info "出勤打刻リマインダー送信: #{employee_info['display_name']} (#{employee_info['email']})"
-    rescue => e
-      Rails.logger.error "出勤打刻リマインダー送信エラー: #{e.message}"
-    end
+    # GAS時代のgetEmployeesを再現したAPIから従業員情報を取得
+    all_employees = @freee_service.get_employees_full
+    employee_info = all_employees.find { |emp| emp["id"].to_s == employee.employee_id.to_s }
+    return unless employee_info&.dig("email")
+
+    shift_time = format_shift_time(shift)
+
+    ClockReminderMailer.clock_in_reminder(
+      employee_info["email"],
+      employee_info["display_name"],
+      shift_time
+    ).deliver_now
+
+    Rails.logger.info "出勤打刻リマインダー送信: #{employee_info['display_name']} (#{employee_info['email']})"
+  rescue StandardError => e
+    Rails.logger.error "出勤打刻リマインダー送信エラー: #{e.message}"
   end
 
   # 退勤打刻リマインダーメール送信
   def send_clock_out_reminder(employee, shift)
-    begin
-      # GAS時代のgetEmployeesを再現したAPIから従業員情報を取得
-      all_employees = @freee_service.get_employees_full
-      employee_info = all_employees.find { |emp| emp['id'].to_s == employee.employee_id.to_s }
-      return unless employee_info&.dig('email')
-      
-      shift_time = format_shift_time(shift)
-      end_hour = shift.end_time.hour
-      
-      ClockReminderMailer.clock_out_reminder(
-        employee_info['email'],
-        employee_info['display_name'],
-        shift_time,
-        end_hour
-      ).deliver_now
-      
-      Rails.logger.info "退勤打刻リマインダー送信: #{employee_info['display_name']} (#{employee_info['email']})"
-    rescue => e
-      Rails.logger.error "退勤打刻リマインダー送信エラー: #{e.message}"
-    end
+    # GAS時代のgetEmployeesを再現したAPIから従業員情報を取得
+    all_employees = @freee_service.get_employees_full
+    employee_info = all_employees.find { |emp| emp["id"].to_s == employee.employee_id.to_s }
+    return unless employee_info&.dig("email")
+
+    shift_time = format_shift_time(shift)
+    end_hour = shift.end_time.hour
+
+    ClockReminderMailer.clock_out_reminder(
+      employee_info["email"],
+      employee_info["display_name"],
+      shift_time,
+      end_hour
+    ).deliver_now
+
+    Rails.logger.info "退勤打刻リマインダー送信: #{employee_info['display_name']} (#{employee_info['email']})"
+  rescue StandardError => e
+    Rails.logger.error "退勤打刻リマインダー送信エラー: #{e.message}"
   end
 
   private
@@ -149,24 +141,24 @@ class ClockReminderService
 
   # シフト開始時刻から15分経過後かチェック
   def after_shift_start_with_delay?(current_time, shift_start_time)
-    current_minutes = current_time.hour * 60 + current_time.min
+    current_minutes = (current_time.hour * 60) + current_time.min
     shift_start_minutes = shift_start_time.hour * 60
-    delay_minutes = 15  # 15分の遅延
-    
+    delay_minutes = 15 # 15分の遅延
+
     current_minutes >= (shift_start_minutes + delay_minutes)
   end
 
   # シフト終了時刻の2時間以内かチェック
   def within_shift_end_window?(current_time, shift_end_time)
-    current_minutes = current_time.hour * 60 + current_time.min
+    current_minutes = (current_time.hour * 60) + current_time.min
     shift_end_minutes = shift_end_time.hour * 60
     reminder_end_minutes = (shift_end_time.hour + 2) * 60
-    
+
     current_minutes >= shift_end_minutes && current_minutes < reminder_end_minutes
   end
 
   # 15分間隔でリマインダーを送信するかチェック
   def should_send_reminder?(current_time)
-    current_time.min % 15 == 0
+    (current_time.min % 15).zero?
   end
 end

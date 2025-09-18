@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "test_helper"
 
 class LineMessageLogTest < ActiveSupport::TestCase
@@ -61,9 +63,9 @@ class LineMessageLogTest < ActiveSupport::TestCase
     line_user_id = "U1234567890abcdef"
     message_type = "text"
     content = "Test message"
-    
+
     log = LineMessageLog.log_inbound_message(line_user_id, message_type, content)
-    
+
     assert_equal line_user_id, log.line_user_id
     assert_equal message_type, log.message_type
     assert_equal content, log.message_content
@@ -75,9 +77,9 @@ class LineMessageLogTest < ActiveSupport::TestCase
     line_user_id = "U1234567890abcdef"
     message_type = "text"
     content = "Test reply"
-    
+
     log = LineMessageLog.log_outbound_message(line_user_id, message_type, content)
-    
+
     assert_equal line_user_id, log.line_user_id
     assert_equal message_type, log.message_type
     assert_equal content, log.message_content

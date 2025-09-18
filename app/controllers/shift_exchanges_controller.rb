@@ -1,54 +1,53 @@
+# frozen_string_literal: true
+
 class ShiftExchangesController < ApplicationController
   include InputValidation
   include AuthorizationCheck
   include ErrorHandler
   include RequestIdGenerator
-  
+
   before_action :require_login
 
   # シフト交代リクエスト画面の表示
   def new
     @employee_id = current_employee_id
-    @date = params[:date] || Date.current.strftime('%Y-%m-%d')
-    @start_time = params[:start] || '09:00'
-    @end_time = params[:end] || '18:00'
-    
+    @date = params[:date] || Date.current.strftime("%Y-%m-%d")
+    @start_time = params[:start] || "09:00"
+    @end_time = params[:end] || "18:00"
+
     begin
       @employees = freee_api_service.get_employees
       @applicant_id = @employee_id
-    rescue => error
-      handle_api_error(error, '従業員一覧取得')
+    rescue StandardError => e
+      handle_api_error(e, "従業員一覧取得")
       @employees = []
     end
   end
 
   # シフト交代リクエストの作成
   def create
-    begin
-      request_params = extract_request_params
+    request_params = extract_request_params
 
-      # シフト関連の共通バリデーション
-      return unless validate_shift_params(request_params, new_shift_exchange_path)
+    # シフト関連の共通バリデーション
+    return unless validate_shift_params(request_params, new_shift_exchange_path)
 
-      # ビジネスロジックのバリデーション
-      validation_result = validate_exchange_request(request_params)
-      return if validation_result[:redirect]
+    # ビジネスロジックのバリデーション
+    validation_result = validate_exchange_request(request_params)
+    return if validation_result[:redirect]
 
-      # 共通サービスを使用してシフト交代リクエストを作成
-      shift_exchange_service = ShiftExchangeService.new
-      result = shift_exchange_service.create_exchange_request(request_params)
+    # 共通サービスを使用してシフト交代リクエストを作成
+    shift_exchange_service = ShiftExchangeService.new
+    result = shift_exchange_service.create_exchange_request(request_params)
 
-      if result[:success]
-        flash[:notice] = result[:message]
-        redirect_to shifts_path
-      else
-        flash[:error] = result[:message]
-        redirect_to new_shift_exchange_path
-      end
-
-    rescue => error
-      handle_api_error(error, 'シフト交代リクエスト作成', new_shift_exchange_path)
+    if result[:success]
+      flash[:notice] = result[:message]
+      redirect_to shifts_path
+    else
+      flash[:error] = result[:message]
+      redirect_to new_shift_exchange_path
     end
+  rescue StandardError => e
+    handle_api_error(e, "シフト交代リクエスト作成", new_shift_exchange_path)
   end
 
   private
@@ -66,7 +65,7 @@ class ShiftExchangesController < ApplicationController
 
   # シフト交代リクエストの検証
   def validate_exchange_request(params)
-    if params[:applicant_id].blank? || params[:shift_date].blank? || 
+    if params[:applicant_id].blank? || params[:shift_date].blank? ||
        params[:start_time].blank? || params[:end_time].blank?
       flash[:error] = "すべての項目を入力してください。"
       redirect_to new_shift_exchange_path
@@ -81,5 +80,4 @@ class ShiftExchangesController < ApplicationController
 
     { redirect: false }
   end
-
 end

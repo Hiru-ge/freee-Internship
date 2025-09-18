@@ -1,25 +1,27 @@
+# frozen_string_literal: true
+
 class ShiftAdditionsController < ApplicationController
   include InputValidation
   include AuthorizationCheck
   include RequestIdGenerator
-  
+
   before_action :require_login
 
   # シフト追加リクエスト画面の表示（オーナーのみ）
   def new
     unless owner?
-      flash[:error] = 'このページにアクセスする権限がありません'
+      flash[:error] = "このページにアクセスする権限がありません"
       redirect_to dashboard_path and return
     end
 
-    @date = params[:date] || Date.current.strftime('%Y-%m-%d')
-    @start_time = params[:start] || '09:00'
-    @end_time = params[:end] || '18:00'
-    
+    @date = params[:date] || Date.current.strftime("%Y-%m-%d")
+    @start_time = params[:start] || "09:00"
+    @end_time = params[:end] || "18:00"
+
     begin
       @employees = freee_api_service.get_employees
-    rescue => error
-      handle_api_error(error, '従業員一覧取得')
+    rescue StandardError => e
+      handle_api_error(e, "従業員一覧取得")
       @employees = []
     end
   end
@@ -30,7 +32,8 @@ class ShiftAdditionsController < ApplicationController
 
     begin
       # 必須項目チェック（従業員ID含む）
-      return unless validate_required_params(params, [:employee_id, :shift_date, :start_time, :end_time], new_shift_addition_path)
+      return unless validate_required_params(params, %i[employee_id shift_date start_time end_time],
+                                             new_shift_addition_path)
 
       # シフト関連の共通バリデーション
       return unless validate_shift_params(params, new_shift_addition_path)
@@ -68,14 +71,10 @@ class ShiftAdditionsController < ApplicationController
         flash[:error] = result[:message]
         redirect_to new_shift_addition_path
       end
-
-    rescue => error
-      handle_api_error(error, 'シフト追加リクエスト作成')
+    rescue StandardError => e
+      handle_api_error(e, "シフト追加リクエスト作成")
       flash[:error] = "リクエストの送信に失敗しました。しばらく時間をおいてから再度お試しください。"
       redirect_to new_shift_addition_path
     end
   end
-
-  private
-
 end

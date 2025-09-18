@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "test_helper"
 
 class EmployeeTest < ActiveSupport::TestCase
@@ -26,14 +28,14 @@ class EmployeeTest < ActiveSupport::TestCase
     line_id = "U1234567890abcdef"
     @employee.line_id = line_id
     @employee.save!
-    
+
     duplicate_employee = Employee.new(
       employee_id: "EMP002",
       role: "employee",
       password_hash: "hashed_password",
       line_id: line_id
     )
-    
+
     # 同じline_idは使用できない
     assert_not duplicate_employee.valid?
   end
@@ -42,7 +44,7 @@ class EmployeeTest < ActiveSupport::TestCase
     # LINEアカウントとの紐付けテスト
     line_id = "U1234567890abcdef"
     @employee.line_id = line_id
-    
+
     # まだline_idカラムがないため、このテストは失敗する
     assert_equal line_id, @employee.line_id
   end

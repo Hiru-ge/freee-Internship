@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "test_helper"
 
 class DatabaseIndexesTest < ActiveSupport::TestCase
@@ -8,7 +10,7 @@ class DatabaseIndexesTest < ActiveSupport::TestCase
     # employee_idのユニークインデックスが存在することを確認
     indexes = ActiveRecord::Base.connection.indexes(:employees)
     employee_id_index = indexes.find { |index| index.columns == ["employee_id"] }
-    
+
     assert_not_nil employee_id_index, "employee_idのインデックスが存在しません"
     assert employee_id_index.unique, "employee_idのインデックスがユニークではありません"
   end
@@ -17,7 +19,7 @@ class DatabaseIndexesTest < ActiveSupport::TestCase
     # employee_idのインデックスが存在することを確認
     indexes = ActiveRecord::Base.connection.indexes(:shifts)
     employee_id_index = indexes.find { |index| index.columns == ["employee_id"] }
-    
+
     assert_not_nil employee_id_index, "shiftsテーブルのemployee_idインデックスが存在しません"
   end
 
@@ -25,15 +27,15 @@ class DatabaseIndexesTest < ActiveSupport::TestCase
     # shift_dateのインデックスが存在することを確認
     indexes = ActiveRecord::Base.connection.indexes(:shifts)
     shift_date_index = indexes.find { |index| index.columns == ["shift_date"] }
-    
+
     assert_not_nil shift_date_index, "shiftsテーブルのshift_dateインデックスが存在しません"
   end
 
   test "shifts table should have composite index on shift_date, start_time, end_time" do
     # 複合インデックスが存在することを確認
     indexes = ActiveRecord::Base.connection.indexes(:shifts)
-    composite_index = indexes.find { |index| index.columns == ["shift_date", "start_time", "end_time"] }
-    
+    composite_index = indexes.find { |index| index.columns == %w[shift_date start_time end_time] }
+
     assert_not_nil composite_index, "shiftsテーブルの複合インデックスが存在しません"
   end
 
@@ -41,7 +43,7 @@ class DatabaseIndexesTest < ActiveSupport::TestCase
     # requester_idのインデックスが存在することを確認
     indexes = ActiveRecord::Base.connection.indexes(:shift_exchanges)
     requester_id_index = indexes.find { |index| index.columns == ["requester_id"] }
-    
+
     assert_not_nil requester_id_index, "shift_exchangesテーブルのrequester_idインデックスが存在しません"
   end
 
@@ -49,7 +51,7 @@ class DatabaseIndexesTest < ActiveSupport::TestCase
     # approver_idのインデックスが存在することを確認
     indexes = ActiveRecord::Base.connection.indexes(:shift_exchanges)
     approver_id_index = indexes.find { |index| index.columns == ["approver_id"] }
-    
+
     assert_not_nil approver_id_index, "shift_exchangesテーブルのapprover_idインデックスが存在しません"
   end
 
@@ -57,7 +59,7 @@ class DatabaseIndexesTest < ActiveSupport::TestCase
     # statusのインデックスが存在することを確認
     indexes = ActiveRecord::Base.connection.indexes(:shift_exchanges)
     status_index = indexes.find { |index| index.columns == ["status"] }
-    
+
     assert_not_nil status_index, "shift_exchangesテーブルのstatusインデックスが存在しません"
   end
 
@@ -65,7 +67,7 @@ class DatabaseIndexesTest < ActiveSupport::TestCase
     # target_employee_idのインデックスが存在することを確認
     indexes = ActiveRecord::Base.connection.indexes(:shift_additions)
     target_employee_id_index = indexes.find { |index| index.columns == ["target_employee_id"] }
-    
+
     assert_not_nil target_employee_id_index, "shift_additionsテーブルのtarget_employee_idインデックスが存在しません"
   end
 
@@ -73,7 +75,7 @@ class DatabaseIndexesTest < ActiveSupport::TestCase
     # requester_idのインデックスが存在することを確認
     indexes = ActiveRecord::Base.connection.indexes(:shift_additions)
     requester_id_index = indexes.find { |index| index.columns == ["requester_id"] }
-    
+
     assert_not_nil requester_id_index, "shift_additionsテーブルのrequester_idインデックスが存在しません"
   end
 
@@ -81,7 +83,7 @@ class DatabaseIndexesTest < ActiveSupport::TestCase
     # statusのインデックスが存在することを確認
     indexes = ActiveRecord::Base.connection.indexes(:shift_additions)
     status_index = indexes.find { |index| index.columns == ["status"] }
-    
+
     assert_not_nil status_index, "shift_additionsテーブルのstatusインデックスが存在しません"
   end
 
@@ -89,7 +91,7 @@ class DatabaseIndexesTest < ActiveSupport::TestCase
     # employee_idのインデックスが存在することを確認
     indexes = ActiveRecord::Base.connection.indexes(:verification_codes)
     employee_id_index = indexes.find { |index| index.columns == ["employee_id"] }
-    
+
     assert_not_nil employee_id_index, "verification_codesテーブルのemployee_idインデックスが存在しません"
   end
 
@@ -97,7 +99,7 @@ class DatabaseIndexesTest < ActiveSupport::TestCase
     # codeのインデックスが存在することを確認
     indexes = ActiveRecord::Base.connection.indexes(:verification_codes)
     code_index = indexes.find { |index| index.columns == ["code"] }
-    
+
     assert_not_nil code_index, "verification_codesテーブルのcodeインデックスが存在しません"
   end
 
@@ -105,7 +107,7 @@ class DatabaseIndexesTest < ActiveSupport::TestCase
     # expires_atのインデックスが存在することを確認
     indexes = ActiveRecord::Base.connection.indexes(:verification_codes)
     expires_at_index = indexes.find { |index| index.columns == ["expires_at"] }
-    
+
     assert_not_nil expires_at_index, "verification_codesテーブルのexpires_atインデックスが存在しません"
   end
 

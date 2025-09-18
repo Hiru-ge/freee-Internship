@@ -4,7 +4,7 @@ class LineFlexMessageBuilderService
   # シフトカードの生成
   def self.build_shift_card(shift_data, actions = [])
     day_of_week = %w[日 月 火 水 木 金 土][shift_data[:date].wday]
-    
+
     {
       type: "bubble",
       body: {
@@ -34,11 +34,13 @@ class LineFlexMessageBuilderService
           }
         ]
       },
-      footer: actions.any? ? {
-        type: "box",
-        layout: "vertical",
-        contents: actions
-      } : nil
+      footer: if actions.any?
+                {
+                  type: "box",
+                  layout: "vertical",
+                  contents: actions
+                }
+              end
     }
   end
 
@@ -53,7 +55,7 @@ class LineFlexMessageBuilderService
           contents: [
             {
               type: "text",
-              text: employee[:display_name] || employee['display_name'],
+              text: employee[:display_name] || employee["display_name"],
               weight: "bold",
               size: "lg",
               color: "#1DB446"
@@ -67,11 +69,13 @@ class LineFlexMessageBuilderService
             }
           ]
         },
-        footer: context[:actions] ? {
-          type: "box",
-          layout: "vertical",
-          contents: context[:actions]
-        } : nil
+        footer: if context[:actions]
+                  {
+                    type: "box",
+                    layout: "vertical",
+                    contents: context[:actions]
+                  }
+                end
       }
     end
 

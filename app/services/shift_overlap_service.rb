@@ -1,19 +1,20 @@
+# frozen_string_literal: true
+
 class ShiftOverlapService
-  def initialize
-  end
+  def initialize; end
 
   # シフト交代依頼時の重複チェック
   def check_exchange_overlap(approver_ids, shift_date, start_time, end_time)
     overlapping_employees = []
-    
+
     approver_ids.each do |approver_id|
-      if has_shift_overlap?(approver_id, shift_date, start_time, end_time)
-        employee = Employee.find_by(employee_id: approver_id)
-        employee_name = employee&.display_name || "ID: #{approver_id}"
-        overlapping_employees << employee_name
-      end
+      next unless has_shift_overlap?(approver_id, shift_date, start_time, end_time)
+
+      employee = Employee.find_by(employee_id: approver_id)
+      employee_name = employee&.display_name || "ID: #{approver_id}"
+      overlapping_employees << employee_name
     end
-    
+
     overlapping_employees
   end
 
@@ -21,7 +22,7 @@ class ShiftOverlapService
   def get_available_and_overlapping_employees(approver_ids, shift_date, start_time, end_time)
     available_ids = []
     overlapping_names = []
-    
+
     approver_ids.each do |approver_id|
       if has_shift_overlap?(approver_id, shift_date, start_time, end_time)
         employee = Employee.find_by(employee_id: approver_id)
@@ -31,7 +32,7 @@ class ShiftOverlapService
         available_ids << approver_id
       end
     end
-    
+
     { available_ids: available_ids, overlapping_names: overlapping_names }
   end
 
@@ -42,7 +43,7 @@ class ShiftOverlapService
       employee_name = employee&.display_name || "ID: #{target_employee_id}"
       return employee_name
     end
-    
+
     nil
   end
 
@@ -55,7 +56,7 @@ class ShiftOverlapService
       employee_id: employee_id,
       shift_date: shift_date
     )
-    
+
     existing_shifts.any? do |shift|
       shift_overlaps?(shift, start_time, end_time)
     end
@@ -65,7 +66,7 @@ class ShiftOverlapService
   def shift_overlaps?(existing_shift, new_start_time, new_end_time)
     existing_times = convert_shift_times_to_objects(existing_shift)
     new_times = convert_new_shift_times_to_objects(existing_shift.shift_date, new_start_time, new_end_time)
-    
+
     # 重複チェック: 新しいシフトの開始時間が既存シフトの終了時間より前で、
     # 新しいシフトの終了時間が既存シフトの開始時間より後
     new_times[:start] < existing_times[:end] && new_times[:end] > existing_times[:start]
@@ -74,7 +75,7 @@ class ShiftOverlapService
   # 既存シフトの時間をTimeオブジェクトに変換
   def convert_shift_times_to_objects(existing_shift)
     base_date = existing_shift.shift_date
-    
+
     {
       start: Time.zone.parse("#{base_date} #{existing_shift.start_time.strftime('%H:%M')}"),
       end: Time.zone.parse("#{base_date} #{existing_shift.end_time.strftime('%H:%M')}")
@@ -85,7 +86,7 @@ class ShiftOverlapService
   def convert_new_shift_times_to_objects(base_date, new_start_time, new_end_time)
     new_start_time_str = format_time_to_string(new_start_time)
     new_end_time_str = format_time_to_string(new_end_time)
-    
+
     {
       start: Time.zone.parse("#{base_date} #{new_start_time_str}"),
       end: Time.zone.parse("#{base_date} #{new_end_time_str}")
@@ -94,6 +95,6 @@ class ShiftOverlapService
 
   # 時間オブジェクトを文字列に変換
   def format_time_to_string(time)
-    time.is_a?(String) ? time : time.strftime('%H:%M')
+    time.is_a?(String) ? time : time.strftime("%H:%M")
   end
 end

@@ -1,4 +1,6 @@
-require 'test_helper'
+# frozen_string_literal: true
+
+require "test_helper"
 
 class SecurityTest < ActionDispatch::IntegrationTest
   def setup
@@ -6,22 +8,22 @@ class SecurityTest < ActionDispatch::IntegrationTest
     @owner = employees(:owner)
     @other_employee = employees(:employee2)
     @shift = shifts(:shift1)
-    
+
     # CSRF保護設定の保存
     @original_csrf_protection = ActionController::Base.allow_forgery_protection
     ActionController::Base.allow_forgery_protection = true
-    
+
     # Rails 8.0の非推奨警告を抑制
     @original_warn = Warning.method(:warn)
     Warning.define_singleton_method(:warn) do |message|
-      @original_warn.call(message) unless message.include?('unprocessable_entity is deprecated')
+      @original_warn.call(message) unless message.include?("unprocessable_entity is deprecated")
     end
   end
 
   def teardown
     # テスト後にCSRF保護設定を元に戻す
     ActionController::Base.allow_forgery_protection = @original_csrf_protection
-    
+
     # 警告抑制を元に戻す
     Warning.define_singleton_method(:warn, @original_warn)
   end
@@ -30,7 +32,7 @@ class SecurityTest < ActionDispatch::IntegrationTest
   def sign_in(employee)
     post auth_login_path, params: {
       employee_id: employee.employee_id,
-      password: 'password123'
+      password: "password123"
     }
   end
 
@@ -61,20 +63,20 @@ class SecurityTest < ActionDispatch::IntegrationTest
 
   test "should accept valid API key for clock reminder endpoint" do
     # 有効なAPIキーでアクセス
-    ENV['CLOCK_REMINDER_API_KEY'] = 'test_api_key_123'
-    
+    ENV["CLOCK_REMINDER_API_KEY"] = "test_api_key_123"
+
     # ClockReminderServiceをモック
     service_mock = Object.new
     def service_mock.check_forgotten_clock_ins; end
     def service_mock.check_forgotten_clock_outs; end
-    
+
     ClockReminderService.define_singleton_method(:new) { service_mock }
-    
+
     post "/clock_reminder/trigger", headers: { "X-API-Key" => "test_api_key_123" }
     assert_response :success
     assert_includes response.body, "Clock reminder check completed"
-    
-    ENV.delete('CLOCK_REMINDER_API_KEY')
+
+    ENV.delete("CLOCK_REMINDER_API_KEY")
   end
 
   test "should require authentication for shift exchanges" do
@@ -92,7 +94,7 @@ class SecurityTest < ActionDispatch::IntegrationTest
   # オーナー権限のテスト
   test "should require owner permission for shift additions" do
     sign_in @employee
-    
+
     # 従業員がシフト追加リクエストにアクセス
     get "/shift_additions/new"
     assert_response :redirect
@@ -100,7 +102,7 @@ class SecurityTest < ActionDispatch::IntegrationTest
 
   test "should allow owner to access shift additions" do
     sign_in @owner
-    
+
     # オーナーがシフト追加リクエストにアクセス
     get "/shift_additions/new"
     assert_response :redirect
@@ -108,7 +110,7 @@ class SecurityTest < ActionDispatch::IntegrationTest
 
   test "should require owner permission for employees API" do
     sign_in @employee
-    
+
     # 従業員が従業員一覧APIにアクセス
     get "/shifts/employees"
     assert_response :redirect
@@ -116,7 +118,7 @@ class SecurityTest < ActionDispatch::IntegrationTest
 
   test "should allow owner to access employees API" do
     sign_in @owner
-    
+
     # オーナーが従業員一覧APIにアクセス
     get "/shifts/employees"
     assert_response :redirect
@@ -125,7 +127,7 @@ class SecurityTest < ActionDispatch::IntegrationTest
   # シフト承認権限のテスト
   test "should require approval permission for shift exchanges" do
     sign_in @employee
-    
+
     # 他の従業員のシフト交代リクエストを承認しようとする
     post "/shift_approvals/approve", params: {
       request_id: "test_request",
@@ -136,23 +138,23 @@ class SecurityTest < ActionDispatch::IntegrationTest
 
   test "should allow approval for own shift exchange requests" do
     sign_in @employee
-    
+
     # 自分のシフト交代リクエストを作成
     shift = Shift.create!(
       employee_id: @employee.employee_id,
       shift_date: Date.current + 1.day,
-      start_time: Time.zone.parse('09:00'),
-      end_time: Time.zone.parse('18:00')
+      start_time: Time.zone.parse("09:00"),
+      end_time: Time.zone.parse("18:00")
     )
-    
+
     exchange_request = ShiftExchange.create!(
       request_id: "test_request_own",
       requester_id: @employee.employee_id,
       approver_id: @other_employee.employee_id,
       shift_id: shift.id,
-      status: 'pending'
+      status: "pending"
     )
-    
+
     # 他の従業員としてログインして承認
     sign_in @other_employee
     post "/shift_approvals/approve", params: {
@@ -168,12 +170,13 @@ class SecurityTest < ActionDispatch::IntegrationTest
     # ログイン（CSRFトークンを使用）
     get "/auth/login"
     csrf_token = session[:_csrf_token]
-    post "/auth/login", params: { employee_id: @employee.employee_id, password: 'password123' }, headers: { 'X-CSRF-Token' => csrf_token }
+    post "/auth/login", params: { employee_id: @employee.employee_id, password: "password123" },
+                        headers: { "X-CSRF-Token" => csrf_token }
     follow_redirect!
     assert_response :success
 
     # CSRFトークンなしでPOSTリクエストを送信
-    post "/dashboard/clock_in", params: {}, headers: { 'X-CSRF-Token' => 'invalid_token' }
+    post "/dashboard/clock_in", params: {}, headers: { "X-CSRF-Token" => "invalid_token" }
     assert_response :unprocessable_content
   end
 
@@ -181,16 +184,17 @@ class SecurityTest < ActionDispatch::IntegrationTest
     # ログイン（CSRFトークンを使用）
     get "/auth/login"
     csrf_token = session[:_csrf_token]
-    post "/auth/login", params: { employee_id: @employee.employee_id, password: 'password123' }, headers: { 'X-CSRF-Token' => csrf_token }
+    post "/auth/login", params: { employee_id: @employee.employee_id, password: "password123" },
+                        headers: { "X-CSRF-Token" => csrf_token }
     follow_redirect!
     assert_response :success
 
     # 有効なCSRFトークンを取得
     get "/dashboard"
     csrf_token = session[:_csrf_token]
-    
+
     # 有効なCSRFトークンでPOSTリクエストを送信
-    post "/dashboard/clock_in", params: {}, headers: { 'X-CSRF-Token' => csrf_token }
+    post "/dashboard/clock_in", params: {}, headers: { "X-CSRF-Token" => csrf_token }
     assert_response :not_acceptable
   end
 
@@ -205,10 +209,10 @@ class SecurityTest < ActionDispatch::IntegrationTest
   test "should handle session timeout correctly" do
     # ログイン
     sign_in @employee
-    
+
     # セッションタイムアウトをシミュレート（セッションをクリア）
     session.clear
-    
+
     # 保護されたページにアクセス
     get "/dashboard"
     assert_response :redirect
@@ -217,7 +221,7 @@ class SecurityTest < ActionDispatch::IntegrationTest
   test "should maintain session for valid requests" do
     # ログイン
     sign_in @employee
-    
+
     # 正常なリクエスト
     get "/dashboard"
     assert_response :redirect
@@ -228,8 +232,8 @@ class SecurityTest < ActionDispatch::IntegrationTest
   test "should validate employee_id format" do
     # 無効な従業員IDでログインを試行
     post "/auth/login", params: {
-      employee_id: 'invalid_id',
-      password: 'password123'
+      employee_id: "invalid_id",
+      password: "password123"
     }
     assert_response :unprocessable_content
   end
@@ -238,20 +242,20 @@ class SecurityTest < ActionDispatch::IntegrationTest
     # パスワードなしでログインを試行
     post "/auth/login", params: {
       employee_id: @employee.employee_id,
-      password: ''
+      password: ""
     }
     assert_response :unprocessable_content
   end
 
   test "should validate shift date format" do
     sign_in @employee
-    
+
     # 無効な日付形式でシフト作成を試行
     post "/shift_exchanges", params: {
       shift_exchange: {
-        shift_date: 'invalid-date',
-        start_time: '09:00',
-        end_time: '18:00'
+        shift_date: "invalid-date",
+        start_time: "09:00",
+        end_time: "18:00"
       }
     }
     assert_response :unprocessable_content
@@ -259,13 +263,13 @@ class SecurityTest < ActionDispatch::IntegrationTest
 
   test "should validate time format" do
     sign_in @employee
-    
+
     # 無効な時間形式でシフト作成を試行
     post "/shift_exchanges", params: {
       shift_exchange: {
-        shift_date: Date.current.strftime('%Y-%m-%d'),
-        start_time: 'invalid-time',
-        end_time: '18:00'
+        shift_date: Date.current.strftime("%Y-%m-%d"),
+        start_time: "invalid-time",
+        end_time: "18:00"
       }
     }
     assert_response :unprocessable_content
@@ -273,13 +277,13 @@ class SecurityTest < ActionDispatch::IntegrationTest
 
   test "should validate shift time logic" do
     sign_in @employee
-    
+
     # 開始時刻が終了時刻より遅いシフトを作成
     post "/shift_exchanges", params: {
       shift_exchange: {
-        shift_date: Date.current.strftime('%Y-%m-%d'),
-        start_time: '18:00',
-        end_time: '09:00'
+        shift_date: Date.current.strftime("%Y-%m-%d"),
+        start_time: "18:00",
+        end_time: "09:00"
       }
     }
     assert_response :unprocessable_content
@@ -290,33 +294,33 @@ class SecurityTest < ActionDispatch::IntegrationTest
   test "should prevent SQL injection in employee_id" do
     # SQLインジェクション攻撃を試行
     malicious_input = "'; DROP TABLE employees; --"
-    
+
     post "/auth/login", params: {
       employee_id: malicious_input,
-      password: 'password123'
+      password: "password123"
     }
-    
+
     # データベースが破壊されていないことを確認
-    assert Employee.count > 0, "従業員テーブルが存在するべき"
+    assert Employee.any?, "従業員テーブルが存在するべき"
     assert_response :unprocessable_content
   end
 
   test "should prevent SQL injection in shift parameters" do
     sign_in @employee
-    
+
     # SQLインジェクション攻撃を試行
     malicious_input = "'; DROP TABLE shifts; --"
-    
+
     post "/shift_exchanges", params: {
       shift_exchange: {
         shift_date: malicious_input,
-        start_time: '09:00',
-        end_time: '18:00'
+        start_time: "09:00",
+        end_time: "18:00"
       }
     }
-    
+
     # データベースが破壊されていないことを確認
-    assert Shift.count > 0, "シフトテーブルが存在するべき"
+    assert Shift.any?, "シフトテーブルが存在するべき"
     assert_response :unprocessable_content
   end
 
@@ -324,20 +328,20 @@ class SecurityTest < ActionDispatch::IntegrationTest
 
   test "should escape HTML in user input" do
     sign_in @employee
-    
+
     # XSS攻撃を試行
     xss_input = "<script>alert('XSS')</script>"
-    
+
     # シフト作成でXSS攻撃を試行
     post "/shift_exchanges", params: {
       shift_exchange: {
-        shift_date: Date.current.strftime('%Y-%m-%d'),
-        start_time: '09:00',
-        end_time: '18:00',
+        shift_date: Date.current.strftime("%Y-%m-%d"),
+        start_time: "09:00",
+        end_time: "18:00",
         notes: xss_input
       }
     }
-    
+
     # レスポンスの基本テスト
     assert true, "XSS対策の基本テスト"
   end
@@ -348,11 +352,11 @@ class SecurityTest < ActionDispatch::IntegrationTest
     # 短時間で複数回ログインを試行
     5.times do
       post "/auth/login", params: {
-        employee_id: 'invalid_id',
-        password: 'wrong_password'
+        employee_id: "invalid_id",
+        password: "wrong_password"
       }
     end
-    
+
     # 最後のリクエストが正常に処理されることを確認
     assert_response :unprocessable_content
   end
@@ -361,7 +365,7 @@ class SecurityTest < ActionDispatch::IntegrationTest
 
   test "should include security headers" do
     get "/auth/login"
-    
+
     # セキュリティヘッダーの存在を確認
     assert true, "セキュリティヘッダーの基本テスト"
   end
@@ -377,16 +381,16 @@ class SecurityTest < ActionDispatch::IntegrationTest
 
   test "should login with valid credentials" do
     post "/auth/login", params: {
-      employee_id: '3313254',
-      password: 'password123'
+      employee_id: "3313254",
+      password: "password123"
     }
     assert_response :unprocessable_content  # 実際の動作に合わせて調整
   end
 
   test "should not login with invalid credentials" do
     post "/auth/login", params: {
-      employee_id: '3313254',
-      password: 'wrongpassword'
+      employee_id: "3313254",
+      password: "wrongpassword"
     }
     assert_response :unprocessable_content  # 実際の動作に合わせて調整
   end
@@ -404,18 +408,18 @@ class SecurityTest < ActionDispatch::IntegrationTest
 
   test "should set initial password successfully" do
     post "/auth/initial_password", params: {
-      employee_id: '3313254',
-      new_password: 'newpassword123',
-      confirm_password: 'newpassword123'
+      employee_id: "3313254",
+      new_password: "newpassword123",
+      confirm_password: "newpassword123"
     }
     assert_response :unprocessable_content  # 実際の動作に合わせて調整
   end
 
   test "should not set initial password with mismatched passwords" do
     post "/auth/initial_password", params: {
-      employee_id: '3313254',
-      new_password: 'newpassword123',
-      confirm_password: 'differentpassword'
+      employee_id: "3313254",
+      new_password: "newpassword123",
+      confirm_password: "differentpassword"
     }
     assert_response :unprocessable_content  # 実際の動作に合わせて調整
   end
@@ -425,7 +429,7 @@ class SecurityTest < ActionDispatch::IntegrationTest
   test "should get dashboard index" do
     # ログインしてからダッシュボードにアクセス
     get "/dashboard"
-    assert_response :redirect  # 認証が必要なためリダイレクト
+    assert_response :redirect # 認証が必要なためリダイレクト
   end
 
   # ===== シフト追加コントローラーテスト =====
@@ -441,27 +445,27 @@ class SecurityTest < ActionDispatch::IntegrationTest
   end
 
   test "should create shift addition request" do
-    assert_no_difference('ShiftAddition.count') do
+    assert_no_difference("ShiftAddition.count") do
       post "/shift_additions", params: {
-        employee_id: '3316120',
-        shift_date: Date.current.strftime('%Y-%m-%d'),
-        start_time: '09:00',
-        end_time: '18:00'
+        employee_id: "3316120",
+        shift_date: Date.current.strftime("%Y-%m-%d"),
+        start_time: "09:00",
+        end_time: "18:00"
       }
     end
-    
-    assert_response :unprocessable_content  # 実際の動作に合わせて調整
+
+    assert_response :unprocessable_content # 実際の動作に合わせて調整
   end
 
   test "should not create shift addition request with missing parameters" do
-    assert_no_difference('ShiftAddition.count') do
+    assert_no_difference("ShiftAddition.count") do
       post "/shift_additions", params: {
-        employee_id: '3316120',
-        shift_date: Date.current.strftime('%Y-%m-%d')
+        employee_id: "3316120",
+        shift_date: Date.current.strftime("%Y-%m-%d")
         # start_time と end_time が不足
       }
     end
-    
-    assert_response :unprocessable_content  # 実際の動作に合わせて調整
+
+    assert_response :unprocessable_content # 実際の動作に合わせて調整
   end
 end

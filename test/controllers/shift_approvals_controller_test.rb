@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "test_helper"
 
 class ShiftApprovalsControllerTest < ActionController::TestCase
@@ -10,7 +12,7 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
       employee_id: "2",
       role: "employee"
     )
-    
+
     # シフトを作成
     @shift = Shift.create!(
       employee_id: @employee1.employee_id,
@@ -18,16 +20,16 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
       start_time: Time.zone.parse("09:00"),
       end_time: Time.zone.parse("18:00")
     )
-    
+
     # シフト交代リクエストを作成
     @shift_exchange = ShiftExchange.create!(
       request_id: "test_request_123",
       requester_id: @employee1.employee_id,
       approver_id: @employee2.employee_id,
       shift_id: @shift.id,
-      status: 'pending'
+      status: "pending"
     )
-    
+
     # ログイン（テスト用のセッション設定）
     @controller.session[:authenticated] = true
     @controller.session[:employee_id] = @employee2.employee_id
@@ -35,7 +37,7 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
 
   test "should approve shift exchange request and update shifts correctly" do
     # 承認前の状態確認
-    assert_equal 'pending', @shift_exchange.status
+    assert_equal "pending", @shift_exchange.status
     assert_equal @employee1.employee_id, @shift.employee_id
     assert_equal 1, Shift.where(employee_id: @employee1.employee_id).count
     assert_equal 0, Shift.where(employee_id: @employee2.employee_id).count
@@ -43,7 +45,7 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
     # 承認処理を実行
     post :approve, params: {
       request_id: @shift_exchange.request_id,
-      request_type: 'exchange'
+      request_type: "exchange"
     }
 
     # リダイレクト確認
@@ -51,11 +53,11 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
 
     # 承認後の状態確認
     @shift_exchange.reload
-    assert_equal 'approved', @shift_exchange.status
-    
+    assert_equal "approved", @shift_exchange.status
+
     # 元のシフトが削除されていることを確認
     assert_nil Shift.find_by(id: @shift.id)
-    
+
     # 新しいシフトが承認者に作成されていることを確認
     new_shift = Shift.find_by(employee_id: @employee2.employee_id)
     assert_not_nil new_shift
@@ -68,13 +70,13 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
 
   test "should reject shift exchange request and keep original shift" do
     # 否認前の状態確認
-    assert_equal 'pending', @shift_exchange.status
+    assert_equal "pending", @shift_exchange.status
     assert_equal @employee1.employee_id, @shift.employee_id
 
     # 否認処理を実行
     post :reject, params: {
       request_id: @shift_exchange.request_id,
-      request_type: 'exchange'
+      request_type: "exchange"
     }
 
     # リダイレクト確認
@@ -82,12 +84,12 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
 
     # 否認後の状態確認
     @shift_exchange.reload
-    assert_equal 'rejected', @shift_exchange.status
-    
+    assert_equal "rejected", @shift_exchange.status
+
     # 元のシフトが残っていることを確認
     @shift.reload
     assert_equal @employee1.employee_id, @shift.employee_id
-    
+
     # 新しいシフトが作成されていないことを確認
     assert_equal 0, Shift.where(employee_id: @employee2.employee_id).count
   end
@@ -98,29 +100,29 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
       employee_id: "3",
       role: "employee"
     )
-    
+
     # 同じシフトに対する別のリクエストを作成
     @shift_exchange2 = ShiftExchange.create!(
       request_id: "test_request_456",
       requester_id: @employee1.employee_id,
       approver_id: @employee3.employee_id, # 別の承認者
       shift_id: @shift.id, # 同じシフトを使用
-      status: 'pending'
+      status: "pending"
     )
 
     # 最初のリクエストを承認
     post :approve, params: {
       request_id: @shift_exchange.request_id,
-      request_type: 'exchange'
+      request_type: "exchange"
     }
 
     # 承認されたリクエストの状態確認
     @shift_exchange.reload
-    assert_equal 'approved', @shift_exchange.status
+    assert_equal "approved", @shift_exchange.status
 
     # 他のリクエストが自動的に拒否されていることを確認
     @shift_exchange2.reload
-    assert_equal 'rejected', @shift_exchange2.status
+    assert_equal "rejected", @shift_exchange2.status
   end
 
   test "should not allow approval by unauthorized user" do
@@ -134,16 +136,16 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
     # 承認処理を実行（権限なし）
     post :approve, params: {
       request_id: @shift_exchange.request_id,
-      request_type: 'exchange'
+      request_type: "exchange"
     }
 
     # エラーが発生することを確認
     assert_redirected_to shift_approvals_path
     assert_equal "このリクエストを承認する権限がありません", flash[:error]
-    
+
     # リクエストの状態が変わっていないことを確認
     @shift_exchange.reload
-    assert_equal 'pending', @shift_exchange.status
+    assert_equal "pending", @shift_exchange.status
   end
 
   test "should handle approval when shift is already deleted" do
@@ -155,7 +157,7 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
     # 承認処理を実行
     post :approve, params: {
       request_id: @shift_exchange.request_id,
-      request_type: 'exchange'
+      request_type: "exchange"
     }
 
     # エラーが発生することを確認（シフトが削除されている場合は承認できない）
@@ -171,7 +173,7 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
       start_time: Time.zone.parse("18:00"),
       end_time: Time.zone.parse("20:00")
     )
-    
+
     # 申請者のシフトを20:00-23:00に変更
     @shift.update!(
       start_time: Time.zone.parse("20:00"),
@@ -180,13 +182,13 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
 
     # 承認前の状態確認
     assert_equal 1, Shift.where(employee_id: @employee2.employee_id).count
-    assert_equal '18:00', existing_shift.start_time.strftime('%H:%M')
-    assert_equal '20:00', existing_shift.end_time.strftime('%H:%M')
+    assert_equal "18:00", existing_shift.start_time.strftime("%H:%M")
+    assert_equal "20:00", existing_shift.end_time.strftime("%H:%M")
 
     # 承認処理を実行
     post :approve, params: {
       request_id: @shift_exchange.request_id,
-      request_type: 'exchange'
+      request_type: "exchange"
     }
 
     # リダイレクト確認
@@ -194,32 +196,32 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
 
     # 承認後の状態確認
     @shift_exchange.reload
-    assert_equal 'approved', @shift_exchange.status
-    
+    assert_equal "approved", @shift_exchange.status
+
     # 元のシフトが削除されていることを確認
     assert_nil Shift.find_by(id: @shift.id)
-    
+
     # 承認者のシフトが18:00-23:00にマージされていることを確認
     merged_shift = Shift.find_by(employee_id: @employee2.employee_id)
     assert_not_nil merged_shift
-    assert_equal '18:00', merged_shift.start_time.strftime('%H:%M')
-    assert_equal '23:00', merged_shift.end_time.strftime('%H:%M')
+    assert_equal "18:00", merged_shift.start_time.strftime("%H:%M")
+    assert_equal "23:00", merged_shift.end_time.strftime("%H:%M")
     assert_equal true, merged_shift.is_modified
     assert_equal @employee1.employee_id, merged_shift.original_employee_id
-    
+
     # 承認者のシフトが1つだけであることを確認
     assert_equal 1, Shift.where(employee_id: @employee2.employee_id).count
   end
 
   test "should merge shifts when new shift is earlier than existing shift" do
     # 承認者の既存シフトを作成（20:00-23:00）
-    existing_shift = Shift.create!(
+    Shift.create!(
       employee_id: @employee2.employee_id,
       shift_date: Date.current,
       start_time: Time.zone.parse("20:00"),
       end_time: Time.zone.parse("23:00")
     )
-    
+
     # 申請者のシフトを18:00-20:00に変更
     @shift.update!(
       start_time: Time.zone.parse("18:00"),
@@ -229,25 +231,25 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
     # 承認処理を実行
     post :approve, params: {
       request_id: @shift_exchange.request_id,
-      request_type: 'exchange'
+      request_type: "exchange"
     }
 
     # 承認者のシフトが18:00-23:00にマージされていることを確認
     merged_shift = Shift.find_by(employee_id: @employee2.employee_id)
     assert_not_nil merged_shift
-    assert_equal '18:00', merged_shift.start_time.strftime('%H:%M')
-    assert_equal '23:00', merged_shift.end_time.strftime('%H:%M')
+    assert_equal "18:00", merged_shift.start_time.strftime("%H:%M")
+    assert_equal "23:00", merged_shift.end_time.strftime("%H:%M")
   end
 
   test "should merge shifts when shifts overlap" do
     # 承認者の既存シフトを作成（18:00-20:00）
-    existing_shift = Shift.create!(
+    Shift.create!(
       employee_id: @employee2.employee_id,
       shift_date: Date.current,
       start_time: Time.zone.parse("18:00"),
       end_time: Time.zone.parse("20:00")
     )
-    
+
     # 申請者のシフトを19:00-22:00に変更（重複あり）
     @shift.update!(
       start_time: Time.zone.parse("19:00"),
@@ -257,25 +259,25 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
     # 承認処理を実行
     post :approve, params: {
       request_id: @shift_exchange.request_id,
-      request_type: 'exchange'
+      request_type: "exchange"
     }
 
     # 承認者のシフトが18:00-22:00にマージされていることを確認
     merged_shift = Shift.find_by(employee_id: @employee2.employee_id)
     assert_not_nil merged_shift
-    assert_equal '18:00', merged_shift.start_time.strftime('%H:%M')
-    assert_equal '22:00', merged_shift.end_time.strftime('%H:%M')
+    assert_equal "18:00", merged_shift.start_time.strftime("%H:%M")
+    assert_equal "22:00", merged_shift.end_time.strftime("%H:%M")
   end
 
   test "should not merge when new shift is fully contained in existing shift" do
     # 承認者の既存シフトを作成（18:00-23:00）
-    existing_shift = Shift.create!(
+    Shift.create!(
       employee_id: @employee2.employee_id,
       shift_date: Date.current,
       start_time: Time.zone.parse("18:00"),
       end_time: Time.zone.parse("23:00")
     )
-    
+
     # 申請者のシフトを20:00-22:00に変更（既存シフトに完全に含まれる）
     @shift.update!(
       start_time: Time.zone.parse("20:00"),
@@ -285,14 +287,14 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
     # 承認処理を実行
     post :approve, params: {
       request_id: @shift_exchange.request_id,
-      request_type: 'exchange'
+      request_type: "exchange"
     }
 
     # 承認者のシフトが変更されていないことを確認
     merged_shift = Shift.find_by(employee_id: @employee2.employee_id)
     assert_not_nil merged_shift
-    assert_equal '18:00', merged_shift.start_time.strftime('%H:%M')
-    assert_equal '23:00', merged_shift.end_time.strftime('%H:%M')
+    assert_equal "18:00", merged_shift.start_time.strftime("%H:%M")
+    assert_equal "23:00", merged_shift.end_time.strftime("%H:%M")
   end
 
   # シフト追加承認・否認機能のテスト
@@ -305,17 +307,17 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
       shift_date: Date.current + 1.day,
       start_time: Time.zone.parse("10:00"),
       end_time: Time.zone.parse("14:00"),
-      status: 'pending'
+      status: "pending"
     )
 
     # 承認前の状態確認
-    assert_equal 'pending', @shift_addition.status
+    assert_equal "pending", @shift_addition.status
     assert_equal 0, Shift.where(employee_id: @employee2.employee_id, shift_date: Date.current + 1.day).count
 
     # 承認処理を実行
     post :approve, params: {
       request_id: @shift_addition.request_id,
-      request_type: 'addition'
+      request_type: "addition"
     }
 
     # リダイレクト確認
@@ -323,8 +325,8 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
 
     # 承認後の状態確認
     @shift_addition.reload
-    assert_equal 'approved', @shift_addition.status
-    
+    assert_equal "approved", @shift_addition.status
+
     # 新しいシフトが作成されていることを確認
     new_shift = Shift.find_by(employee_id: @employee2.employee_id, shift_date: Date.current + 1.day)
     assert_not_nil new_shift
@@ -343,17 +345,17 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
       shift_date: Date.current + 1.day,
       start_time: Time.zone.parse("10:00"),
       end_time: Time.zone.parse("14:00"),
-      status: 'pending'
+      status: "pending"
     )
 
     # 否認前の状態確認
-    assert_equal 'pending', @shift_addition.status
+    assert_equal "pending", @shift_addition.status
     assert_equal 0, Shift.where(employee_id: @employee2.employee_id, shift_date: Date.current + 1.day).count
 
     # 否認処理を実行
     post :reject, params: {
       request_id: @shift_addition.request_id,
-      request_type: 'addition'
+      request_type: "addition"
     }
 
     # リダイレクト確認
@@ -361,8 +363,8 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
 
     # 否認後の状態確認
     @shift_addition.reload
-    assert_equal 'rejected', @shift_addition.status
-    
+    assert_equal "rejected", @shift_addition.status
+
     # 新しいシフトが作成されていないことを確認
     assert_equal 0, Shift.where(employee_id: @employee2.employee_id, shift_date: Date.current + 1.day).count
   end
@@ -376,7 +378,7 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
       shift_date: Date.current + 1.day,
       start_time: Time.zone.parse("10:00"),
       end_time: Time.zone.parse("14:00"),
-      status: 'pending'
+      status: "pending"
     )
 
     # 別のユーザーでログイン
@@ -389,16 +391,16 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
     # 承認処理を実行（権限なし）
     post :approve, params: {
       request_id: @shift_addition.request_id,
-      request_type: 'addition'
+      request_type: "addition"
     }
 
     # エラーが発生することを確認
     assert_redirected_to shift_approvals_path
     assert_equal "このリクエストを承認する権限がありません", flash[:error]
-    
+
     # リクエストの状態が変わっていないことを確認
     @shift_addition.reload
-    assert_equal 'pending', @shift_addition.status
+    assert_equal "pending", @shift_addition.status
   end
 
   test "should merge shift addition with existing shift" do
@@ -418,18 +420,18 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
       shift_date: Date.current + 1.day,
       start_time: Time.zone.parse("10:00"),
       end_time: Time.zone.parse("14:00"),
-      status: 'pending'
+      status: "pending"
     )
 
     # 承認前の状態確認
     assert_equal 1, Shift.where(employee_id: @employee2.employee_id, shift_date: Date.current + 1.day).count
-    assert_equal '12:00', existing_shift.start_time.strftime('%H:%M')
-    assert_equal '16:00', existing_shift.end_time.strftime('%H:%M')
+    assert_equal "12:00", existing_shift.start_time.strftime("%H:%M")
+    assert_equal "16:00", existing_shift.end_time.strftime("%H:%M")
 
     # 承認処理を実行
     post :approve, params: {
       request_id: @shift_addition.request_id,
-      request_type: 'addition'
+      request_type: "addition"
     }
 
     # リダイレクト確認
@@ -437,16 +439,16 @@ class ShiftApprovalsControllerTest < ActionController::TestCase
 
     # 承認後の状態確認
     @shift_addition.reload
-    assert_equal 'approved', @shift_addition.status
-    
+    assert_equal "approved", @shift_addition.status
+
     # シフトが10:00-16:00にマージされていることを確認
     merged_shift = Shift.find_by(employee_id: @employee2.employee_id, shift_date: Date.current + 1.day)
     assert_not_nil merged_shift
-    assert_equal '10:00', merged_shift.start_time.strftime('%H:%M')
-    assert_equal '16:00', merged_shift.end_time.strftime('%H:%M')
+    assert_equal "10:00", merged_shift.start_time.strftime("%H:%M")
+    assert_equal "16:00", merged_shift.end_time.strftime("%H:%M")
     assert_equal true, merged_shift.is_modified
     assert_equal @employee1.employee_id, merged_shift.original_employee_id
-    
+
     # シフトが1つだけであることを確認
     assert_equal 1, Shift.where(employee_id: @employee2.employee_id, shift_date: Date.current + 1.day).count
   end

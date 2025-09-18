@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class ShiftMailer < ApplicationMailer
   # シフト交代依頼の通知メール
   def shift_exchange_request(approver_email, approver_name, requester_name, shift_date, start_time, end_time)
@@ -7,7 +9,7 @@ class ShiftMailer < ApplicationMailer
     @start_time = start_time
     @end_time = end_time
     @approval_url = "#{root_url}shift_approvals"
-    
+
     mail(
       to: approver_email,
       subject: "【シフト交代のお願い】#{@requester_name}さんより"
@@ -21,7 +23,7 @@ class ShiftMailer < ApplicationMailer
     @shift_date = shift_date
     @start_time = start_time
     @end_time = end_time
-    
+
     mail(
       to: requester_email,
       subject: "【承認】シフト交代リクエストが承認されました"
@@ -31,7 +33,7 @@ class ShiftMailer < ApplicationMailer
   # シフト交代否認の通知メール（全員否認の場合）
   def shift_exchange_denied(requester_email, requester_name)
     @requester_name = requester_name
-    
+
     mail(
       to: requester_email,
       subject: "【シフト交代失敗】シフト交代リクエストが成立しませんでした"
@@ -45,7 +47,7 @@ class ShiftMailer < ApplicationMailer
     @start_time = start_time
     @end_time = end_time
     @approval_url = "#{root_url}shift_approvals"
-    
+
     mail(
       to: target_email,
       subject: "【シフト追加のお願い】"
@@ -58,7 +60,7 @@ class ShiftMailer < ApplicationMailer
     @shift_date = shift_date
     @start_time = start_time
     @end_time = end_time
-    
+
     mail(
       to: owner_email,
       subject: "【承認】#{@target_name}さんがシフト追加を承認しました"
@@ -68,7 +70,7 @@ class ShiftMailer < ApplicationMailer
   # シフト追加否認の通知メール（オーナー宛）
   def shift_addition_denied(owner_email, target_name)
     @target_name = target_name
-    
+
     mail(
       to: owner_email,
       subject: "【否認】#{@target_name}さんがシフト追加を否認しました"

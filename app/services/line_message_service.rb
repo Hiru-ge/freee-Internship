@@ -1,9 +1,10 @@
+# frozen_string_literal: true
+
 class LineMessageService
-  def initialize
-  end
+  def initialize; end
 
   # ヘルプメッセージの生成
-  def generate_help_message(event = nil)
+  def generate_help_message(_event = nil)
     LineMessageGeneratorService.generate_help_message
   end
 
@@ -17,7 +18,7 @@ class LineMessageService
         end_time: shift.end_time,
         employee_name: shift.employee.display_name
       }
-      
+
       actions = [
         LineFlexMessageBuilderService.build_button(
           "このシフトを選択",
@@ -26,10 +27,10 @@ class LineMessageService
           "#1DB446"
         )
       ]
-      
+
       LineFlexMessageBuilderService.build_shift_card(shift_data, actions)
     end
-    
+
     {
       type: "flex",
       altText: "シフト選択",
@@ -40,15 +41,15 @@ class LineMessageService
   # 承認待ちリクエストFlex Messageの生成
   def generate_pending_requests_flex_message(pending_exchange_requests, pending_addition_requests)
     bubbles = []
-    
+
     # シフト交代リクエストのカード
     pending_exchange_requests.each do |request|
       shift = request.shift
       requester = Employee.find_by(employee_id: request.requester_id)
       target = Employee.find_by(employee_id: request.approver_id)
-      
+
       day_of_week = %w[日 月 火 水 木 金 土][shift.shift_date.wday]
-      
+
       bubbles << {
         type: "bubble",
         header: {
@@ -138,14 +139,14 @@ class LineMessageService
         }
       }
     end
-    
+
     # シフト追加リクエストのカード
     pending_addition_requests.each do |request|
       requester = Employee.find_by(employee_id: request.requester_id)
       target = Employee.find_by(employee_id: request.target_employee_id)
-      
+
       day_of_week = %w[日 月 火 水 木 金 土][request.shift_date.wday]
-      
+
       bubbles << {
         type: "bubble",
         header: {
@@ -235,14 +236,14 @@ class LineMessageService
         }
       }
     end
-    
+
     if bubbles.empty?
       return {
         type: "text",
         text: "承認待ちのリクエストはありません。"
       }
     end
-    
+
     {
       type: "flex",
       altText: "承認待ちのリクエスト",
@@ -255,20 +256,20 @@ class LineMessageService
 
   # シフト追加レスポンスの生成
   def generate_shift_addition_response(addition_request, status)
-    date_str = addition_request.shift_date.strftime('%m/%d')
+    date_str = addition_request.shift_date.strftime("%m/%d")
     day_of_week = %w[日 月 火 水 木 金 土][addition_request.shift_date.wday]
     time_str = "#{addition_request.start_time.strftime('%H:%M')}-#{addition_request.end_time.strftime('%H:%M')}"
-    
-    if status == 'approved'
-      "✅ シフト追加が承認されました！\n\n" +
-      "📅 日付: #{date_str} (#{day_of_week})\n" +
-      "⏰ 時間: #{time_str}\n" +
-      "👤 対象者: #{Employee.find_by(employee_id: addition_request.target_employee_id)&.display_name || '不明'}"
+
+    if status == "approved"
+      "✅ シフト追加が承認されました！\n\n" \
+        "📅 日付: #{date_str} (#{day_of_week})\n" \
+        "⏰ 時間: #{time_str}\n" \
+        "👤 対象者: #{Employee.find_by(employee_id: addition_request.target_employee_id)&.display_name || '不明'}"
     else
-      "❌ シフト追加が否認されました。\n\n" +
-      "📅 日付: #{date_str} (#{day_of_week})\n" +
-      "⏰ 時間: #{time_str}\n" +
-      "👤 対象者: #{Employee.find_by(employee_id: addition_request.target_employee_id)&.display_name || '不明'}"
+      "❌ シフト追加が否認されました。\n\n" \
+        "📅 日付: #{date_str} (#{day_of_week})\n" \
+        "⏰ 時間: #{time_str}\n" \
+        "👤 対象者: #{Employee.find_by(employee_id: addition_request.target_employee_id)&.display_name || '不明'}"
     end
   end
 
@@ -300,6 +301,6 @@ class LineMessageService
 
   # ユーティリティメソッド
   def group_message?(event)
-    event['source']['type'] == 'group'
+    event["source"]["type"] == "group"
   end
 end

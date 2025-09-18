@@ -1,11 +1,13 @@
+# frozen_string_literal: true
+
 class LineNotificationService
   def initialize
     # テスト環境ではLINE Botクライアントを初期化しない
-    unless Rails.env.test?
-      @line_client = Line::Bot::Client.new do |config|
-        config.channel_secret = ENV['LINE_CHANNEL_SECRET']
-        config.channel_token = ENV['LINE_CHANNEL_TOKEN']
-      end
+    return if Rails.env.test?
+
+    @line_client = Line::Bot::Client.new do |config|
+      config.channel_secret = ENV.fetch("LINE_CHANNEL_SECRET", nil)
+      config.channel_token = ENV.fetch("LINE_CHANNEL_TOKEN", nil)
     end
   end
 
@@ -17,9 +19,9 @@ class LineNotificationService
 
     # 承認者の情報を取得
     approver = Employee.find_by(employee_id: exchange_request.approver_id)
-    approver_name = approver&.display_name || '不明'
+    approver_name = approver&.display_name || "不明"
 
-    if action == 'approve'
+    if action == "approve"
       message = "✅ シフト交代が承認されました！\n\n"
       message += "📅 日付: #{shift_date.strftime('%m/%d')}\n"
       message += "⏰ 時間: #{start_time.strftime('%H:%M')}-#{end_time.strftime('%H:%M')}\n"
@@ -42,11 +44,11 @@ class LineNotificationService
 
     # 申請者の情報を取得
     requester = Employee.find_by(employee_id: exchange_request.requester_id)
-    requester_name = requester&.display_name || '不明'
+    requester_name = requester&.display_name || "不明"
 
     # シフト情報を取得
     shift = Shift.find(exchange_request.shift_id)
-    
+
     message = "🔄 シフト交代依頼が届きました\n\n"
     message += "📅 日付: #{shift.date.strftime('%m/%d')}\n"
     message += "⏰ 時間: #{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}\n"
@@ -60,17 +62,17 @@ class LineNotificationService
   def send_shift_exchange_request_email_notification(exchange_request)
     # テスト環境ではメール送信をスキップ
     return nil if Rails.env.test?
-    
+
     begin
       # 申請者と承認者の情報を取得
       requester = Employee.find_by(employee_id: exchange_request.requester_employee_id)
       approver = Employee.find_by(employee_id: exchange_request.target_employee_id)
-      
+
       return unless requester&.email && approver&.email
-      
+
       # シフト情報を取得
       shift = Shift.find(exchange_request.shift_id)
-      
+
       # メール送信
       ShiftMailer.shift_exchange_request(
         requester.email,
@@ -81,9 +83,9 @@ class LineNotificationService
         requester.display_name,
         approver.display_name
       ).deliver_now
-      
+
       Rails.logger.info "シフト交代依頼メール送信完了: #{requester.email} -> #{approver.email}"
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "シフト交代依頼メール送信エラー: #{e.message}"
     end
   end
@@ -92,17 +94,17 @@ class LineNotificationService
   def send_shift_exchange_approved_email_notification(exchange_request)
     # テスト環境ではメール送信をスキップ
     return nil if Rails.env.test?
-    
+
     begin
       # 申請者と承認者の情報を取得
       requester = Employee.find_by(employee_id: exchange_request.requester_employee_id)
       approver = Employee.find_by(employee_id: exchange_request.target_employee_id)
-      
+
       return unless requester&.email && approver&.email
-      
+
       # シフト情報を取得
       shift = Shift.find(exchange_request.shift_id)
-      
+
       # メール送信
       ShiftMailer.shift_exchange_approved(
         requester.email,
@@ -113,9 +115,9 @@ class LineNotificationService
         requester.display_name,
         approver.display_name
       ).deliver_now
-      
+
       Rails.logger.info "シフト交代承認メール送信完了: #{approver.email} -> #{requester.email}"
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "シフト交代承認メール送信エラー: #{e.message}"
     end
   end
@@ -124,17 +126,17 @@ class LineNotificationService
   def send_shift_exchange_denied_email_notification(exchange_request)
     # テスト環境ではメール送信をスキップ
     return nil if Rails.env.test?
-    
+
     begin
       # 申請者と承認者の情報を取得
       requester = Employee.find_by(employee_id: exchange_request.requester_employee_id)
       approver = Employee.find_by(employee_id: exchange_request.target_employee_id)
-      
+
       return unless requester&.email && approver&.email
-      
+
       # シフト情報を取得
       shift = Shift.find(exchange_request.shift_id)
-      
+
       # メール送信
       ShiftMailer.shift_exchange_denied(
         requester.email,
@@ -145,9 +147,9 @@ class LineNotificationService
         requester.display_name,
         approver.display_name
       ).deliver_now
-      
+
       Rails.logger.info "シフト交代否認メール送信完了: #{approver.email} -> #{requester.email}"
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "シフト交代否認メール送信エラー: #{e.message}"
     end
   end
@@ -155,86 +157,80 @@ class LineNotificationService
   # シフト追加通知
   def send_shift_addition_notifications(shift_additions)
     return if Rails.env.test? # テスト環境ではスキップ
-    
+
     email_service = EmailNotificationService.new
-    
+
     shift_additions.each do |addition_request|
-      begin
-        # 対象従業員の情報を取得
-        target_employee = Employee.find_by(employee_id: addition_request.target_employee_id)
-        next unless target_employee&.email
-        
-        # 申請者の情報を取得
-        requester = Employee.find_by(employee_id: addition_request.requester_employee_id)
-        requester_name = requester&.display_name || '不明'
-        
-        # メール送信
-        email_service.send_shift_addition_request(
-          target_employee.email,
-          addition_request.date,
-          addition_request.start_time,
-          addition_request.end_time,
-          requester_name,
-          target_employee.display_name
-        )
-        
-        Rails.logger.info "シフト追加依頼メール送信完了: #{target_employee.email}"
-      rescue => e
-        Rails.logger.error "シフト追加依頼メール送信エラー: #{e.message}"
-      end
+      # 対象従業員の情報を取得
+      target_employee = Employee.find_by(employee_id: addition_request.target_employee_id)
+      next unless target_employee&.email
+
+      # 申請者の情報を取得
+      requester = Employee.find_by(employee_id: addition_request.requester_employee_id)
+      requester_name = requester&.display_name || "不明"
+
+      # メール送信
+      email_service.send_shift_addition_request(
+        target_employee.email,
+        addition_request.date,
+        addition_request.start_time,
+        addition_request.end_time,
+        requester_name,
+        target_employee.display_name
+      )
+
+      Rails.logger.info "シフト追加依頼メール送信完了: #{target_employee.email}"
+    rescue StandardError => e
+      Rails.logger.error "シフト追加依頼メール送信エラー: #{e.message}"
     end
   end
 
   # シフト追加承認メール送信
   def send_shift_addition_approval_email(addition_request)
-    begin
-      email_service = EmailNotificationService.new
-      # 従業員情報を取得
-      requester = Employee.find_by(employee_id: addition_request.requester_employee_id)
-      target_employee = Employee.find_by(employee_id: addition_request.target_employee_id)
-      
-      return unless requester&.email && target_employee&.email
-      
-      # メール送信
-      email_service.send_shift_addition_approved(
-        requester.email,
-        addition_request.date,
-        addition_request.start_time,
-        addition_request.end_time,
-        requester.display_name,
-        target_employee.display_name
-      )
-      
-      Rails.logger.info "シフト追加承認メール送信完了: #{requester.email}"
-    rescue => e
-      Rails.logger.error "シフト追加承認メール送信エラー: #{e.message}"
-    end
+    email_service = EmailNotificationService.new
+    # 従業員情報を取得
+    requester = Employee.find_by(employee_id: addition_request.requester_employee_id)
+    target_employee = Employee.find_by(employee_id: addition_request.target_employee_id)
+
+    return unless requester&.email && target_employee&.email
+
+    # メール送信
+    email_service.send_shift_addition_approved(
+      requester.email,
+      addition_request.date,
+      addition_request.start_time,
+      addition_request.end_time,
+      requester.display_name,
+      target_employee.display_name
+    )
+
+    Rails.logger.info "シフト追加承認メール送信完了: #{requester.email}"
+  rescue StandardError => e
+    Rails.logger.error "シフト追加承認メール送信エラー: #{e.message}"
   end
 
   # シフト追加否認メール送信
   def send_shift_addition_rejection_email(addition_request)
-    begin
-      email_service = EmailNotificationService.new
-      # 従業員情報を取得
-      requester = Employee.find_by(employee_id: addition_request.requester_employee_id)
-      target_employee = Employee.find_by(employee_id: addition_request.target_employee_id)
-      
-      return unless requester&.email && target_employee&.email
-      
-      # メール送信
-      email_service.send_shift_addition_rejected(
-        requester.email,
-        addition_request.date,
-        addition_request.start_time,
-        addition_request.end_time,
-        requester.display_name,
-        target_employee.display_name
-      )
-      
-      Rails.logger.info "シフト追加否認メール送信完了: #{requester.email}"
-    rescue => e
-      Rails.logger.error "シフト追加否認メール送信エラー: #{e.message}"
-    end
+    email_service = EmailNotificationService.new
+    # 従業員情報を取得
+    requester = Employee.find_by(employee_id: addition_request.requester_employee_id)
+    target_employee = Employee.find_by(employee_id: addition_request.target_employee_id)
+
+    return unless requester&.email && target_employee&.email
+
+    # メール送信
+    email_service.send_shift_addition_rejected(
+      requester.email,
+      addition_request.date,
+      addition_request.start_time,
+      addition_request.end_time,
+      requester.display_name,
+      target_employee.display_name
+    )
+
+    Rails.logger.info "シフト追加否認メール送信完了: #{requester.email}"
+  rescue StandardError => e
+    Rails.logger.error "シフト追加否認メール送信エラー: #{e.message}"
   end
 
   # 認証コード送信通知
@@ -292,21 +288,21 @@ class LineNotificationService
   def send_line_message(line_user_id, message)
     # テスト環境では実際の送信は行わない
     return if Rails.env.test?
-    
+
     begin
       message_obj = {
-        type: 'text',
+        type: "text",
         text: message
       }
 
       response = @line_client.push_message(line_user_id, message_obj)
-      
-      if response.code == '200'
+
+      if response.code == "200"
         Rails.logger.info "LINE通知送信成功: #{line_user_id}"
       else
         Rails.logger.error "LINE通知送信失敗: #{line_user_id} - #{response.code}"
       end
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "LINE通知送信エラー: #{e.message}"
     end
   end
@@ -315,16 +311,16 @@ class LineNotificationService
   def send_flex_message(line_user_id, flex_message)
     # テスト環境では実際の送信は行わない
     return if Rails.env.test?
-    
+
     begin
       response = @line_client.push_message(line_user_id, flex_message)
-      
-      if response.code == '200'
+
+      if response.code == "200"
         Rails.logger.info "LINE Flex通知送信成功: #{line_user_id}"
       else
         Rails.logger.error "LINE Flex通知送信失敗: #{line_user_id} - #{response.code}"
       end
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "LINE Flex通知送信エラー: #{e.message}"
     end
   end
@@ -344,7 +340,7 @@ class LineNotificationService
 
     # 申請者の情報を取得
     requester = Employee.find_by(employee_id: addition_request.requester_id)
-    requester_name = requester&.display_name || '不明'
+    requester_name = requester&.display_name || "不明"
 
     message = "➕ シフト追加依頼が届きました\n\n"
     message += "📅 日付: #{addition_request.shift_date.strftime('%m/%d')}\n"
@@ -364,7 +360,7 @@ class LineNotificationService
 
     # 承認者の情報を取得
     approver = Employee.find_by(employee_id: addition_request.target_employee_id)
-    approver_name = approver&.display_name || '不明'
+    approver_name = approver&.display_name || "不明"
 
     message = "✅ シフト追加が承認されました！\n\n"
     message += "📅 日付: #{addition_request.shift_date.strftime('%m/%d')}\n"
@@ -382,7 +378,7 @@ class LineNotificationService
 
     # 拒否者の情報を取得
     rejector = Employee.find_by(employee_id: addition_request.target_employee_id)
-    rejector_name = rejector&.display_name || '不明'
+    rejector_name = rejector&.display_name || "不明"
 
     message = "❌ シフト追加が拒否されました。\n\n"
     message += "📅 日付: #{addition_request.shift_date.strftime('%m/%d')}\n"
@@ -396,21 +392,21 @@ class LineNotificationService
   def send_group_notification(group_id, message)
     # テスト環境では実際の送信は行わない
     return if Rails.env.test?
-    
+
     begin
       message_obj = {
-        type: 'text',
+        type: "text",
         text: message
       }
 
       response = @line_client.push_message(group_id, message_obj)
-      
-      if response.code == '200'
+
+      if response.code == "200"
         Rails.logger.info "グループ通知送信成功: #{group_id}"
       else
         Rails.logger.error "グループ通知送信失敗: #{group_id} - #{response.code}"
       end
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "グループ通知送信エラー: #{e.message}"
     end
   end

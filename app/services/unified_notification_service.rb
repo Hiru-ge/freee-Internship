@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class UnifiedNotificationService
   def initialize
     @email_service = EmailNotificationService.new
@@ -5,7 +7,7 @@ class UnifiedNotificationService
   end
 
   # シフト交代依頼通知の送信
-  def send_shift_exchange_request_notification(requests, params)
+  def send_shift_exchange_request_notification(requests, _params)
     return if Rails.env.test? || requests.empty?
 
     requests.each do |request|
@@ -24,7 +26,7 @@ class UnifiedNotificationService
   end
 
   # シフト追加依頼通知の送信
-  def send_shift_addition_request_notification(requests, params)
+  def send_shift_addition_request_notification(requests, _params)
     return if Rails.env.test? || requests.empty?
 
     requests.each do |request|
@@ -58,12 +60,12 @@ class UnifiedNotificationService
       # LINE通知
       @line_service.send_approval_notification_to_requester(
         exchange_request,
-        'approve',
+        "approve",
         exchange_request.shift.shift_date,
         exchange_request.shift.start_time,
         exchange_request.shift.end_time
       )
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "シフト交代承認通知送信エラー: #{e.message}"
     end
   end
@@ -85,12 +87,12 @@ class UnifiedNotificationService
       # LINE通知
       @line_service.send_approval_notification_to_requester(
         exchange_request,
-        'reject',
+        "reject",
         exchange_request.shift.shift_date,
         exchange_request.shift.start_time,
         exchange_request.shift.end_time
       )
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "シフト交代拒否通知送信エラー: #{e.message}"
     end
   end
@@ -111,7 +113,7 @@ class UnifiedNotificationService
 
       # LINE通知
       @line_service.send_shift_addition_approval_notification(addition_request)
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "シフト追加承認通知送信エラー: #{e.message}"
     end
   end
@@ -132,42 +134,42 @@ class UnifiedNotificationService
 
       # LINE通知
       @line_service.send_shift_addition_rejection_notification(addition_request)
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "シフト追加拒否通知送信エラー: #{e.message}"
     end
   end
 
   # メール通知のみの送信
-  def send_email_only(notification_type, *args)
+  def send_email_only(notification_type, *)
     case notification_type
     when :shift_exchange_request
-      @email_service.send_shift_exchange_request(*args)
+      @email_service.send_shift_exchange_request(*)
     when :shift_addition_request
-      @email_service.send_shift_addition_request(*args)
+      @email_service.send_shift_addition_request(*)
     when :shift_exchange_approved
-      @email_service.send_shift_exchange_approved(*args)
+      @email_service.send_shift_exchange_approved(*)
     when :shift_exchange_denied
-      @email_service.send_shift_exchange_denied(*args)
+      @email_service.send_shift_exchange_denied(*)
     when :shift_addition_approved
-      @email_service.send_shift_addition_approved(*args)
+      @email_service.send_shift_addition_approved(*)
     when :shift_addition_denied
-      @email_service.send_shift_addition_denied(*args)
+      @email_service.send_shift_addition_denied(*)
     end
   end
 
   # LINE通知のみの送信
-  def send_line_only(notification_type, *args)
+  def send_line_only(notification_type, *)
     case notification_type
     when :shift_exchange_request
-      @line_service.send_shift_exchange_request_notification(*args)
+      @line_service.send_shift_exchange_request_notification(*)
     when :shift_addition_request
-      @line_service.send_shift_addition_request_notification(*args)
+      @line_service.send_shift_addition_request_notification(*)
     when :shift_exchange_approval
-      @line_service.send_approval_notification_to_requester(*args)
+      @line_service.send_approval_notification_to_requester(*)
     when :shift_addition_approval
-      @line_service.send_shift_addition_approval_notification(*args)
+      @line_service.send_shift_addition_approval_notification(*)
     when :shift_addition_rejection
-      @line_service.send_shift_addition_rejection_notification(*args)
+      @line_service.send_shift_addition_rejection_notification(*)
     end
   end
 end
