@@ -89,6 +89,9 @@ FREEE_COMPANY_ID=your_freee_company_id_here
 GMAIL_USERNAME=your_gmail_address@gmail.com
 GMAIL_APP_PASSWORD=your_gmail_app_password_here
 
+# アクセス制限設定
+ALLOWED_EMAIL_ADDRESSES=okita2710@gmail.com
+
 # アプリケーション設定
 RAILS_ENV=development
 RAILS_MASTER_KEY=your_master_key_here
@@ -179,6 +182,7 @@ fly secrets set FREEE_ACCESS_TOKEN=your_token
 fly secrets set FREEE_COMPANY_ID=your_company_id
 fly secrets set GMAIL_USERNAME=your_email
 fly secrets set GMAIL_APP_PASSWORD=your_app_password
+fly secrets set ALLOWED_EMAIL_ADDRESSES=okita2710@gmail.com
 
 # デプロイ
 fly deploy

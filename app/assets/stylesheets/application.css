@@ -1581,6 +1581,87 @@ a:hover {
 
 }
 
+/* ===== アクセス制御ページ専用スタイル ===== */
+
+/* メールアドレス入力欄のレイアウト調整 */
+.email-input-group {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.email-label {
+  min-width: 120px;
+  margin-bottom: 0 !important;
+  flex-shrink: 0;
+}
+
+#email-input {
+  flex: 1;
+  max-width: 250px;
+  padding: 14px 16px !important;
+  border-radius: 8px !important;
+  font-size: 16px !important;
+  line-height: 1.4 !important;
+  border: 2px solid #777 !important;
+  transition: all 0.3s ease !important;
+}
+
+#email-input:focus {
+  border-color: #ffca28 !important;
+  box-shadow: 0 0 0 3px rgba(255, 202, 40, 0.1) !important;
+}
+
+/* 認証コード入力欄のレイアウト調整 */
+.code-input-group {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.code-label {
+  min-width: 120px;
+  margin-bottom: 0 !important;
+  flex-shrink: 0;
+}
+
+#code-input {
+  flex: 1;
+  max-width: 150px;
+  padding: 14px 16px !important;
+  border-radius: 8px !important;
+  font-size: 18px !important;
+  line-height: 1.4 !important;
+  border: 2px solid #777 !important;
+  transition: all 0.3s ease !important;
+  text-align: center !important;
+  letter-spacing: 3px !important;
+  font-weight: bold !important;
+}
+
+#code-input:focus {
+  border-color: #ffca28 !important;
+  box-shadow: 0 0 0 3px rgba(255, 202, 40, 0.1) !important;
+}
+
+/* アクセス制御ページ用のログインコンテナの幅調整 */
+.access-control-page .login-container {
+  min-width: 450px;
+}
+
+/* メール送信注意書きのスタイル */
+.email-notice {
+  margin-top: 15px;
+  font-size: 14px;
+  color: #e0e0e0;
+}
+
+.email-notice strong {
+  color: #ffca28;
+}
+
 /* ===== シフト承認ページのデザイン改善 ===== */
 
 /* シフト承認画面のコンテナ幅を狭く */

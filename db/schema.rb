@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_15_112837) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_18_123750) do
   create_table "conversation_states", force: :cascade do |t|
     t.string "line_user_id"
     t.text "state_data"
@@ -18,6 +18,17 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_15_112837) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["line_user_id"], name: "index_conversation_states_on_line_user_id"
+  end
+
+  create_table "email_verification_codes", force: :cascade do |t|
+    t.string "email", null: false
+    t.string "code", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["code"], name: "index_email_verification_codes_on_code"
+    t.index ["email"], name: "index_email_verification_codes_on_email"
+    t.index ["expires_at"], name: "index_email_verification_codes_on_expires_at"
   end
 
   create_table "employee_line_accounts", force: :cascade do |t|

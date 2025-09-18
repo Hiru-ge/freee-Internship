@@ -1,0 +1,83 @@
+<div class="container access-control-page">
+  <div class="login-container">
+    <h1>勤怠管理システム</h1>
+    <h2>アクセス認証</h2>
+    
+    <%= form_with url: authenticate_email_path, method: :post, local: true, id: "email-auth-form" do |form| %>
+      <div class="form-group email-input-group">
+        <%= form.label :email, "メールアドレス:", class: "email-label" %>
+        <%= form.email_field :email, 
+              placeholder: "example@freee.co.jp", 
+              required: true,
+              value: params[:email],
+              id: "email-input" %>
+      </div>
+      
+      <div class="form-actions">
+        <%= form.submit "認証コードを送信", class: "button" %>
+      </div>
+    <% end %>
+    
+    <div class="form-help">
+      <strong>アクセス可能なメールアドレス:</strong>
+      <ul>
+        <li>@freee.co.jp で終わるメールアドレス</li>
+        <li>管理者が許可したメールアドレス</li>
+      </ul>
+      
+      <div class="email-notice">
+        <strong>注意:</strong> 認証コードは実際にメールで送信されます。迷惑メールフォルダもご確認ください。
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ページ読み込み時の初期化
+  document.addEventListener('DOMContentLoaded', function() {
+    setupEmailAuthFormHandler();
+  });
+  
+  // フォームハンドラーの設定
+  function setupEmailAuthFormHandler() {
+    document.getElementById('email-auth-form').addEventListener('submit', function(e) {
+      var email = document.getElementById('email-input').value;
+      
+      if (!email) {
+        e.preventDefault();
+        showMessage('メールアドレスを入力してください', 'error');
+        return;
+      }
+      
+      // ローディング表示
+      if (window.loadingHandler) {
+        window.loadingHandler.show('認証コードを送信中...');
+      } else {
+        // フォールバック
+        var submitButton = document.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        submitButton.textContent = '送信中...';
+      }
+    });
+  }
+  
+  // メッセージ表示（統一されたシステムを使用）
+  function showMessage(message, type) {
+    if (window.messageHandler) {
+      return window.messageHandler.show(message, type);
+    } else {
+      // フォールバック（統一システムが利用できない場合）
+      var existingMessage = document.querySelector('.message');
+      if (existingMessage) {
+        existingMessage.remove();
+      }
+      
+      var messageDiv = document.createElement('div');
+      messageDiv.className = 'message ' + type;
+      messageDiv.textContent = message;
+      
+      var form = document.getElementById('email-auth-form');
+      form.parentNode.insertBefore(messageDiv, form.nextSibling);
+    }
+  }
+</script>

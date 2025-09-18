@@ -33,4 +33,14 @@ class AuthMailer < ApplicationMailer
       subject: '【勤怠管理システム】LINE連携認証コード'
     )
   end
+
+  def access_control_verification_code(email, code)
+    @code = code
+    @expires_at = 10.minutes.from_now
+    
+    mail(
+      to: email,
+      subject: '【勤怠管理システム】アクセス認証コード'
+    )
+  end
 end

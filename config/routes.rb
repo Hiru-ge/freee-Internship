@@ -1,4 +1,9 @@
 Rails.application.routes.draw do
+  # アクセス制限関連ルート
+  root "access_control#index"
+  post "access_control/authenticate_email", as: :authenticate_email
+  get "access_control/verify_code", as: :verify_code_get
+  post "access_control/verify_code", as: :verify_code
   get "wages/index"
   get "wages/show"
   # 認証関連ルート
@@ -22,7 +27,7 @@ Rails.application.routes.draw do
   
   # 認証API
   post "auth/send_verification_code", to: "auth#send_verification_code", as: :send_verification_code
-  post "auth/verify_code", to: "auth#verify_code", as: :verify_code
+  post "auth/verify_code", to: "auth#verify_code", as: :verify_auth_code
   
   # ダッシュボード
   get "dashboard", to: "dashboard#index", as: :dashboard
@@ -85,6 +90,6 @@ Rails.application.routes.draw do
   # get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
   # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
 
-  # Defines the root path route ("/")
-  root "home#index"
+  # 既存のホームページ（アクセス制限後）
+  get "home", to: "home#index", as: :home
 end

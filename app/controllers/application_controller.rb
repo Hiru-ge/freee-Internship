@@ -16,6 +16,7 @@ class ApplicationController < ActionController::Base
   }.freeze
   
   # 認証機能
+  before_action :require_email_authentication
   before_action :require_login
   before_action :set_header_variables
   
@@ -23,6 +24,30 @@ class ApplicationController < ActionController::Base
   before_action :set_security_headers
   
   private
+  
+  def require_email_authentication
+    # メールアドレス認証が必要なページかチェック
+    return if skip_email_authentication?
+    
+    # メールアドレス認証済みかチェック
+    unless session[:email_authenticated] && !email_auth_expired?
+      redirect_to root_path, alert: 'メールアドレス認証が必要です'
+      return
+    end
+  end
+  
+  def skip_email_authentication?
+    # アクセス制限関連のページはスキップ
+    controller_name == 'access_control' ||
+    # テスト環境ではスキップ
+    Rails.env.test?
+  end
+  
+  def email_auth_expired?
+    return true unless session[:email_auth_expires_at]
+    
+    Time.current > Time.parse(session[:email_auth_expires_at].to_s)
+  end
   
   def require_login
     return if session[:authenticated] && session[:employee_id] && !session_expired?
