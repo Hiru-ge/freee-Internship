@@ -19,27 +19,15 @@ class LineShiftService
     employee = find_employee_by_line_id(line_user_id)
     return "従業員情報が見つかりません。" unless employee
     
-    # 今日から1ヶ月後までのシフトを取得
-    start_date = Date.current
-    end_date = start_date + 1.month
+    # 共通サービスを使用してシフトデータを取得
+    shift_display_service = ShiftDisplayService.new
+    result = shift_display_service.get_employee_shifts(employee.employee_id)
     
-    shifts = Shift.where(
-      employee_id: employee.employee_id,
-      shift_date: start_date..end_date
-    ).order(:shift_date, :start_time)
-    
-    if shifts.empty?
-      return "今月のシフト情報はありません。"
+    if result[:success]
+      shift_display_service.format_employee_shifts_for_line(result[:data])
+    else
+      "シフトデータの取得に失敗しました。"
     end
-    
-    # シフト情報をフォーマット
-    message = "📅 今月のシフト\n\n"
-    shifts.each do |shift|
-      day_of_week = %w[日 月 火 水 木 金 土][shift.shift_date.wday]
-      message += "#{shift.shift_date.strftime('%m/%d')} (#{day_of_week}) #{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}\n"
-    end
-    
-    message
   end
 
   # 全員シフトコマンドの処理
@@ -55,57 +43,19 @@ class LineShiftService
       end
     end
     
-    # 全従業員のシフト情報を取得
-    employees = Employee.all
-    all_shifts = get_group_shift_info(employees)
+    # 共通サービスを使用して全従業員のシフトデータを取得
+    shift_display_service = ShiftDisplayService.new
+    result = shift_display_service.get_all_employee_shifts
     
-    if all_shifts.empty?
-      return "【今月の全員シフト】\n今月のシフト情報はありません。"
+    if result[:success]
+      shift_display_service.format_all_shifts_for_line(result[:data])
+    else
+      "シフトデータの取得に失敗しました。"
     end
-    
-    # 日付ごとにグループ化
-    grouped_shifts = all_shifts.group_by { |shift| shift[:date] }
-    
-    # シフト情報をフォーマット
-    message = "【今月の全員シフト】\n\n"
-    grouped_shifts.sort_by { |date, _| date }.each do |date, shifts|
-      day_of_week = %w[日 月 火 水 木 金 土][date.wday]
-      message += "📅 #{date.strftime('%m/%d')} (#{day_of_week})\n"
-      shifts.each do |shift|
-        message += "  #{shift[:employee_name]}: #{shift[:start_time]}-#{shift[:end_time]}\n"
-      end
-      message += "\n"
-    end
-    
-    message
   end
 
   private
 
-  # 全従業員のシフト情報を取得
-  def get_group_shift_info(employees)
-    now = Time.current
-    start_date = now.beginning_of_month
-    end_date = now.end_of_month
-
-    all_shifts = []
-    employees.each do |employee|
-      shifts = Shift.where(
-        employee_id: employee.employee_id,
-        shift_date: start_date..end_date
-      ).order(:shift_date, :start_time)
-
-      shifts.each do |shift|
-        all_shifts << {
-          employee_name: employee.display_name,
-          date: shift.shift_date,
-          start_time: shift.start_time.strftime('%H:%M'),
-          end_time: shift.end_time.strftime('%H:%M')
-        }
-      end
-    end
-    all_shifts
-  end
 
   # ユーティリティメソッド
   def extract_user_id(event)
