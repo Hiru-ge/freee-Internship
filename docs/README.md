@@ -4,15 +4,28 @@
 
 このシステムは、freee人事労務と連携した勤怠管理・シフト管理システムです。LINE BotとWebアプリケーションを組み合わせて、効率的な勤怠管理を実現します。
 
-## セットアップ手順
+## クイックスタート
 
-### 1. 前提条件
-
+### 前提条件
 - **freee人事労務アカウント**: 従業員・給与データ取得用
+- **Ruby 3.3.0以上**: 開発環境
+- **Git**: リポジトリのクローン用
 
-**注意**:
-- その他の環境変数（Gmail、LINE Bot、Fly.io等）は既に設定済みです
-- fly.ioでの動作確認について：fly.io上では、freeeアクセストークン（6時間で失効）を使用しているため、長時間の動作確認は困難です。本格的な動作確認は、独自のfreee APIトークンを取得してから行ってください
+### セットアップ手順
+1. **リポジトリのクローン**
+   ```bash
+   git clone <repository-url>
+   cd freee-Internship
+   ```
+
+2. **依存関係のインストール**
+   ```bash
+   bundle install
+   ```
+
+3. **詳細なセットアップ手順**
+   - [セットアップガイド](SETUP_GUIDE.md) を参照してください
+   - freee API設定、環境変数設定、データベースセットアップの詳細手順が記載されています
 
 ### オーナー権限の決定について
 **重要**: オーナー権限は**シードデータ作成時**に決定され、その後は固定されます。
@@ -20,59 +33,6 @@
 - 環境変数`OWNER_EMPLOYEE_ID`が設定されている場合：指定された従業員IDがオーナーとして設定されます
 - 環境変数`OWNER_EMPLOYEE_ID`が設定されていない場合：すべての従業員が従業員権限として設定されます
 - シードデータ作成後は、データベースの`role`カラムで権限が管理されます
-
-### 2. freee人事労務での準備
-
-1. **従業員登録**
-   - 従業員名は自由に設定可能（「店長太郎」「テスト太郎」などの制約なし）
-   - 実際のメールアドレスで登録
-   - オーナー1名、従業員2-3名を推奨
-
-2. **freee API設定**
-   - [freee API管理画面](https://secure.freee.co.jp/oauth/applications)でアプリケーション作成
-   - アクセストークンを生成
-   - 会社IDを確認
-
-### 3. 環境変数設定
-
-環境変数は以下の方法で設定できます：
-
-#### 開発環境の場合
-`.env`ファイルで以下の**3つの環境変数のみ**を設定：
-
-```bash
-# freee API設定（必須）
-FREEE_ACCESS_TOKEN=取得したアクセストークン
-FREEE_COMPANY_ID=取得した会社ID
-
-# オーナー設定（必須）
-OWNER_EMPLOYEE_ID=オーナーの従業員ID
-```
-
-#### 本番環境（Fly.io）の場合
-```bash
-# freee API設定（必須）
-flyctl secrets set FREEE_ACCESS_TOKEN="取得したアクセストークン"
-flyctl secrets set FREEE_COMPANY_ID="取得した会社ID"
-flyctl secrets set OWNER_EMPLOYEE_ID="オーナーの従業員ID"
-```
-
-**注意**: 環境変数はGitHub以外の方法（直接的な設定）で渡すことを推奨します
-
-### 4. システム起動
-
-```bash
-# 依存関係のインストール
-bundle install
-
-# データベースのセットアップ
-rails db:create
-rails db:migrate
-rails db:seed
-
-# サーバーの起動
-rails server
-```
 
 ## 主要機能
 
@@ -97,10 +57,18 @@ rails server
 
 ## ドキュメント
 
-- [セットアップガイド](SETUP_GUIDE.md)
-- [引き渡しチェックリスト](HANDOVER_CHECKLIST.md)
-- [API仕様書](API_DOCUMENTATION.md)
-- [システム仕様書](SYSTEM_SPECIFICATIONS.md)
+### ユーザー向け
+- [ユーザーマニュアル](USER_MANUAL.md) - システムの使い方ガイド
+- [セットアップガイド](SETUP_GUIDE.md) - 初期設定手順
+
+### 技術者向け
+- [技術仕様書](TECHNICAL_SPECIFICATIONS.md) - システムの技術詳細
+- [引き渡しチェックリスト](HANDOVER_CHECKLIST.md) - 引き渡し時の確認項目
+- [デプロイガイド](DEPLOYMENT_GUIDE.md) - デプロイ手順
+- [ローカル環境と本番環境の制限事項](LOCAL_VS_PRODUCTION_LIMITATIONS.md) - 環境別の制限事項
+
+### その他
+- [変更履歴](CHANGELOG.md) - システムの変更履歴
 
 ## トラブルシューティング
 
