@@ -8,6 +8,13 @@
     <p>交代を依頼したい<strong>自分のシフト</strong>をクリックすると、依頼フォームへ遷移します。<br>
     <small class="help-text">※ 黄色で表示されているシフトがクリック可能です</small></p>
 
+    <!-- シフト管理ボタン -->
+    <div class="shift-management">
+      <button class="button" onclick="goToRequestList()">自分へのリクエスト一覧</button>
+      <button class="button" onclick="goToDeletionForm()">欠勤申請</button>
+      <button id="shift-add-btn" class="button owner-only hidden" onclick="goToShiftAddForm()">シフト追加依頼</button>
+    </div>
+
     <div class="month-navigation">
       <h3 id="calendar-title"></h3>
       <div class="month-navigation-buttons">
@@ -54,13 +61,6 @@
     </div>
   </div>
   <% end %>
-
-  <!-- シフト管理ボタン -->
-  <div class="shift-management">
-    <button class="button" onclick="goToRequestList()">自分へのリクエスト一覧</button>
-    <button class="button" onclick="goToDeletionForm()">欠勤申請</button>
-    <button id="shift-add-btn" class="button owner-only hidden" onclick="goToShiftAddForm()">シフト追加依頼</button>
-  </div>
 
   <!-- メッセージ表示 -->
   <div id="message" class="message hidden"></div>
@@ -218,9 +218,14 @@
     calendarMonth = allShiftsData.month;
     daysInMonth = new Date(calendarYear, calendarMonth, 0).getDate();
 
-    // 最初の表示範囲を設定
+    // 最初の表示範囲を設定（今日の日付を含む週の開始日）
     var now = new Date();
-    currentStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    var today = now.getDate();
+    var dayOfWeek = now.getDay(); // 0=日曜日, 1=月曜日, ...
+
+    // 今日を含む週の開始日を計算（月曜日を週の開始とする）
+    var startOfWeek = today - (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
+    currentStartDate = new Date(now.getFullYear(), now.getMonth(), startOfWeek);
 
     updateCalendarTitle();
     displayShifts();
@@ -254,16 +259,50 @@
     headerRow.appendChild(nameHeader);
 
     var datesToShow = []; // 表示する日付の配列
-    var currentDate = new Date(currentStartDate);
-    for(var i = 0; i < 7; i++) {
-        var day = currentDate.getDate();
-        if (currentDate.getMonth() === currentStartDate.getMonth() && day <= daysInMonth) {
-            datesToShow.push(day);
+    var currentMonth = currentStartDate.getMonth();
+    var currentYear = currentStartDate.getFullYear();
+    var lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+    // 最後のページかどうかを判定（表示される最後の日が月の最終日以上の場合）
+    var lastDayOfDisplayedPeriod = currentStartDate.getDate() + 6;
+    var isLastPage = lastDayOfDisplayedPeriod >= lastDayOfMonth;
+
+    if (isLastPage) {
+        // 最後のページの場合：その月の最後の7日分を表示
+        var startDay = Math.max(1, lastDayOfMonth - 6);
+        for (var day = startDay; day <= lastDayOfMonth; day++) {
+            datesToShow.push({
+                day: day,
+                month: currentMonth,
+                year: currentYear,
+                displayText: day + '日'
+            });
             var dayHeader = document.createElement('th');
             dayHeader.textContent = day + '日';
             headerRow.appendChild(dayHeader);
         }
-        currentDate.setDate(currentDate.getDate() + 1);
+    } else {
+        // 通常のページの場合：週の開始日から7日分を表示
+        var currentDate = new Date(currentStartDate);
+        for(var i = 0; i < 7; i++) {
+            var day = currentDate.getDate();
+            var month = currentDate.getMonth();
+            var year = currentDate.getFullYear();
+
+            // 現在の月内の日付のみ表示（翌月は含めない）
+            if (month === currentMonth && year === currentYear) {
+                datesToShow.push({
+                    day: day,
+                    month: month,
+                    year: year,
+                    displayText: day + '日'
+                });
+                var dayHeader = document.createElement('th');
+                dayHeader.textContent = day + '日';
+                headerRow.appendChild(dayHeader);
+            }
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
     }
     thead.appendChild(headerRow);
 
@@ -275,9 +314,9 @@
       nameCell.textContent = employeeData.name;
       employeeRow.appendChild(nameCell);
 
-      datesToShow.forEach(function(day) {
+      datesToShow.forEach(function(dateInfo) {
         var shiftCell = document.createElement('td');
-        var shiftTime = employeeData.shifts[day] || "";
+        var shiftTime = employeeData.shifts[dateInfo.day] || "";
         if (shiftTime) {
           // 自分のシフトのみクリック可能にする
         if (String(employeeId) === String(current_employee_id)) {
@@ -321,8 +360,10 @@
 
     // 最終日が表示範囲に含まれるかチェック
     var lastDayOfDisplayedPeriod = currentStartDate.getDate() + 6;
+    var lastDayOfMonth = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth() + 1, 0).getDate();
 
-    if (lastDayOfDisplayedPeriod >= daysInMonth) {
+    // 表示される最後の日が月の最終日以上の場合、「次へ」ボタンを無効化
+    if (lastDayOfDisplayedPeriod >= lastDayOfMonth) {
         nextBtn.disabled = true;
         nextBtn.style.opacity = '0.5';
     } else {
@@ -347,13 +388,8 @@
       currentStartDate = nextWeekStart;
       displayShifts();
     } else {
-      // 最終日を含む週に移動
-      var lastDayOfCurrentMonth = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth() + 1, 0);
-      currentStartDate = new Date(currentStartDate.getFullYear(), currentStartDate.getMonth(), lastDayOfCurrentMonth.getDate() - (lastDayOfCurrentMonth.getDate() % 7) + 1);
-      if (currentStartDate.getDate() > lastDayOfCurrentMonth.getDate()) {
-        currentStartDate.setDate(lastDayOfCurrentMonth.getDate() - 6);
-      }
-      displayShifts();
+      // 月をまたぐ場合は何もしない（翌月は表示しない）
+      // 最後のページではその月の最後の7日分のみを表示
     }
   }
 

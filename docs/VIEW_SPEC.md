@@ -273,6 +273,12 @@ $spacing-xxl: 48px;
 ### 3. シフト管理画面
 **ファイル**: `app/views/shifts/index.html.erb`
 
+#### UX改善実装内容（2025年1月19日）
+- **セレクトボックス幅修正**: `form-input`クラスでmax-width 300px、min-width 200pxに設定
+- **シフト表最後のページ表示**: 翌月を含めずにその月の最後の7日分を表示
+- **今日の日付を含むセクション表示**: 初期表示で今日を含む週が表示されるように改善
+- **月をまたぐ表示の改善**: 最後のページでは必ず7日分表示されるロジック実装
+
 ```erb
 <div class="shifts-container">
   <header class="shifts-header">
@@ -688,6 +694,20 @@ $spacing-xxl: 48px;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 1rem;
+}
+
+.form-input {
+  width: 100%;
+  max-width: 300px;
+  min-width: 200px;
+  padding: 12px 16px;
+  background: #1a1a1a;
+  border: 2px solid #3a3a3a;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 1em;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
 
   &:focus {
     outline: none;
