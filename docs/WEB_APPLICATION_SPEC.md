@@ -353,9 +353,10 @@ end
 ## 🕐 打刻忘れアラート
 
 ### 打刻忘れアラート機能
-- **出勤打刻忘れ**: 出勤時刻を過ぎても打刻がない場合のアラート
-- **退勤打刻忘れ**: 退勤時刻を過ぎても打刻がない場合のアラート
-- **自動通知**: メール・LINEによる自動通知
+- **出勤打刻忘れ**: シフト開始時刻を過ぎて1時間以内に出勤打刻がない場合のアラート
+- **退勤打刻忘れ**: シフト終了時刻を過ぎて1時間以内に退勤打刻がない場合のアラート
+- **自動通知**: メールによる自動通知
+- **実行頻度**: GitHubActionsにより毎時0分、15分、30分、45分に自動実行
 
 ### 打刻忘れアラートコントローラー
 ```ruby
@@ -374,15 +375,19 @@ end
 ```ruby
 class ClockReminderService
   def check_forgotten_clock_ins
-    # 出勤打刻忘れチェック
+    # シフト開始時刻を過ぎて1時間以内に出勤打刻がない場合にアラート送信
   end
 
   def check_forgotten_clock_outs
-    # 退勤打刻忘れチェック
+    # シフト終了時刻を過ぎて1時間以内に退勤打刻がない場合にアラート送信
   end
 
-  def send_reminder_notification(employee_id, type)
-    # 打刻忘れ通知送信
+  def within_shift_start_window?(current_time, shift_start_time)
+    # シフト開始時刻を過ぎて1時間以内かチェック
+  end
+
+  def within_shift_end_window?(current_time, shift_end_time)
+    # シフト終了時刻を過ぎて1時間以内かチェック
   end
 end
 ```

@@ -38,8 +38,8 @@ class ClockReminderService
       )
       next unless today_shift
 
-      # シフト開始時刻から15分経過後かチェック
-      next unless after_shift_start_with_delay?(now, today_shift.start_time)
+      # シフト開始時刻を過ぎて1時間以内かチェック
+      next unless within_shift_start_window?(now, today_shift.start_time)
 
       # 今日の打刻記録を取得
       time_clocks = get_time_clocks_for_today(employee.employee_id)
@@ -65,11 +65,8 @@ class ClockReminderService
       )
       next unless today_shift
 
-      # シフト終了時刻から2時間以内かチェック
+      # シフト終了時刻を過ぎて1時間以内かチェック
       next unless within_shift_end_window?(now, today_shift.end_time)
-
-      # 15分間隔でリマインダーを送信
-      next unless should_send_reminder?(now)
 
       # 今日の打刻記録を取得
       time_clocks = get_time_clocks_for_today(employee.employee_id)
@@ -139,20 +136,20 @@ class ClockReminderService
     "#{shift.start_time.strftime('%H:%M')}～#{shift.end_time.strftime('%H:%M')}"
   end
 
-  # シフト開始時刻から15分経過後かチェック
-  def after_shift_start_with_delay?(current_time, shift_start_time)
+  # シフト開始時刻を過ぎて1時間以内かチェック
+  def within_shift_start_window?(current_time, shift_start_time)
     current_minutes = (current_time.hour * 60) + current_time.min
     shift_start_minutes = shift_start_time.hour * 60
-    delay_minutes = 15 # 15分の遅延
+    reminder_end_minutes = (shift_start_time.hour + 1) * 60
 
-    current_minutes >= (shift_start_minutes + delay_minutes)
+    current_minutes >= shift_start_minutes && current_minutes < reminder_end_minutes
   end
 
-  # シフト終了時刻の2時間以内かチェック
+  # シフト終了時刻を過ぎて1時間以内かチェック
   def within_shift_end_window?(current_time, shift_end_time)
     current_minutes = (current_time.hour * 60) + current_time.min
     shift_end_minutes = shift_end_time.hour * 60
-    reminder_end_minutes = (shift_end_time.hour + 2) * 60
+    reminder_end_minutes = (shift_end_time.hour + 1) * 60
 
     current_minutes >= shift_end_minutes && current_minutes < reminder_end_minutes
   end
