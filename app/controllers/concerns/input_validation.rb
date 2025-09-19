@@ -358,17 +358,6 @@ module InputValidation
     # 必要に応じて実装
   end
 
-  def contains_sql_injection?(input)
-    return false if input.blank?
-
-    # SQLインジェクション攻撃のパターンを検出
-    sql_patterns = [
-      %r{('|(\\')|(;)|(--)|(/\*)|(\*/)|(\|)|(\*)|(%)|(\+)|(=)|(<)|(>)|(\[)|(\])|(\{)|(\})|(\()|(\))|(\^)|(\$)|(\?)|(!)|(~)|(`)|(@)|(\#)|(&)|(\\)|(\|)|(:)|(;)|(")|(')|(\x00)|(\x1a)|(\x0d)|(\x0a)|(\x09)|(\x08)|(\x07)|(\x1b)|(\x0c)|(\x0b)|(\x0e)|(\x0f)|(\x10)|(\x11)|(\x12)|(\x13)|(\x14)|(\x15)|(\x16)|(\x17)|(\x18)|(\x19)|(\x1c)|(\x1d)|(\x1e)|(\x1f))}i,
-      /(union|select|insert|update|delete|drop|create|alter|exec|execute|script|javascript|vbscript|onload|onerror|onclick|onmouseover|onfocus|onblur|onchange|onsubmit|onreset|onselect|onkeydown|onkeyup|onkeypress|onmousedown|onmouseup|onmousemove|onmouseout|onmouseover|onmouseenter|onmouseleave|ondblclick|oncontextmenu|onwheel|ontouchstart|ontouchend|ontouchmove|ontouchcancel|ongesturestart|ongesturechange|ongestureend|onabort|onafterprint|onbeforeprint|onbeforeunload|onerror|onhashchange|onload|onmessage|onoffline|ononline|onpagehide|onpageshow|onpopstate|onresize|onstorage|onunload)/i
-    ]
-
-    sql_patterns.any? { |pattern| input.match?(pattern) }
-  end
 
   def contains_xss?(input)
     return false if input.blank?

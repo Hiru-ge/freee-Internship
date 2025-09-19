@@ -26,12 +26,15 @@ class ClockReminderService
   def check_forgotten_clock_ins
     now = Time.current
 
-    # 全従業員を取得
-    employees = Employee.all
+    # 今日シフトがある従業員のみを取得（パフォーマンス最適化）
+    today_employee_ids = Shift.where(shift_date: Date.current).pluck(:employee_id)
+    return if today_employee_ids.empty?
+
+    employees = Employee.where(employee_id: today_employee_ids)
     return if employees.empty?
 
     employees.each do |employee|
-      # 今日のシフトを取得
+      # 今日のシフトを取得（既に存在することが保証されている）
       today_shift = Shift.find_by(
         employee_id: employee.employee_id,
         shift_date: Date.current
@@ -53,12 +56,15 @@ class ClockReminderService
   def check_forgotten_clock_outs
     now = Time.current
 
-    # 全従業員を取得
-    employees = Employee.all
+    # 今日シフトがある従業員のみを取得（パフォーマンス最適化）
+    today_employee_ids = Shift.where(shift_date: Date.current).pluck(:employee_id)
+    return if today_employee_ids.empty?
+
+    employees = Employee.where(employee_id: today_employee_ids)
     return if employees.empty?
 
     employees.each do |employee|
-      # 今日のシフトを取得
+      # 今日のシフトを取得（既に存在することが保証されている）
       today_shift = Shift.find_by(
         employee_id: employee.employee_id,
         shift_date: Date.current
