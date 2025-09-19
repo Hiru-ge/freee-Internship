@@ -60,24 +60,24 @@
       <h1>シフト追加のお願い</h1>
       <h2>勤怠管理システム</h2>
     </div>
-    
+
     <div class="content">
       <p><%= @target_name %>様</p>
-      
+
       <p>オーナーより、新しいシフトの追加依頼が届いています。</p>
-      
+
       <div class="shift-info">
         <p>■対象日時</p>
         <div class="time"><%= @shift_date.strftime('%m月%d日') %> <%= @start_time.strftime('%H:%M') %>～<%= @end_time.strftime('%H:%M') %></div>
       </div>
-      
+
       <p>以下の方法でリクエストを確認・承認できます：</p>
       <p>📱 <strong>LINEから承認する場合：</strong><br>
-      LINEで「リクエスト確認」と入力してください</p>
+      LINEで「依頼確認」と入力してください</p>
       <p>🌐 <strong>Webから承認する場合：</strong><br>
       <a href="<%= @approval_url %>"><%= @approval_url %></a></p>
     </div>
-    
+
     <div class="footer">
       <p>このメールは自動送信されています。返信はできません。</p>
       <p>© 2024 勤怠管理システム</p>

@@ -102,7 +102,8 @@ class LineUtilityService
 
   # 従業員名の正規化
   def normalize_employee_name(name)
-    name.tr("ァ-ヶ", "ぁ-ゟ").tr("ー", "ー")
+    # カタカナ→ひらがな変換、スペース除去
+    name.tr("ァ-ヶ", "ぁ-ゟ").tr("ー", "ー").gsub(/\s+/, "")
   end
 
   # 従業員名の部分一致検索
@@ -139,8 +140,7 @@ class LineUtilityService
   def parse_employee_selection(message_text)
     # 数値の場合は従業員IDとして扱う
     if message_text.match?(/^\d+$/)
-      employee_id = message_text.to_i
-      return { type: :id, value: employee_id } if valid_employee_id_format?(employee_id)
+      return { type: :id, value: message_text } if valid_employee_id_format?(message_text)
     end
 
     # 文字列の場合は従業員名として扱う

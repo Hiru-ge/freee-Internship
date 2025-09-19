@@ -41,6 +41,12 @@ class LineConversationService
 
   # 状態付きメッセージの処理
   def handle_stateful_message(line_user_id, message_text, state)
+    # コマンドが送信された場合は会話状態をクリアして通常のコマンド処理に戻す
+    if command_message?(message_text)
+      clear_conversation_state(line_user_id)
+      return nil # 通常のコマンド処理に委譲
+    end
+
     current_state = state["state"] || state[:step] || state["step"]
 
     Rails.logger.debug "LineConversationService: current_state = #{current_state}, message_text = #{message_text}, state = #{state}"
@@ -52,7 +58,7 @@ class LineConversationService
     when "waiting_for_employee_selection"
       # 認証: 従業員選択待ち
       employee_matches = state["employee_matches"]
-      auth_service.handle_multiple_employee_matches(line_user_id, message_text, employee_matches)
+      auth_service.handle_employee_selection_input(line_user_id, message_text, employee_matches)
     when "waiting_for_verification_code"
       # 認証: 認証コード入力待ち
       employee_id = state["employee_id"]
@@ -76,7 +82,10 @@ class LineConversationService
       exchange_service.handle_confirmation_input(line_user_id, message_text, state)
     when "waiting_for_shift_addition_date", "waiting_shift_addition_date"
       # シフト追加: 日付入力待ち
-      addition_service.handle_shift_addition_date_input(line_user_id, message_text)
+      Rails.logger.debug "LineConversationService: calling addition_service.handle_shift_addition_date_input"
+      result = addition_service.handle_shift_addition_date_input(line_user_id, message_text)
+      Rails.logger.debug "LineConversationService: addition_service.handle_shift_addition_date_input returned: #{result}"
+      result
     when "waiting_for_shift_addition_time"
       # シフト追加: 時間入力待ち
       addition_service.handle_shift_addition_time_input(line_user_id, message_text, state)
@@ -86,7 +95,10 @@ class LineConversationService
     when "waiting_for_shift_addition_confirmation"
       # シフト追加: 確認待ち
       addition_service.handle_shift_addition_confirmation_input(line_user_id, message_text, state)
-    when "waiting_shift_selection"
+    when "waiting_for_shift_deletion_date"
+      # 欠勤申請: 日付入力待ち
+      deletion_service.handle_shift_deletion_date_input(line_user_id, message_text, state)
+    when "waiting_for_shift_deletion_selection"
       # 欠勤申請: シフト選択待ち
       deletion_service.handle_shift_selection(line_user_id, message_text, state)
     when "waiting_deletion_reason"
@@ -114,6 +126,10 @@ class LineConversationService
   end
 
   private
+
+  def command_message?(message_text)
+    LineBotService::COMMANDS.key?(message_text)
+  end
 
   def auth_service
     @auth_service ||= LineAuthenticationService.new

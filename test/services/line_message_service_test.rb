@@ -164,7 +164,7 @@ class LineMessageServiceTest < ActiveSupport::TestCase
     # Flex Messageの構造を確認
     assert result.is_a?(Hash)
     assert_equal "flex", result[:type]
-    assert_equal "承認待ちのリクエスト", result[:altText]
+    assert_equal "承認待ちの依頼", result[:altText]
 
     # カルーセルの構造を確認
     assert result[:contents].is_a?(Hash)

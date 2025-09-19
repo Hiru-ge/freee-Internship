@@ -72,6 +72,20 @@ class LineAuthenticationService
     LineMessageGeneratorService.generate_multiple_employee_selection_message(employee_name, matches)
   end
 
+  # 従業員選択処理
+  def handle_employee_selection_input(line_user_id, selection_text, employee_matches)
+    # 選択された番号を解析
+    selection_index = selection_text.to_i - 1
+
+    if selection_index < 0 || selection_index >= employee_matches.length
+      return "正しい番号を入力してください。\n" \
+             "1から#{employee_matches.length}の間で選択してください。"
+    end
+
+    selected_employee = employee_matches[selection_index]
+    generate_verification_code_for_employee(line_user_id, selected_employee)
+  end
+
   # 認証コード生成
   def generate_verification_code_for_employee(line_user_id, employee)
     employee_id = employee[:id] || employee["id"]
@@ -79,8 +93,7 @@ class LineAuthenticationService
 
     # 認証コードを生成・送信
     begin
-      auth_service = AuthService.new
-      result = auth_service.generate_verification_code(employee_id)
+      result = AuthService.send_verification_code(employee_id)
 
       if result[:success]
         # 状態を更新
@@ -93,6 +106,7 @@ class LineAuthenticationService
                                })
 
         "認証コードを送信しました。\n" \
+          "メールの送信には数分かかる場合があります。\n" \
           "メールに送信された6桁の認証コードを入力してください。\n" \
           "（認証コードの有効期限は10分間です）"
       else
@@ -120,17 +134,24 @@ class LineAuthenticationService
     employee = Employee.find_by(employee_id: employee_id)
     if employee
       employee.update!(line_id: line_user_id)
-
-      # 会話状態をクリア
-      clear_conversation_state(line_user_id)
-
-      "認証が完了しました！\n" \
-        "これでLINE Botの機能をご利用いただけます。\n" \
-        "「ヘルプ」と入力すると利用可能なコマンドを確認できます。"
     else
-      "従業員情報の取得に失敗しました。\n" \
-        "管理者にお問い合わせください。"
+      # 従業員レコードが存在しない場合は作成
+      Employee.create!(
+        employee_id: employee_id,
+        role: utility_service.determine_role_from_freee(employee_id),
+        line_id: line_user_id
+      )
     end
+
+    # 認証コードを削除
+    verification_record.mark_as_used!
+
+    # 会話状態をクリア
+    clear_conversation_state(line_user_id)
+
+    "認証が完了しました！\n" \
+      "これでLINE Botの機能をご利用いただけます。\n" \
+      "「ヘルプ」と入力すると利用可能なコマンドを確認できます。"
   rescue StandardError => e
     Rails.logger.error "認証コード検証エラー: #{e.message}"
     "認証処理中にエラーが発生しました。\n" \
@@ -138,6 +159,10 @@ class LineAuthenticationService
   end
 
   private
+
+  def utility_service
+    @utility_service ||= LineUtilityService.new
+  end
 
   # ユーティリティメソッド（LineBotServiceから移行予定）
   def extract_user_id(event)
@@ -156,17 +181,18 @@ class LineAuthenticationService
     state_record = ConversationState.find_active_state(line_user_id)
     return nil unless state_record
 
-    state_record.state_hash
+    JSON.parse(state_record.state_data)
   end
 
   def set_conversation_state(line_user_id, state)
     # 既存の状態を削除
     ConversationState.where(line_user_id: line_user_id).delete_all
 
-    # 新しい状態を保存
+    # 新しい状態を保存（24時間後に期限切れ）
     ConversationState.create!(
       line_user_id: line_user_id,
-      state_hash: state
+      state_data: state.to_json,
+      expires_at: 24.hours.from_now
     )
     true
   rescue StandardError => e

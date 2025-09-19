@@ -39,7 +39,7 @@ class LineMessageService
   end
 
   # 承認待ちリクエストFlex Messageの生成
-  def generate_pending_requests_flex_message(pending_exchange_requests, pending_addition_requests)
+  def generate_pending_requests_flex_message(pending_exchange_requests, pending_addition_requests, pending_deletion_requests = [])
     bubbles = []
 
     # シフト交代リクエストのカード
@@ -237,16 +237,113 @@ class LineMessageService
       }
     end
 
+    # シフト削除リクエストのカード
+    pending_deletion_requests.each do |request|
+      shift = request.shift
+      requester = Employee.find_by(employee_id: request.requester_id)
+
+      day_of_week = %w[日 月 火 水 木 金 土][shift.shift_date.wday]
+
+      bubbles << {
+        type: "bubble",
+        header: {
+          type: "box",
+          layout: "vertical",
+          contents: [
+            {
+              type: "text",
+              text: "🗑️ シフト削除依頼",
+              weight: "bold",
+              color: "#ffffff",
+              size: "sm"
+            }
+          ],
+          backgroundColor: "#FF6B6B"
+        },
+        body: {
+          type: "box",
+          layout: "vertical",
+          contents: [
+            {
+              type: "text",
+              text: "#{shift.shift_date.strftime('%m/%d')} (#{day_of_week})",
+              weight: "bold",
+              size: "lg"
+            },
+            {
+              type: "text",
+              text: "#{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}",
+              size: "md",
+              color: "#666666",
+              margin: "md"
+            },
+            {
+              type: "separator",
+              margin: "md"
+            },
+            {
+              type: "text",
+              text: "依頼者: #{requester&.display_name || '不明'}",
+              size: "sm",
+              color: "#666666",
+              margin: "md"
+            },
+            {
+              type: "text",
+              text: "理由: #{request.reason}",
+              size: "sm",
+              color: "#666666",
+              margin: "sm"
+            }
+          ]
+        },
+        footer: {
+          type: "box",
+          layout: "vertical",
+          contents: [
+            {
+              type: "box",
+              layout: "horizontal",
+              contents: [
+                {
+                  type: "button",
+                  style: "primary",
+                  height: "sm",
+                  color: "#1DB446",
+                  action: {
+                    type: "postback",
+                    label: "承認",
+                    data: "approve_deletion_#{request.request_id}"
+                  }
+                },
+                {
+                  type: "button",
+                  style: "secondary",
+                  height: "sm",
+                  color: "#FF6B6B",
+                  action: {
+                    type: "postback",
+                    label: "否認",
+                    data: "reject_deletion_#{request.request_id}"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    end
+
     if bubbles.empty?
       return {
         type: "text",
-        text: "承認待ちのリクエストはありません。"
+        text: "承認待ちの依頼はありません。"
       }
     end
 
     {
       type: "flex",
-      altText: "承認待ちのリクエスト",
+      altText: "承認待ちの依頼",
       contents: {
         type: "carousel",
         contents: bubbles

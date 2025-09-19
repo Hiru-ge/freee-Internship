@@ -28,7 +28,7 @@ class LineShiftAdditionService
                              "created_at" => Time.current
                            })
 
-    tomorrow = (Date.current + 1).strftime("%Y-%m-%d")
+    tomorrow = (Date.current + 1).strftime("%m/%d")
     "シフト追加を開始します。\n" \
       "追加するシフトの日付を入力してください。\n" \
       "例：#{tomorrow}\n" \
@@ -37,8 +37,8 @@ class LineShiftAdditionService
 
   # シフト追加日付入力の処理
   def handle_shift_addition_date_input(line_user_id, message_text)
-    # 日付形式の検証
-    date_validation_result = validate_shift_date(message_text)
+    # 日付形式の検証（月・日形式）
+    date_validation_result = LineDateValidationService.validate_month_day_format(message_text)
     return date_validation_result[:error] if date_validation_result[:error]
 
     date = date_validation_result[:date]
@@ -65,6 +65,10 @@ class LineShiftAdditionService
     start_time = time_validation_result[:start_time]
     end_time = time_validation_result[:end_time]
 
+    # 日付を取得
+    date = Date.parse(state["selected_date"]) if state["selected_date"].is_a?(String)
+    date = state["selected_date"] if state["selected_date"].is_a?(Date)
+
     # シフト追加対象従業員選択の状態に移行
     set_conversation_state(line_user_id, {
                              "state" => "waiting_for_shift_addition_employee",
@@ -75,60 +79,93 @@ class LineShiftAdditionService
                              "created_at" => Time.current
                            })
 
-    "⏰ 時間: #{start_time.strftime('%H:%M')}-#{end_time.strftime('%H:%M')}\n\n" \
-      "対象となる従業員名を入力してください。\n" \
-      "フルネームでも部分入力でも検索できます。\n" \
-      "複数の場合はカンマで区切って入力してください。\n" \
-      "例: 田中太郎, 佐藤花子"
+    # 依頼可能な従業員を取得
+    available_employees = get_available_employees_for_shift_addition(date, start_time, end_time)
+
+    if available_employees.empty?
+      "⏰ 時間: #{start_time.strftime('%H:%M')}-#{end_time.strftime('%H:%M')}\n\n" \
+        "申し訳ございませんが、この時間帯にシフト追加可能な従業員がいません。\n" \
+        "別の時間帯を選択してください。"
+    else
+      employee_list = available_employees.map.with_index(1) do |emp, index|
+        display_name = emp[:display_name] || emp["display_name"]
+        "#{index}. #{display_name}"
+      end.join("\n")
+
+      "⏰ 時間: #{start_time.strftime('%H:%M')}-#{end_time.strftime('%H:%M')}\n\n" \
+        "対象となる従業員を選択してください。\n\n" \
+        "依頼可能な従業員:\n#{employee_list}\n\n" \
+        "番号で選択するか、従業員名を入力してください。\n" \
+        "複数の場合はカンマで区切って入力してください。\n" \
+        "例: 1,2 または 田中太郎, 佐藤花子"
+    end
   end
 
   # シフト追加対象従業員入力の処理
   def handle_shift_addition_employee_input(line_user_id, message_text, state)
+    # 文字列として保存された日付・時間を適切な型に変換
+    date = Date.parse(state["selected_date"]) if state["selected_date"].is_a?(String)
+    date = state["selected_date"] if state["selected_date"].is_a?(Date)
+
+    start_time = Time.parse(state["start_time"]) if state["start_time"].is_a?(String)
+    start_time = state["start_time"] if state["start_time"].is_a?(Time)
+
+    end_time = Time.parse(state["end_time"]) if state["end_time"].is_a?(String)
+    end_time = state["end_time"] if state["end_time"].is_a?(Time)
+
+    # 依頼可能な従業員を取得
+    available_employees = get_available_employees_for_shift_addition(date, start_time, end_time)
+
     # 複数の従業員名を処理（カンマ区切り）
-    employee_names = message_text.split(",").map(&:strip)
+    employee_selections = message_text.split(",").map(&:strip)
 
     # 従業員検索
     selected_employees = []
-    invalid_names = []
+    invalid_selections = []
 
-    employee_names.each do |name|
-      employee_result = find_employee_by_name(name)
-      if employee_result[:found]
-        selected_employees << employee_result[:employee]
+    employee_selections.each do |selection|
+      # 番号選択の場合は直接処理
+      if selection.match?(/^\d+$/)
+        selection_index = selection.to_i - 1
+        if selection_index >= 0 && selection_index < available_employees.length
+          selected_employees << available_employees[selection_index]
+        else
+          invalid_selections << selection
+        end
       else
-        invalid_names << name
+        # 従業員名で検索（依頼可能な従業員の中から）
+        utility_service = LineUtilityService.new
+        all_matches = utility_service.find_employees_by_name(selection)
+
+        # 依頼可能な従業員の中から絞り込み
+        employees = all_matches.select do |emp|
+          emp_id = emp[:id] || emp["id"]
+          available_employees.any? { |available| (available[:id] || available["id"]) == emp_id }
+        end
+
+        if employees.empty?
+          invalid_selections << selection
+        elsif employees.one?
+          selected_employees << employees.first
+        else
+          # 複数の従業員が見つかった場合は、最初の1つを選択
+          selected_employees << employees.first
+        end
       end
     end
 
-    if invalid_names.any?
-      return "以下の従業員が見つかりませんでした:\n" +
-             invalid_names.join(", ") + "\n\n" \
-                                        "フルネームでも部分入力でも検索できます。\n" \
-                                        "例: 田中太郎、田中、太郎"
+    if invalid_selections.any?
+      return "以下の選択が無効でした:\n" +
+             invalid_selections.join(", ") + "\n\n" \
+             "正しい番号または従業員名を入力してください。\n" \
+             "例: 1,2 または 田中太郎, 佐藤花子"
     end
 
     return "有効な従業員が見つかりませんでした。" if selected_employees.empty?
 
-    # 重複チェック
-    date = state["selected_date"]
-    start_time = state["start_time"]
-    end_time = state["end_time"]
-
+    # 既に依頼可能な従業員のみを選択しているので、重複チェックは不要
+    available_employees = selected_employees
     overlapping_employees = []
-    available_employees = []
-
-    selected_employees.each do |employee|
-      if has_shift_overlap?(employee[:id], date, start_time, end_time)
-        overlapping_employees << employee[:display_name]
-      else
-        available_employees << employee
-      end
-    end
-
-    if available_employees.empty?
-      return "選択された従業員はすべて指定時間にシフトが重複しています。\n" \
-             "別の時間を選択してください。"
-    end
 
     # 確認の状態に移行
     set_conversation_state(line_user_id, {
@@ -146,7 +183,7 @@ class LineShiftAdditionService
     message = "📋 シフト追加の確認\n\n"
     message += "日付: #{date.strftime('%m/%d')}\n"
     message += "時間: #{start_time.strftime('%H:%M')}-#{end_time.strftime('%H:%M')}\n"
-    message += "対象従業員: #{available_employees.map { |emp| emp[:display_name] }.join(', ')}\n\n"
+    message += "対象従業員: #{available_employees.map { |emp| emp[:display_name] || emp["display_name"] }.join(', ')}\n\n"
 
     if overlapping_employees.any?
       message += "⚠️ 以下の従業員は時間が重複しているため除外されます:\n"
@@ -177,9 +214,16 @@ class LineShiftAdditionService
     employee = Employee.find_by(line_id: line_user_id)
     return "従業員情報が見つかりません。" unless employee
 
-    date = state["selected_date"]
-    start_time = state["start_time"]
-    end_time = state["end_time"]
+    # 文字列として保存された日付・時間を適切な型に変換
+    date = Date.parse(state["selected_date"]) if state["selected_date"].is_a?(String)
+    date = state["selected_date"] if state["selected_date"].is_a?(Date)
+
+    start_time = Time.parse(state["start_time"]) if state["start_time"].is_a?(String)
+    start_time = state["start_time"] if state["start_time"].is_a?(Time)
+
+    end_time = Time.parse(state["end_time"]) if state["end_time"].is_a?(String)
+    end_time = state["end_time"] if state["end_time"].is_a?(Time)
+
     available_employees = state["available_employees"]
     state["overlapping_employees"]
 
@@ -189,7 +233,7 @@ class LineShiftAdditionService
       shift_date: date.strftime("%Y-%m-%d"),
       start_time: start_time.strftime("%H:%M"),
       end_time: end_time.strftime("%H:%M"),
-      target_employee_ids: available_employees.map { |emp| emp[:id] }
+      target_employee_ids: available_employees.map { |emp| emp[:id] || emp["id"] }
     }
 
     shift_addition_service = ShiftAdditionService.new
@@ -202,7 +246,7 @@ class LineShiftAdditionService
       # 結果メッセージを生成
       message = "✅ シフト追加依頼を送信しました！\n\n"
 
-      if result[:created_requests].any?
+      if result[:created_requests]&.any?
         created_names = result[:created_requests].map do |request|
           target_employee = Employee.find_by(employee_id: request.target_employee_id)
           target_employee&.display_name || "従業員ID: #{request.target_employee_id}"
@@ -210,9 +254,9 @@ class LineShiftAdditionService
         message += "📤 送信先: #{created_names.join(', ')}\n"
       end
 
-      message += "⚠️ 時間重複で除外: #{result[:overlapping_employees].join(', ')}\n" if result[:overlapping_employees].any?
+      message += "⚠️ 時間重複で除外: #{result[:overlapping_employees].join(', ')}\n" if result[:overlapping_employees]&.any?
 
-      message += "\n承認状況は「リクエスト確認」コマンドで確認できます。"
+      message += "\n送信先の方の承認をお待ちください。"
 
       message
     else
@@ -277,17 +321,18 @@ class LineShiftAdditionService
     state_record = ConversationState.find_active_state(line_user_id)
     return nil unless state_record
 
-    state_record.state_hash
+    JSON.parse(state_record.state_data)
   end
 
   def set_conversation_state(line_user_id, state)
     # 既存の状態を削除
     ConversationState.where(line_user_id: line_user_id).delete_all
 
-    # 新しい状態を保存
+    # 新しい状態を保存（24時間後に期限切れ）
     ConversationState.create!(
       line_user_id: line_user_id,
-      state_hash: state
+      state_data: state.to_json,
+      expires_at: 24.hours.from_now
     )
     true
   rescue StandardError => e
@@ -303,14 +348,6 @@ class LineShiftAdditionService
     false
   end
 
-  def validate_shift_date(date_string)
-    result = LineValidationManagerService.validate_and_format_date(date_string)
-    if result[:valid]
-      { date: result[:date] }
-    else
-      { error: result[:error] }
-    end
-  end
 
   def validate_shift_time(time_string)
     result = LineValidationManagerService.validate_and_format_time(time_string)
@@ -327,7 +364,8 @@ class LineShiftAdditionService
     if matches.empty?
       { found: false }
     elsif matches.length > 1
-      { found: false }
+      # 複数の従業員が見つかった場合は、最初の1つを選択
+      { found: true, employee: matches.first }
     else
       { found: true, employee: matches.first }
     end
@@ -337,15 +375,48 @@ class LineShiftAdditionService
   end
 
   def has_shift_overlap?(employee_id, date, start_time, end_time)
+    return false if start_time.nil? || end_time.nil? || date.nil?
+
     existing_shifts = Shift.where(
       employee_id: employee_id,
-      date: date
+      shift_date: date
     )
 
     existing_shifts.any? do |shift|
       # 時間の重複チェック
       (start_time < shift.end_time) && (end_time > shift.start_time)
     end
+  rescue StandardError => e
+    Rails.logger.error "シフト重複チェックエラー: #{e.message}"
+    false
+  end
+
+  # 指定された日付・時間帯にシフト追加可能な従業員を取得
+  def get_available_employees_for_shift_addition(date, start_time, end_time)
+    # freee APIから全従業員を取得
+    freee_service = FreeeApiService.new(
+      ENV.fetch("FREEE_ACCESS_TOKEN", nil),
+      ENV.fetch("FREEE_COMPANY_ID", nil)
+    )
+
+    all_employees = freee_service.get_employees
+
+    # 指定された日付・時間帯にシフトがある従業員のIDを取得
+    busy_employee_ids = Shift.where(
+      shift_date: date,
+      start_time: start_time..end_time
+    ).pluck(:employee_id)
+
+    # シフト追加可能な従業員をフィルタリング（既にシフトがある従業員を除外）
+    available_employees = all_employees.reject do |emp|
+      emp_id = emp[:id] || emp["id"]
+      busy_employee_ids.include?(emp_id)
+    end
+
+    available_employees
+  rescue StandardError => e
+    Rails.logger.error "シフト追加可能従業員取得エラー: #{e.message}"
+    []
   end
 
   def extract_request_id_from_postback(postback_data, type)

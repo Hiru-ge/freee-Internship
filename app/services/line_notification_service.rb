@@ -50,10 +50,10 @@ class LineNotificationService
     shift = Shift.find(exchange_request.shift_id)
 
     message = "🔄 シフト交代依頼が届きました\n\n"
-    message += "📅 日付: #{shift.date.strftime('%m/%d')}\n"
+    message += "📅 日付: #{shift.shift_date.strftime('%m/%d')}\n"
     message += "⏰ 時間: #{shift.start_time.strftime('%H:%M')}-#{shift.end_time.strftime('%H:%M')}\n"
     message += "👤 申請者: #{requester_name}さん\n\n"
-    message += "「リクエスト確認」コマンドで承認・否認を行ってください。"
+    message += "「依頼確認」コマンドで承認・否認を行ってください。"
 
     send_line_message(approver.line_id, message)
   end
@@ -65,8 +65,8 @@ class LineNotificationService
 
     begin
       # 申請者と承認者の情報を取得
-      requester = Employee.find_by(employee_id: exchange_request.requester_employee_id)
-      approver = Employee.find_by(employee_id: exchange_request.target_employee_id)
+      requester = Employee.find_by(employee_id: exchange_request.requester_id)
+      approver = Employee.find_by(employee_id: exchange_request.approver_id)
 
       return unless requester&.email && approver&.email
 
@@ -77,7 +77,7 @@ class LineNotificationService
       ShiftMailer.shift_exchange_request(
         requester.email,
         approver.email,
-        shift.date,
+        shift.shift_date,
         shift.start_time,
         shift.end_time,
         requester.display_name,
@@ -97,8 +97,8 @@ class LineNotificationService
 
     begin
       # 申請者と承認者の情報を取得
-      requester = Employee.find_by(employee_id: exchange_request.requester_employee_id)
-      approver = Employee.find_by(employee_id: exchange_request.target_employee_id)
+      requester = Employee.find_by(employee_id: exchange_request.requester_id)
+      approver = Employee.find_by(employee_id: exchange_request.approver_id)
 
       return unless requester&.email && approver&.email
 
@@ -109,7 +109,7 @@ class LineNotificationService
       ShiftMailer.shift_exchange_approved(
         requester.email,
         approver.email,
-        shift.date,
+        shift.shift_date,
         shift.start_time,
         shift.end_time,
         requester.display_name,
@@ -129,8 +129,8 @@ class LineNotificationService
 
     begin
       # 申請者と承認者の情報を取得
-      requester = Employee.find_by(employee_id: exchange_request.requester_employee_id)
-      approver = Employee.find_by(employee_id: exchange_request.target_employee_id)
+      requester = Employee.find_by(employee_id: exchange_request.requester_id)
+      approver = Employee.find_by(employee_id: exchange_request.approver_id)
 
       return unless requester&.email && approver&.email
 
@@ -141,7 +141,7 @@ class LineNotificationService
       ShiftMailer.shift_exchange_denied(
         requester.email,
         approver.email,
-        shift.date,
+        shift.shift_date,
         shift.start_time,
         shift.end_time,
         requester.display_name,
@@ -166,13 +166,13 @@ class LineNotificationService
       next unless target_employee&.email
 
       # 申請者の情報を取得
-      requester = Employee.find_by(employee_id: addition_request.requester_employee_id)
+      requester = Employee.find_by(employee_id: addition_request.requester_id)
       requester_name = requester&.display_name || "不明"
 
       # メール送信
       email_service.send_shift_addition_request(
         target_employee.email,
-        addition_request.date,
+        addition_request.shift_date,
         addition_request.start_time,
         addition_request.end_time,
         requester_name,
@@ -189,7 +189,7 @@ class LineNotificationService
   def send_shift_addition_approval_email(addition_request)
     email_service = EmailNotificationService.new
     # 従業員情報を取得
-    requester = Employee.find_by(employee_id: addition_request.requester_employee_id)
+    requester = Employee.find_by(employee_id: addition_request.requester_id)
     target_employee = Employee.find_by(employee_id: addition_request.target_employee_id)
 
     return unless requester&.email && target_employee&.email
@@ -213,7 +213,7 @@ class LineNotificationService
   def send_shift_addition_rejection_email(addition_request)
     email_service = EmailNotificationService.new
     # 従業員情報を取得
-    requester = Employee.find_by(employee_id: addition_request.requester_employee_id)
+    requester = Employee.find_by(employee_id: addition_request.requester_id)
     target_employee = Employee.find_by(employee_id: addition_request.target_employee_id)
 
     return unless requester&.email && target_employee&.email

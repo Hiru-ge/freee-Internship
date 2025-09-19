@@ -43,7 +43,7 @@ class AccessControlService
       # メール送信
       AuthMailer.access_control_verification_code(email, code).deliver_now
 
-      { success: true, message: "認証コードを送信しました", code: code }
+      { success: true, message: "認証コードを送信しました。メールの送信には数分かかる場合があります。", code: code }
     rescue StandardError => e
       Rails.logger.error "認証コード送信エラー: #{e.message}"
       { success: false, message: "認証コードの送信に失敗しました" }

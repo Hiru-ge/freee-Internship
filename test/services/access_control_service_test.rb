@@ -53,7 +53,7 @@ class AccessControlServiceTest < ActiveSupport::TestCase
     result = AccessControlService.send_verification_code(email)
 
     assert result[:success]
-    assert_equal "認証コードを送信しました", result[:message]
+    assert_equal "認証コードを送信しました。メールの送信には数分かかる場合があります。", result[:message]
     assert_not_nil result[:code]
     assert_equal 1, ActionMailer::Base.deliveries.length
   end

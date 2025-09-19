@@ -122,7 +122,7 @@ class AuthService
       # メール送信に失敗しても認証コードは生成済みなので、成功として扱う
     end
 
-    { success: true, message: "認証コードを送信しました" }
+    { success: true, message: "認証コードを送信しました。メールの送信には数分かかる場合があります。" }
   rescue StandardError => e
     Rails.logger.error "認証コード送信エラー: #{e.message}"
     { success: false, message: "認証コードの送信に失敗しました" }
@@ -192,7 +192,7 @@ class AuthService
       # メール送信に失敗しても認証コードは生成済みなので、成功として扱う
     end
 
-    { success: true, message: "認証コードを送信しました。メールをご確認ください。" }
+    { success: true, message: "認証コードを送信しました。メールの送信には数分かかる場合があります。メールをご確認ください。" }
   rescue StandardError => e
     Rails.logger.error "パスワードリセット用認証コード送信エラー: #{e.message}"
     { success: false, message: "認証コードの送信に失敗しました" }

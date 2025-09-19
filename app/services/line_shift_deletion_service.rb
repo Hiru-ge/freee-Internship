@@ -16,12 +16,52 @@ class LineShiftDeletionService
       return "認証が必要です。「認証」と入力して認証を行ってください。"
     end
 
-    # 会話状態を設定
-    @conversation_service.set_conversation_state(line_user_id, { step: "waiting_shift_selection" })
+    # 会話状態を設定（日付入力待ち）
+    @conversation_service.set_conversation_state(line_user_id, {
+      step: "waiting_for_shift_deletion_date",
+      state: "waiting_for_shift_deletion_date"
+    })
 
     "欠勤申請\n\n" \
-      "欠勤したいシフトを選択してください。\n" \
-      "過去のシフトは選択できません。"
+      "欠勤したい日付を入力してください。\n" \
+      "例: 09/20"
+  end
+
+  # 日付入力の処理
+  def handle_shift_deletion_date_input(line_user_id, message_text, state)
+    # 日付形式の検証
+    date_validation_result = LineDateValidationService.validate_month_day_format(message_text)
+    return date_validation_result[:error] if date_validation_result[:error]
+
+    selected_date = date_validation_result[:date]
+
+    # 過去の日付チェック
+    if selected_date < Date.current
+      return "過去の日付は選択できません。未来の日付を入力してください。"
+    end
+
+    employee = @utility_service.find_employee_by_line_id(line_user_id)
+    return "従業員情報が見つかりません。" unless employee
+
+    # 指定された日付のシフトを取得
+    shifts_on_date = Shift.where(
+      employee_id: employee.employee_id,
+      shift_date: selected_date
+    ).order(:start_time)
+
+    if shifts_on_date.empty?
+      return "指定された日付（#{selected_date.strftime('%m/%d')}）にシフトが見つかりません。\n別の日付を入力してください。"
+    end
+
+    # 会話状態を更新（シフト選択待ち）
+    @conversation_service.set_conversation_state(line_user_id, {
+      step: "waiting_for_shift_deletion_selection",
+      state: "waiting_for_shift_deletion_selection",
+      selected_date: selected_date
+    })
+
+    # シフト選択のFlex Messageを生成
+    @message_service.generate_shift_deletion_flex_message(shifts_on_date)
   end
 
   # シフト選択の処理
@@ -29,18 +69,55 @@ class LineShiftDeletionService
     employee = @utility_service.find_employee_by_line_id(line_user_id)
     return "従業員情報が見つかりません。" unless employee
 
-    # 未来のシフトを取得
-    future_shifts = Shift.where(
-      employee_id: employee.employee_id,
-      shift_date: Date.current..Float::INFINITY
-    ).order(:shift_date, :start_time)
+    # 日付が指定されている場合はその日付のシフトのみを取得
+    if state["selected_date"]
+      selected_date = Date.parse(state["selected_date"]) if state["selected_date"].is_a?(String)
+      selected_date = state["selected_date"] if state["selected_date"].is_a?(Date)
 
-    if future_shifts.empty?
-      return "欠勤申請可能なシフトが見つかりません。"
+      shifts = Shift.where(
+        employee_id: employee.employee_id,
+        shift_date: selected_date
+      ).order(:start_time)
+    else
+      # 未来のシフトを取得（従来の動作）
+      shifts = Shift.where(
+        employee_id: employee.employee_id,
+        shift_date: Date.current..Float::INFINITY
+      ).order(:shift_date, :start_time)
+    end
+
+    if shifts.empty?
+      if state["selected_date"]
+        selected_date = Date.parse(state["selected_date"]) if state["selected_date"].is_a?(String)
+        selected_date = state["selected_date"] if state["selected_date"].is_a?(Date)
+        return "指定された日付（#{selected_date.strftime('%m/%d')}）にシフトが見つかりません。"
+      else
+        return "欠勤申請可能なシフトが見つかりません。"
+      end
     end
 
     # シフト選択のFlex Messageを生成
-    @message_service.generate_shift_deletion_flex_message(future_shifts)
+    @message_service.generate_shift_deletion_flex_message(shifts)
+  end
+
+  # シフト選択のPostback処理
+  def handle_deletion_shift_selection(line_user_id, postback_data)
+    # シフトIDの検証
+    return "シフトを選択してください。" unless postback_data.match?(/^deletion_shift_\d+$/)
+
+    shift_id = postback_data.split("_")[2]
+    shift = Shift.find_by(id: shift_id)
+
+    return "シフトが見つかりません。" unless shift
+
+    # 会話状態を更新（理由入力待ち）
+    @conversation_service.set_conversation_state(line_user_id, {
+      step: "waiting_deletion_reason",
+      state: "waiting_deletion_reason",
+      shift_id: shift_id
+    })
+
+    "欠勤理由を入力してください。\n例: 体調不良、急用、家族の用事など"
   end
 
   # 欠勤理由入力の処理
@@ -56,7 +133,7 @@ class LineShiftDeletionService
   # 欠勤申請の作成
   def create_shift_deletion_request(line_user_id, shift_id, reason)
     employee = @utility_service.find_employee_by_line_id(line_user_id)
-    return { success: false, message: "従業員情報が見つかりません。" } unless employee
+    return "従業員情報が見つかりません。" unless employee
 
     # ShiftDeletionServiceを使用して申請を作成
     deletion_service = ShiftDeletionService.new
@@ -65,9 +142,12 @@ class LineShiftDeletionService
     if result[:success]
       # 会話状態をクリア
       @conversation_service.clear_conversation_state(line_user_id)
+      # 成功メッセージを返す
+      result[:message]
+    else
+      # エラーメッセージを返す
+      result[:message]
     end
-
-    result
   end
 
   # 欠勤申請の承認・拒否処理
@@ -101,4 +181,5 @@ class LineShiftDeletionService
     # approve_deletion_REQUEST_ID または reject_deletion_REQUEST_ID から REQUEST_ID を抽出
     postback_data.sub(/^approve_deletion_/, "").sub(/^reject_deletion_/, "")
   end
+
 end

@@ -99,14 +99,26 @@ class LineShiftExchangeService
 
     return "シフトが見つかりません。" unless shift
 
-    # 従業員選択の状態に移行
+    # 依頼可能な従業員を取得
+    available_employees = get_available_employees_for_shift(shift)
+
+    # 状態を更新
     set_conversation_state(line_user_id, {
                              "state" => "waiting_for_employee_selection_exchange",
                              "shift_id" => shift_id,
                              "step" => 2
                            })
 
-    "交代先の従業員を選択してください。\n従業員名を入力してください。\nフルネームでも部分入力でも検索できます。"
+    if available_employees.empty?
+      "申し訳ございませんが、この時間帯に交代可能な従業員がいません。\n別のシフトを選択してください。"
+    else
+      employee_list = available_employees.map.with_index(1) do |emp, index|
+        display_name = emp[:display_name] || emp["display_name"]
+        "#{index}. #{display_name}"
+      end.join("\n")
+
+      "交代先の従業員を選択してください。\n\n依頼可能な従業員:\n#{employee_list}\n\n番号で選択するか、従業員名を入力してください。\nフルネームでも部分入力でも検索できます。"
+    end
   end
 
   # 従業員選択入力の処理（シフト交代用）
@@ -115,8 +127,43 @@ class LineShiftExchangeService
     shift = Shift.find_by(id: shift_id)
     return "シフトが見つかりません。" unless shift
 
-    # 従業員名で検索
-    employees = Employee.where("display_name LIKE ?", "%#{message_text}%")
+    # 依頼可能な従業員を取得
+    available_employees = get_available_employees_for_shift(shift)
+
+    # 番号選択の場合は直接処理
+    if message_text.match?(/^\d+$/)
+      selection_index = message_text.to_i - 1
+      if selection_index >= 0 && selection_index < available_employees.length
+        target_employee = available_employees[selection_index]
+
+        # 確認の状態に移行
+        set_conversation_state(line_user_id, {
+                                 "state" => "waiting_for_confirmation_exchange",
+                                 "shift_id" => shift_id,
+                                 "target_employee_id" => target_employee[:id] || target_employee["id"],
+                                 "step" => 3
+                               })
+
+        "シフト交代の確認\n\n" \
+          "日付: #{shift.shift_date.strftime('%m/%d')}\n" \
+          "時間: #{shift.start_time.strftime('%H:%M')} - #{shift.end_time.strftime('%H:%M')}\n" \
+          "交代先: #{target_employee[:display_name] || target_employee['display_name']}\n\n" \
+          "「はい」で確定、「いいえ」でキャンセル"
+      else
+        "正しい番号を入力してください。\n1から#{available_employees.length}の間で選択してください。"
+      end
+      return
+    end
+
+    # 従業員名で検索（依頼可能な従業員の中から）
+    utility_service = LineUtilityService.new
+    all_matches = utility_service.find_employees_by_name(message_text)
+
+    # 依頼可能な従業員の中から絞り込み
+    employees = all_matches.select do |emp|
+      emp_id = emp[:id] || emp["id"]
+      available_employees.any? { |available| (available[:id] || available["id"]) == emp_id }
+    end
 
     if employees.empty?
       "該当する従業員が見つかりません。\n従業員名を入力してください。\nフルネームでも部分入力でも検索できます。"
@@ -127,25 +174,26 @@ class LineShiftExchangeService
       set_conversation_state(line_user_id, {
                                "state" => "waiting_for_confirmation_exchange",
                                "shift_id" => shift_id,
-                               "target_employee_id" => target_employee.employee_id,
+                               "target_employee_id" => target_employee[:id] || target_employee["id"],
                                "step" => 3
                              })
 
       "シフト交代の確認\n\n" \
         "日付: #{shift.shift_date.strftime('%m/%d')}\n" \
         "時間: #{shift.start_time.strftime('%H:%M')} - #{shift.end_time.strftime('%H:%M')}\n" \
-        "交代先: #{target_employee.display_name}\n\n" \
+        "交代先: #{target_employee[:display_name] || target_employee['display_name']}\n\n" \
         "「はい」で確定、「いいえ」でキャンセル"
     else
       # 複数の従業員が見つかった場合
       employee_list = employees.map.with_index(1) do |emp, index|
-        "#{index}. #{emp.display_name}"
+        display_name = emp[:display_name] || emp["display_name"]
+        "#{index}. #{display_name}"
       end.join("\n")
 
       set_conversation_state(line_user_id, {
                                "state" => "waiting_for_employee_selection_exchange",
                                "shift_id" => shift_id,
-                               "employee_matches" => employees.map(&:employee_id),
+                               "employee_matches" => employees.map { |emp| emp[:id] || emp["id"] },
                                "step" => 2
                              })
 
@@ -323,5 +371,33 @@ class LineShiftExchangeService
 
   def find_employee_by_line_id(line_id)
     Employee.find_by(line_id: line_id)
+  end
+
+  # 指定されたシフトの時間帯に依頼可能な従業員を取得
+  def get_available_employees_for_shift(shift)
+    # freee APIから全従業員を取得
+    freee_service = FreeeApiService.new(
+      ENV.fetch("FREEE_ACCESS_TOKEN", nil),
+      ENV.fetch("FREEE_COMPANY_ID", nil)
+    )
+
+    all_employees = freee_service.get_employees
+
+    # 指定された日付・時間帯にシフトがある従業員のIDを取得
+    busy_employee_ids = Shift.where(
+      shift_date: shift.shift_date,
+      start_time: shift.start_time..shift.end_time
+    ).pluck(:employee_id)
+
+    # 依頼可能な従業員をフィルタリング（自分自身と既にシフトがある従業員を除外）
+    available_employees = all_employees.reject do |emp|
+      emp_id = emp[:id] || emp["id"]
+      emp_id == shift.employee_id || busy_employee_ids.include?(emp_id)
+    end
+
+    available_employees
+  rescue StandardError => e
+    Rails.logger.error "依頼可能従業員取得エラー: #{e.message}"
+    []
   end
 end
