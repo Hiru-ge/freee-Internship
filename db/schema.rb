@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_18_153359) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_19_112033) do
   create_table "conversation_states", force: :cascade do |t|
     t.string "line_user_id"
     t.text "state_data"
@@ -97,7 +97,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_18_153359) do
     t.datetime "responded_at", precision: nil
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.string "requester_id", default: "3313254", null: false
+    t.string "requester_id", null: false
     t.index ["request_id"], name: "index_shift_additions_on_request_id", unique: true
     t.index ["requester_id"], name: "index_shift_additions_on_requester_id"
     t.index ["status"], name: "index_shift_additions_on_status"

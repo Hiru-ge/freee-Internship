@@ -6,6 +6,10 @@ Rails 8.0.2アプリケーションをFly.ioの無料枠でデプロイするた
 
 勤怠管理システムをFly.ioにデプロイして本番環境で稼働させるための手順を説明します。
 
+**重要**: fly.ioでの動作確認について
+- fly.io上では、freeeアクセストークン（6時間で失効）を使用しているため、長時間の動作確認は困難です
+- 本格的な動作確認は、引き渡し先が独自のfreee APIトークンを取得してから行ってください
+
 ## 前提条件
 
 - Fly.ioアカウント（無料）
@@ -53,7 +57,23 @@ flyctl launch
 
 ### 1. 環境変数の設定
 
+**重要**: 環境変数の設定方法について
+- 環境変数は以下の方法で設定できます：
+  1. **Fly.io CLI**: `flyctl secrets set` コマンド
+  2. **Fly.io Dashboard**: Web UI から設定
+  3. **GitHub以外の方法**: 直接的な設定（推奨）
+
 #### 本番環境用環境変数
+
+**必須設定（freee関連）:**
+```bash
+# freee API設定（必須）
+flyctl secrets set FREEE_ACCESS_TOKEN="your_access_token"
+flyctl secrets set FREEE_COMPANY_ID="your_company_id"
+flyctl secrets set OWNER_EMPLOYEE_ID="your_owner_employee_id"
+```
+
+**既に設定済み（変更不要）:**
 ```bash
 # データベース
 flyctl secrets set DATABASE_URL="sqlite3:///app/db/production.sqlite3"
@@ -62,22 +82,21 @@ flyctl secrets set DATABASE_URL="sqlite3:///app/db/production.sqlite3"
 flyctl secrets set RAILS_MASTER_KEY="your_master_key"
 flyctl secrets set RAILS_ENV="production"
 
-# freee API設定
-flyctl secrets set FREEE_CLIENT_ID="your_client_id"
-flyctl secrets set FREEE_CLIENT_SECRET="your_client_secret"
-flyctl secrets set FREEE_REDIRECT_URI="your_redirect_uri"
-flyctl secrets set FREEE_ACCESS_TOKEN="your_access_token"
-
 # メール設定
-flyctl secrets set SMTP_HOST="smtp.gmail.com"
-flyctl secrets set SMTP_PORT="587"
-flyctl secrets set SMTP_USERNAME="your_email@gmail.com"
-flyctl secrets set SMTP_PASSWORD="your_app_password"
+flyctl secrets set GMAIL_USERNAME="your_email@gmail.com"
+flyctl secrets set GMAIL_APP_PASSWORD="your_app_password"
 
 # LINE Bot設定
-flyctl secrets set LINE_CHANNEL_ACCESS_TOKEN="your_channel_access_token"
 flyctl secrets set LINE_CHANNEL_SECRET="your_channel_secret"
+flyctl secrets set LINE_CHANNEL_TOKEN="your_channel_token"
+
+# アクセス制限設定
+flyctl secrets set ALLOWED_EMAIL_ADDRESSES="your_email@gmail.com"
 ```
+
+**注意**:
+- 上記の「既に設定済み」の環境変数は、引き渡し時に既に設定されているため、変更する必要はありません
+- 引き渡し先は「必須設定」の3つの環境変数のみを設定してください
 
 ### 2. データベース設定
 

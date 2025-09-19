@@ -18,6 +18,7 @@ class Employee < ApplicationRecord
 
   # インスタンスメソッド
   def owner?
+    # データベースのroleカラムをチェック（シードデータ作成時に決定済み）
     role == "owner"
   end
 

@@ -49,6 +49,7 @@ class ForeignKeyConstraintsTest < ActiveSupport::TestCase
       ShiftAddition.create!(
         request_id: "test_request_3",
         target_employee_id: "non_existent_employee",
+        requester_id: "3313254",
         shift_date: Date.current,
         start_time: Time.parse("09:00"),
         end_time: Time.parse("17:00")

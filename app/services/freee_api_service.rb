@@ -327,11 +327,20 @@ class FreeeApiService
     }
   end
 
-  # 従業員の役割を判定（設定ファイルから取得）
+  # 従業員の役割を判定（環境変数から取得）
   def determine_role(display_name)
-    # 設定ファイルからオーナーの従業員名を取得
-    owner_name = AppConstants.employee_name("3313254") # 店長のID
-    display_name == owner_name ? "owner" : "employee"
+    # 環境変数からオーナーIDを取得
+    owner_id = ENV["OWNER_EMPLOYEE_ID"]
+    return "employee" unless owner_id
+
+    # freee APIからオーナーの従業員情報を取得
+    owner_info = get_employee_info(owner_id)
+    return "employee" unless owner_info
+
+    display_name == owner_info["display_name"] ? "owner" : "employee"
+  rescue StandardError => e
+    Rails.logger.error "役割判定エラー: #{e.message}"
+    "employee"
   end
 
   # キャッシュからデータを取得

@@ -241,6 +241,10 @@ class AuthService
 
   # オーナー権限チェック
   def self.is_owner?(employee_id)
+    # 環境変数からオーナーIDを取得
+    owner_id = ENV["OWNER_EMPLOYEE_ID"]
+    return false unless owner_id&.strip&.present?
+
     # freeeAPIから従業員情報を取得して権限を判定
     freee_service = FreeeApiService.new(
       Rails.application.config.freee_api["access_token"],
@@ -250,9 +254,7 @@ class AuthService
     employee_info = freee_service.get_employee_info(employee_id)
     return false unless employee_info
 
-    # 店長のIDをチェック
-    owner_id = "3313254" # 店長 太郎のID
-    employee_info["id"].to_s == owner_id
+    employee_info["id"].to_s == owner_id.strip
   rescue StandardError => e
     Rails.logger.error "オーナー権限チェックエラー: #{e.message}"
     false
@@ -260,9 +262,11 @@ class AuthService
 
   # freeeAPIの従業員情報から役割を判定
   def self.determine_role_from_freee(employee_info)
-    # 店長のIDをチェック（設定ファイルから取得）
-    owner_id = "3313254" # 店長 太郎のID
-    employee_info["id"].to_s == owner_id ? "owner" : "employee"
+    # 環境変数からオーナーIDを取得
+    owner_id = ENV["OWNER_EMPLOYEE_ID"]
+    return "employee" unless owner_id&.strip&.present?
+
+    employee_info["id"].to_s == owner_id.strip ? "owner" : "employee"
   end
 
   # freee APIから従業員情報を取得
