@@ -320,9 +320,31 @@
         if (shiftTime) {
           // 自分のシフトのみクリック可能にする
         if (String(employeeId) === String(current_employee_id)) {
-          // シフト時間を表示
-          shiftCell.textContent = shiftTime;
-          shiftCell.style.color = '#ffca28'; // 自分のシフトは黄色で強調
+          // 自分のシフトの場合：リンクを直接埋め込む
+          var times = shiftTime.split('-');
+          var startTime = times[0].padStart(2, '0') + ':00';
+          var endTime = times[1].padStart(2, '0') + ':00';
+          var monthStr = String(calendarMonth).padStart(2, '0');
+          var dayStr = String(dateInfo.day).padStart(2, '0');
+          var dateStr = calendarYear + '-' + monthStr + '-' + dayStr;
+
+          var baseUrl = '<%= new_shift_exchange_path %>';
+          var params = '?applicant_id=' + encodeURIComponent(employeeId) +
+                      '&date=' + encodeURIComponent(dateStr) +
+                      '&start=' + encodeURIComponent(startTime) +
+                      '&end=' + encodeURIComponent(endTime);
+          var linkUrl = baseUrl + params;
+
+          // リンク要素を作成
+          var link = document.createElement('a');
+          link.href = linkUrl;
+          link.textContent = shiftTime;
+          link.style.color = '#ffca28'; // 自分のシフトは黄色で強調
+          link.style.textDecoration = 'none';
+          link.style.cursor = 'pointer';
+          link.title = 'クリックしてシフト交代を依頼';
+
+          shiftCell.appendChild(link);
         } else {
           // 他人のシフトはクリック不可
           shiftCell.style.cursor = 'default';
@@ -393,32 +415,6 @@
     }
   }
 
-  function startRequestForShift(employeeId, day, timeString) {
-    // 自分のシフトかどうか再確認
-    if (String(employeeId) !== String(current_employee_id)) {
-      if (window.messageHandler) {
-        window.messageHandler.show("他の人のシフトはクリックできません。自分のシフトのみ交代依頼が可能です。", "warning");
-      } else {
-        alert("他の人のシフトはクリックできません。");
-      }
-      return;
-    }
-
-    var times = timeString.split('-');
-    var startTime = times[0].padStart(2, '0') + ':00';
-    var endTime = times[1].padStart(2, '0') + ':00';
-
-    var monthStr = String(calendarMonth).padStart(2, '0');
-    var dayStr = String(day).padStart(2, '0');
-    var dateStr = calendarYear + '-' + monthStr + '-' + dayStr;
-
-    var baseUrl = '<%= new_shift_exchange_path %>';
-    var params = '?applicant_id=' + encodeURIComponent(employeeId) +
-                '&date=' + encodeURIComponent(dateStr) +
-                '&start=' + encodeURIComponent(startTime) +
-                '&end=' + encodeURIComponent(endTime);
-    window.location.href = baseUrl + params;
-  }
 
   // 欠勤申請フォームに遷移する関数
   function goToDeletionForm() {
