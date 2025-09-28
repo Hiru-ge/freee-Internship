@@ -2,6 +2,29 @@
 
 勤怠管理システムの変更履歴を記録します。
 
+### Phase 15-1: LINE Bot機能の統合完了
+- **実装内容**: LINE Bot関連サービスの統合とリファクタリング
+- **実装手法**: 単一責任原則に基づく適切な粒度でのサービス統合
+- **成果**: 8サービス → 4サービスへの統合、409テストケース100%通過
+- **影響**: 保守性向上、コードの重複排除、適切な粒度でのサービス設計
+
+#### Phase 15-1 実装完了内容
+- **シフト管理機能統合**: LineShiftService + LineShiftExchangeService + LineShiftAdditionService + LineShiftDeletionService → LineShiftManagementService
+- **メッセージ機能統合**: LineMessageService + LineMessageGeneratorService + LineFlexMessageBuilderService → LineMessageService
+- **バリデーション機能統合**: LineValidationService + LineValidationManagerService + LineDateValidationService → LineValidationService
+- **ユーティリティ機能統合**: LineUtilityService + LineAuthenticationService + LineConversationService → LineUtilityService
+
+#### 技術的成果
+- **サービス統合**: 8つのサービスを4つに統合し、適切な粒度（200-500行）を実現
+- **単一責任原則**: 各サービスが明確な責任を持つように設計
+- **機能独立性**: 各機能が独立して修正可能な構造を維持
+- **テスト維持**: 統合後も409テストケース、951アサーション100%通過
+- **保守性向上**: コードの重複排除と適切な依存関係の構築
+
+#### 実装情報
+- **実装手法**: 段階的統合とテスト駆動開発
+- **実装時間**: 2時間
+- **影響**: 保守性向上、コードの重複排除、適切な粒度でのサービス設計
 
 ### UX改善実装完了
 - **実装内容**: シフト表とセレクトボックスのユーザビリティ向上

@@ -16,32 +16,12 @@ class LineBotService
     # サービスクラスの初期化は遅延ロードする
   end
 
-  def auth_service
-    @auth_service ||= LineAuthenticationService.new
-  end
-
-  def shift_service
-    @shift_service ||= LineShiftService.new
-  end
-
-  def exchange_service
-    @exchange_service ||= LineShiftExchangeService.new
-  end
-
-  def addition_service
-    @addition_service ||= LineShiftAdditionService.new
-  end
-
-  def deletion_service
-    @deletion_service ||= LineShiftDeletionService.new
+  def shift_management_service
+    @shift_management_service ||= LineShiftManagementService.new
   end
 
   def message_service
     @message_service ||= LineMessageService.new
-  end
-
-  def conversation_service
-    @conversation_service ||= LineConversationService.new
   end
 
   def validation_service
@@ -64,9 +44,9 @@ class LineBotService
     line_user_id = utility_service.extract_user_id(event)
 
     # 会話状態をチェック
-    state = conversation_service.get_conversation_state(line_user_id)
+    state = utility_service.get_conversation_state(line_user_id)
     Rails.logger.debug "LineBotService: line_user_id = #{line_user_id}, state = #{state}, message_text = #{message_text}"
-    return conversation_service.handle_stateful_message(line_user_id, message_text, state) if state
+    return utility_service.handle_stateful_message(line_user_id, message_text, state) if state
 
     command = COMMANDS[message_text]
 
@@ -74,17 +54,17 @@ class LineBotService
     when :help
       message_service.generate_help_message(event)
     when :auth
-      auth_service.handle_auth_command(event)
+      utility_service.handle_auth_command(event)
     when :shift
-      shift_service.handle_shift_command(event)
+      shift_management_service.handle_shift_command(event)
     when :all_shifts
-      shift_service.handle_all_shifts_command(event)
+      shift_management_service.handle_all_shifts_command(event)
     when :shift_exchange
-      exchange_service.handle_shift_exchange_command(event)
+      shift_management_service.handle_shift_exchange_command(event)
     when :shift_addition
-      addition_service.handle_shift_addition_command(event)
+      shift_management_service.handle_shift_addition_command(event)
     when :shift_deletion
-      deletion_service.handle_shift_deletion_command(event)
+      shift_management_service.handle_shift_deletion_command(event)
     when :request_check
       handle_request_check_command(event)
     else
@@ -104,21 +84,21 @@ class LineBotService
     # シフト選択のPostback処理
     case postback_data
     when /^shift_\d+$/
-      return exchange_service.handle_shift_selection_input(line_user_id, postback_data, nil)
+      return shift_management_service.handle_shift_selection_input(line_user_id, postback_data, nil)
     when /^approve_\d+$/
-      return exchange_service.handle_approval_postback(line_user_id, postback_data, "approve")
+      return shift_management_service.handle_approval_postback(line_user_id, postback_data, "approve")
     when /^reject_\d+$/
-      return exchange_service.handle_approval_postback(line_user_id, postback_data, "reject")
+      return shift_management_service.handle_approval_postback(line_user_id, postback_data, "reject")
     when /^approve_addition_.+$/
-      return addition_service.handle_shift_addition_approval_postback(line_user_id, postback_data, "approve")
+      return shift_management_service.handle_shift_addition_approval_postback(line_user_id, postback_data, "approve")
     when /^reject_addition_.+$/
-      return addition_service.handle_shift_addition_approval_postback(line_user_id, postback_data, "reject")
+      return shift_management_service.handle_shift_addition_approval_postback(line_user_id, postback_data, "reject")
     when /^deletion_shift_\d+$/
-      return deletion_service.handle_deletion_shift_selection(line_user_id, postback_data)
+      return shift_management_service.handle_deletion_shift_selection(line_user_id, postback_data)
     when /^approve_deletion_.+$/
-      return deletion_service.handle_deletion_approval_postback(line_user_id, postback_data, "approve")
+      return shift_management_service.handle_deletion_approval_postback(line_user_id, postback_data, "approve")
     when /^reject_deletion_.+$/
-      return deletion_service.handle_deletion_approval_postback(line_user_id, postback_data, "reject")
+      return shift_management_service.handle_deletion_approval_postback(line_user_id, postback_data, "reject")
     end
 
     "不明なPostbackイベントです。"
@@ -159,11 +139,11 @@ class LineBotService
   # テスト用メソッド: 会話状態管理を含むメッセージ処理
   def handle_message_with_state(line_user_id, message_text)
     # 現在の会話状態を取得
-    current_state = conversation_service.get_conversation_state(line_user_id)
+    current_state = utility_service.get_conversation_state(line_user_id)
 
     if current_state
       # 会話状態に基づいて処理
-      conversation_service.handle_stateful_message(line_user_id, message_text, current_state)
+      utility_service.handle_stateful_message(line_user_id, message_text, current_state)
     else
       # 通常のコマンド処理
       handle_command_message(line_user_id, message_text)

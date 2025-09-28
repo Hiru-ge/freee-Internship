@@ -123,11 +123,13 @@
 ## 現在進行中・計画中
 
 ##### Phase 15: 妥当な粒度でのサービス統合
-- [ ] **Phase 1: LINE Bot機能の統合**（8サービス → 4サービス）
-  - [ ] シフト管理機能の統合（line_shift_service.rb + line_shift_exchange_service.rb + line_shift_addition_service.rb + line_shift_deletion_service.rb → line_shift_management_service.rb）
-  - [ ] メッセージ機能の統合（line_message_service.rb + line_message_generator_service.rb + line_flex_message_builder_service.rb → line_message_service.rb）
-  - [ ] バリデーション機能の統合（line_validation_service.rb + line_validation_manager_service.rb + line_date_validation_service.rb → line_validation_service.rb）
-  - [ ] ユーティリティ機能の統合（line_utility_service.rb + line_authentication_service.rb + line_conversation_service.rb → line_utility_service.rb）
+- [x] **Phase 1: LINE Bot機能の統合**（8サービス → 4サービス）
+  - [x] シフト管理機能の統合（line_shift_service.rb + line_shift_exchange_service.rb + line_shift_addition_service.rb + line_shift_deletion_service.rb → line_shift_management_service.rb）
+  - [x] メッセージ機能の統合（line_message_service.rb + line_message_generator_service.rb + line_flex_message_builder_service.rb → line_message_service.rb）
+  - [x] バリデーション機能の統合（line_validation_service.rb + line_validation_manager_service.rb + line_date_validation_service.rb → line_validation_service.rb）
+  - [x] ユーティリティ機能の統合（line_utility_service.rb + line_authentication_service.rb + line_conversation_service.rb → line_utility_service.rb）
+  - [x] 統合後のテスト実行と動作確認（409テストケース、951アサーション、100%通過）
+  - [x] ドキュメントの更新と整備
 - [ ] **Phase 2: 通知機能の統合**（3サービス → 1サービス）
   - [ ] 通知機能の統合（unified_notification_service.rb + email_notification_service.rb + line_notification_service.rb → notification_service.rb）
 - [ ] **Phase 3: シフト機能の統合**（6サービス → 3サービス）

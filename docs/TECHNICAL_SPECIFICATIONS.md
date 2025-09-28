@@ -58,30 +58,38 @@
                     └─────────────────┘
 ```
 
-### サービス構成
+### サービス構成（Phase 15-1統合後）
 
 #### 1. LineBotService（メインコントローラー）
 - **責任**: LINE Bot のメインエントリーポイント、メッセージルーティング
 - **主要メソッド**: `handle_message`, `handle_postback_event`, `handle_request_check_command`
 
-#### 2. LineAuthenticationService（認証サービス）
-- **責任**: LINE アカウントと従業員アカウントの紐付け認証
-- **主要メソッド**: `handle_auth_command`, `handle_employee_name_input`, `handle_verification_code_input`
+#### 2. LineShiftManagementService（シフト管理統合サービス）
+- **責任**: シフト関連の全機能を統合管理
+- **統合元**: LineShiftService + LineShiftExchangeService + LineShiftAdditionService + LineShiftDeletionService
+- **主要メソッド**:
+  - シフト表示: `handle_shift_command`, `handle_all_shifts_command`
+  - シフト交代: `handle_shift_exchange_command`, `handle_approval_postback`
+  - シフト追加: `handle_shift_addition_command`, `handle_shift_addition_date_input`
+  - 欠勤申請: `handle_shift_deletion_command`, `handle_shift_deletion_date_input`
 
-#### 3. LineConversationService（会話状態管理サービス）
-- **責任**: マルチステップの対話処理における会話状態の管理
-- **管理する状態**: 従業員名入力待ち、認証コード入力待ち、シフト日付入力待ちなど
+#### 3. LineMessageService（メッセージ統合サービス）
+- **責任**: LINE Bot メッセージの生成と送信
+- **統合元**: LineMessageService + LineMessageGeneratorService + LineFlexMessageBuilderService
+- **主要メソッド**: `generate_help_message`, `build_flex_message`, `send_message`
 
-#### 4. LineShiftService（シフト管理サービス）
-- **責任**: シフト情報の取得と表示
-- **主要メソッド**: `handle_shift_command`, `handle_all_shifts_command`
+#### 4. LineValidationService（バリデーション統合サービス）
+- **責任**: LINE Bot 入力値の検証とフォーマット
+- **統合元**: LineValidationService + LineValidationManagerService + LineDateValidationService
+- **主要メソッド**: `validate_month_day_format`, `validate_and_format_time`, `validate_employee_name`
 
-#### 5. LineShiftExchangeService（シフト交代サービス）
-- **責任**: シフト交代リクエストの作成、承認、拒否処理
-- **主要メソッド**: `handle_shift_exchange_command`, `handle_approval_postback`
-
-#### 6. LineShiftAdditionService（シフト追加サービス）
-- **責任**: シフト追加リクエストの作成、承認、拒否処理
+#### 5. LineUtilityService（ユーティリティ統合サービス）
+- **責任**: 共通ユーティリティ、認証、会話状態管理
+- **統合元**: LineUtilityService + LineAuthenticationService + LineConversationService
+- **主要メソッド**:
+  - 認証: `handle_auth_command`, `handle_employee_name_input`
+  - 会話状態: `set_conversation_state`, `get_conversation_state`
+  - ユーティリティ: `normalize_employee_name`, `format_date`
 
 ## 画面構成
 
