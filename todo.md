@@ -112,11 +112,38 @@
 - [x] 動画マニュアルの検討
 
 #### Phase 14-11: 企画書の整備
-- [ ] プロジェクト企画書の作成・更新
-- [ ] 機能仕様書の整備
-- [ ] 技術仕様書の整備
-- [ ] 運用計画書の作成
-- [ ] 成果物の整理・まとめ
+- [x] プロジェクト企画書の作成・更新
+- [x] 機能仕様書の整備
+- [x] 技術仕様書の整備
+- [x] 運用計画書の作成
+- [x] 成果物の整理・まとめ
+
+---
+
+## 現在進行中・計画中
+
+##### Phase 15: 妥当な粒度でのサービス統合
+- [ ] **Phase 1: LINE Bot機能の統合**（8サービス → 4サービス）
+  - [ ] シフト管理機能の統合（line_shift_service.rb + line_shift_exchange_service.rb + line_shift_addition_service.rb + line_shift_deletion_service.rb → line_shift_management_service.rb）
+  - [ ] メッセージ機能の統合（line_message_service.rb + line_message_generator_service.rb + line_flex_message_builder_service.rb → line_message_service.rb）
+  - [ ] バリデーション機能の統合（line_validation_service.rb + line_validation_manager_service.rb + line_date_validation_service.rb → line_validation_service.rb）
+  - [ ] ユーティリティ機能の統合（line_utility_service.rb + line_authentication_service.rb + line_conversation_service.rb → line_utility_service.rb）
+- [ ] **Phase 2: 通知機能の統合**（3サービス → 1サービス）
+  - [ ] 通知機能の統合（unified_notification_service.rb + email_notification_service.rb + line_notification_service.rb → notification_service.rb）
+- [ ] **Phase 3: シフト機能の統合**（6サービス → 3サービス）
+  - [ ] シフト表示機能の統合（shift_display_service.rb + shift_merge_service.rb + shift_overlap_service.rb → shift_display_service.rb）
+  - [ ] 個別シフト機能の維持（shift_exchange_service.rb、shift_addition_service.rb、shift_deletion_service.rb）
+- [ ] **Phase 4: その他機能の整理**（12サービス → 7サービス）
+  - [ ] 認証機能の統合（auth_service.rb + access_control_service.rb → auth_service.rb）
+  - [ ] 打刻機能の統合（clock_service.rb + clock_reminder_service.rb → clock_service.rb）
+  - [ ] 独立機能の維持（freee_api_service.rb、wage_service.rb、line_bot_service.rb）
+- [ ] **最終確認**
+  - [ ] 全機能動作確認
+  - [ ] テスト通過率100%維持
+  - [ ] ドキュメント更新
+
+**統合の目標**: 29サービス → 15サービス（48%削減）
+**統合の原則**: 単一責任原則、適切な粒度（200-500行）、機能の独立性
 
 ---
 
