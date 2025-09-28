@@ -68,12 +68,9 @@ class SecurityTest < ActionDispatch::IntegrationTest
     # 有効なAPIキーでアクセス
     ENV["CLOCK_REMINDER_API_KEY"] = "test_api_key_123"
 
-    # ClockReminderServiceをモック
-    service_mock = Object.new
-    def service_mock.check_forgotten_clock_ins; end
-    def service_mock.check_forgotten_clock_outs; end
-
-    ClockReminderService.define_singleton_method(:new) { service_mock }
+    # ClockServiceをモック
+    ClockService.define_singleton_method(:check_forgotten_clock_ins) { }
+    ClockService.define_singleton_method(:check_forgotten_clock_outs) { }
 
     post "/clock_reminder/trigger", headers: { "X-API-Key" => "test_api_key_123" }
     assert_response :success

@@ -58,7 +58,7 @@
                     └─────────────────┘
 ```
 
-### サービス構成（Phase 15-3統合後）
+### サービス構成（Phase 15-4統合後）
 
 #### 1. LineBotService（メインコントローラー）
 - **責任**: LINE Bot のメインエントリーポイント、メッセージルーティング
@@ -106,6 +106,22 @@
   - シフト表示: `get_monthly_shifts`, `get_employee_shifts`, `get_all_employee_shifts`
   - シフトマージ: `merge_shifts`, `shift_fully_contained?`, `process_shift_approval`
   - 重複チェック: `check_exchange_overlap`, `check_addition_overlap`, `get_available_and_overlapping_employees`
+
+#### 8. AuthService（認証統合サービス）
+- **責任**: 認証管理とアクセス制御の一元管理
+- **統合元**: AuthService + AccessControlService
+- **主要メソッド**:
+  - 認証管理: `login`, `change_password`, `set_initial_password`, `send_verification_code`
+  - アクセス制御: `allowed_email?`, `send_access_control_verification_code`, `verify_access_control_code`
+  - パスワード管理: `hash_password`, `verify_password`, `reset_password_with_verification`
+
+#### 9. ClockService（打刻統合サービス）
+- **責任**: 打刻システムとリマインダー機能の一元管理
+- **統合元**: ClockService + ClockReminderService
+- **主要メソッド**:
+  - 打刻システム: `clock_in`, `clock_out`, `get_clock_status`, `get_attendance_for_month`
+  - リマインダー機能: `check_forgotten_clock_ins`, `check_forgotten_clock_outs`
+  - メール送信: `send_clock_in_reminder`, `send_clock_out_reminder`
 
 ## 画面構成
 

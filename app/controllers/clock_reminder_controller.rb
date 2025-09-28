@@ -15,8 +15,8 @@ class ClockReminderController < ApplicationController
       # バックグラウンドでRakeタスクを実行
 
       # 直接サービスを呼び出し
-      ClockReminderService.new.check_forgotten_clock_ins
-      ClockReminderService.new.check_forgotten_clock_outs
+      ClockService.check_forgotten_clock_ins
+      ClockService.check_forgotten_clock_outs
 
       render json: {
         status: "success",

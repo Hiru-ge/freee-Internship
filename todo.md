@@ -138,10 +138,11 @@
   - [x] シフト表示機能の統合（shift_display_service.rb + shift_merge_service.rb + shift_overlap_service.rb → shift_display_service.rb）
   - [x] 統合後のテスト実行と動作確認（450テストケース、1012アサーション、100%通過）
   - [x] ドキュメントの更新と整備
-- [ ] **Phase 4: その他機能の整理**（12サービス → 7サービス）
-  - [ ] 認証機能の統合（auth_service.rb + access_control_service.rb → auth_service.rb）
-  - [ ] 打刻機能の統合（clock_service.rb + clock_reminder_service.rb → clock_service.rb）
-  - [ ] 独立機能の維持（freee_api_service.rb、wage_service.rb、line_bot_service.rb）
+- [x] **Phase 4: その他機能の整理**（4サービス → 2サービス）
+  - [x] 認証機能の統合（auth_service.rb + access_control_service.rb → auth_service.rb）
+  - [x] 打刻機能の統合（clock_service.rb + clock_reminder_service.rb → clock_service.rb）
+  - [x] 統合後のテスト実行と動作確認（466テストケース、1006アサーション、100%通過）
+  - [x] ドキュメントの更新と整備
 - [ ] **最終確認**
   - [ ] 全機能動作確認
   - [ ] テスト通過率100%維持

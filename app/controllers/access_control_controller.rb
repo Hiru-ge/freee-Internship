@@ -27,7 +27,7 @@ class AccessControlController < ApplicationController
     end
 
     # メールアドレス認証
-    result = AccessControlService.send_verification_code(email)
+    result = AuthService.send_access_control_verification_code(email)
 
     if result[:success]
       session[:pending_email] = email
@@ -58,7 +58,7 @@ class AccessControlController < ApplicationController
     end
 
     # 認証コード検証
-    result = AccessControlService.verify_code(session[:pending_email], code)
+    result = AuthService.verify_access_control_code(session[:pending_email], code)
 
     if result[:success]
       # メールアドレス認証成功
