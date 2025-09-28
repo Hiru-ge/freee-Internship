@@ -191,42 +191,48 @@ class NotificationServiceTest < ActiveSupport::TestCase
   private
 
   def mock_exchange_request
-    mock_request = OpenStruct.new
-    mock_request.requester_id = @employee_id
-    mock_request.approver_id = @employee_id
-    mock_request.shift_id = 1
+    mock_shift = Struct.new(:shift_date, :start_time, :end_time).new(
+      Date.current,
+      Time.current,
+      Time.current + 1.hour
+    )
 
-    mock_shift = OpenStruct.new
-    mock_shift.shift_date = Date.current
-    mock_shift.start_time = Time.current
-    mock_shift.end_time = Time.current + 1.hour
+    mock_request = Struct.new(:requester_id, :approver_id, :shift_id, :shift).new(
+      @employee_id,
+      @employee_id,
+      1,
+      mock_shift
+    )
 
-    mock_request.shift = mock_shift
     mock_request
   end
 
   def mock_addition_request
-    mock_request = OpenStruct.new
-    mock_request.requester_id = @employee_id
-    mock_request.target_employee_id = @employee_id
-    mock_request.shift_date = Date.current
-    mock_request.start_time = Time.current
-    mock_request.end_time = Time.current + 1.hour
-    mock_request.request_id = 1
+    mock_request = Struct.new(:requester_id, :target_employee_id, :shift_date, :start_time, :end_time, :request_id).new(
+      @employee_id,
+      @employee_id,
+      Date.current,
+      Time.current,
+      Time.current + 1.hour,
+      1
+    )
+
     mock_request
   end
 
   def mock_deletion_request
-    mock_request = OpenStruct.new
-    mock_request.requester_id = @employee_id
-    mock_request.reason = "テスト理由"
+    mock_shift = Struct.new(:shift_date, :start_time, :end_time).new(
+      Date.current,
+      Time.current,
+      Time.current + 1.hour
+    )
 
-    mock_shift = OpenStruct.new
-    mock_shift.shift_date = Date.current
-    mock_shift.start_time = Time.current
-    mock_shift.end_time = Time.current + 1.hour
+    mock_request = Struct.new(:requester_id, :reason, :shift).new(
+      @employee_id,
+      "テスト理由",
+      mock_shift
+    )
 
-    mock_request.shift = mock_shift
     mock_request
   end
 end

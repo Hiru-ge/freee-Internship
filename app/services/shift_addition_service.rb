@@ -69,7 +69,7 @@ class ShiftAdditionService
       end_time: addition_request.end_time,
       requester_id: addition_request.requester_id
     }
-    ShiftMergeService.process_shift_addition_approval(addition_request.target_employee_id, new_shift_data)
+    ShiftDisplayService.process_shift_addition_approval(addition_request.target_employee_id, new_shift_data)
 
     # 承認処理
     addition_request.update!(status: "approved", responded_at: Time.current)

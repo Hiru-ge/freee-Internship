@@ -134,9 +134,10 @@
   - [x] 通知機能の統合（unified_notification_service.rb + email_notification_service.rb + line_notification_service.rb → notification_service.rb）
   - [x] 統合後のテスト実行と動作確認（431テストケース、973アサーション、100%通過）
   - [x] ドキュメントの更新と整備
-- [ ] **Phase 3: シフト機能の統合**（6サービス → 3サービス）
-  - [ ] シフト表示機能の統合（shift_display_service.rb + shift_merge_service.rb + shift_overlap_service.rb → shift_display_service.rb）
-  - [ ] 個別シフト機能の維持（shift_exchange_service.rb、shift_addition_service.rb、shift_deletion_service.rb）
+- [x] **Phase 3: シフト機能の統合**（3サービス → 1サービス）
+  - [x] シフト表示機能の統合（shift_display_service.rb + shift_merge_service.rb + shift_overlap_service.rb → shift_display_service.rb）
+  - [x] 統合後のテスト実行と動作確認（450テストケース、1012アサーション、100%通過）
+  - [x] ドキュメントの更新と整備
 - [ ] **Phase 4: その他機能の整理**（12サービス → 7サービス）
   - [ ] 認証機能の統合（auth_service.rb + access_control_service.rb → auth_service.rb）
   - [ ] 打刻機能の統合（clock_service.rb + clock_reminder_service.rb → clock_service.rb）

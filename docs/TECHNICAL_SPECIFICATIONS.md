@@ -58,7 +58,7 @@
                     └─────────────────┘
 ```
 
-### サービス構成（Phase 15-2統合後）
+### サービス構成（Phase 15-3統合後）
 
 #### 1. LineBotService（メインコントローラー）
 - **責任**: LINE Bot のメインエントリーポイント、メッセージルーティング
@@ -98,6 +98,14 @@
   - シフト通知: `send_shift_exchange_request_notification`, `send_shift_addition_request_notification`, `send_shift_deletion_request_notification`
   - LINE通知: `send_verification_code_notification`, `send_authentication_success_notification`, `send_error_notification`
   - メール通知: `send_shift_exchange_request_email`, `send_shift_addition_request_email`, `send_shift_deletion_request_email`
+
+#### 7. ShiftDisplayService（シフト表示統合サービス）
+- **責任**: シフト表示、マージ、重複チェックの一元管理
+- **統合元**: ShiftDisplayService + ShiftMergeService + ShiftOverlapService
+- **主要メソッド**:
+  - シフト表示: `get_monthly_shifts`, `get_employee_shifts`, `get_all_employee_shifts`
+  - シフトマージ: `merge_shifts`, `shift_fully_contained?`, `process_shift_approval`
+  - 重複チェック: `check_exchange_overlap`, `check_addition_overlap`, `get_available_and_overlapping_employees`
 
 ## 画面構成
 

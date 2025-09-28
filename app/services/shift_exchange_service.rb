@@ -82,7 +82,7 @@ class ShiftExchangeService
     shift.end_time
 
     # シフト交代承認処理（既存シフトとの結合を考慮）
-    ShiftMergeService.process_shift_exchange_approval(approver_id, shift)
+    ShiftDisplayService.process_shift_exchange_approval(approver_id, shift)
 
     # 関連するShiftExchangeのshift_idをnilに更新（外部キー制約を回避）
     ShiftExchange.where(shift_id: shift.id).update_all(shift_id: nil)
@@ -183,8 +183,8 @@ class ShiftExchangeService
 
   # シフト重複チェック
   def check_shift_overlap(params)
-    overlap_service = ShiftOverlapService.new
-    result = overlap_service.get_available_and_overlapping_employees(
+    display_service = ShiftDisplayService.new
+    result = display_service.get_available_and_overlapping_employees(
       params[:approver_ids],
       Date.parse(params[:shift_date]),
       Time.zone.parse(params[:start_time]),
