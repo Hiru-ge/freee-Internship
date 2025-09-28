@@ -58,7 +58,7 @@
                     └─────────────────┘
 ```
 
-### サービス構成（Phase 15-1統合後）
+### サービス構成（Phase 15-2統合後）
 
 #### 1. LineBotService（メインコントローラー）
 - **責任**: LINE Bot のメインエントリーポイント、メッセージルーティング
@@ -90,6 +90,14 @@
   - 認証: `handle_auth_command`, `handle_employee_name_input`
   - 会話状態: `set_conversation_state`, `get_conversation_state`
   - ユーティリティ: `normalize_employee_name`, `format_date`
+
+#### 6. NotificationService（通知統合サービス）
+- **責任**: メール通知とLINE通知の一元管理
+- **統合元**: UnifiedNotificationService + LineNotificationService + EmailNotificationService
+- **主要メソッド**:
+  - シフト通知: `send_shift_exchange_request_notification`, `send_shift_addition_request_notification`, `send_shift_deletion_request_notification`
+  - LINE通知: `send_verification_code_notification`, `send_authentication_success_notification`, `send_error_notification`
+  - メール通知: `send_shift_exchange_request_email`, `send_shift_addition_request_email`, `send_shift_deletion_request_email`
 
 ## 画面構成
 

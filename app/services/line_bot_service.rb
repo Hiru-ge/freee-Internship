@@ -29,7 +29,7 @@ class LineBotService
   end
 
   def notification_service
-    @notification_service ||= LineNotificationService.new
+    @notification_service ||= NotificationService.new
   end
 
   def utility_service

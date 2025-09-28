@@ -2,7 +2,7 @@
 
 class ShiftDeletionService
   def initialize
-    @notification_service = UnifiedNotificationService.new
+    @notification_service = NotificationService.new
   end
 
   # 欠勤申請の作成

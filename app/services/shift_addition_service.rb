@@ -175,7 +175,7 @@ class ShiftAdditionService
   def send_addition_notifications(requests, params)
     return if Rails.env.test? || requests.empty?
 
-    notification_service = UnifiedNotificationService.new
+    notification_service = NotificationService.new
     notification_service.send_shift_addition_request_notification(requests, params)
   end
 
@@ -183,7 +183,7 @@ class ShiftAdditionService
   def send_approval_notification(addition_request)
     return if Rails.env.test?
 
-    notification_service = UnifiedNotificationService.new
+    notification_service = NotificationService.new
     notification_service.send_shift_addition_approval_notification(addition_request)
   end
 
@@ -191,7 +191,7 @@ class ShiftAdditionService
   def send_rejection_notification(addition_request)
     return if Rails.env.test?
 
-    notification_service = UnifiedNotificationService.new
+    notification_service = NotificationService.new
     notification_service.send_shift_addition_rejection_notification(addition_request)
   end
 

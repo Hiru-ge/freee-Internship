@@ -300,7 +300,7 @@ class ClockServicesTest < ActiveSupport::TestCase
     )
 
     # 通知送信をテスト（テスト環境では実際の送信は行われない）
-    service = UnifiedNotificationService.new
+    service = NotificationService.new
     result = service.send_shift_exchange_request_notification([exchange_request], {})
 
     # エラーが発生しないことを確認
@@ -338,7 +338,7 @@ class ClockServicesTest < ActiveSupport::TestCase
     )
 
     # 通知送信をテスト（テスト環境では実際の送信は行われない）
-    service = UnifiedNotificationService.new
+    service = NotificationService.new
     result = service.send_shift_addition_request_notification([addition_request], {})
 
     # エラーが発生しないことを確認
