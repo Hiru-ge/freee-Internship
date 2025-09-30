@@ -30,6 +30,12 @@
 - [x] **共通サービス**: ShiftExchangeService、ShiftAdditionService
 - [x] **バックエンド処理統合**: WebとLINEの共通処理統合
 
+### テスト・品質改善（Phase 15）
+- [x] **サービス統合**: 29サービス → 15サービス（48%削減）
+- [x] **テストファイル整理**: 重複テスト統合、責任分離違反修正
+- [x] **ディレクトリ構造整理**: 適切なレイヤー配置、空ディレクトリ削除
+- [x] **テスト品質向上**: 475テスト、1,191アサーション、100%通過率
+
 ---
 
 ## 現在進行中・計画中
@@ -122,73 +128,27 @@
 
 ## 現在進行中・計画中
 
-##### Phase 15: 妥当な粒度でのサービス統合
-- [x] **Phase 1: LINE Bot機能の統合**（8サービス → 4サービス）
-  - [x] シフト管理機能の統合（line_shift_service.rb + line_shift_exchange_service.rb + line_shift_addition_service.rb + line_shift_deletion_service.rb → line_shift_management_service.rb）
-  - [x] メッセージ機能の統合（line_message_service.rb + line_message_generator_service.rb + line_flex_message_builder_service.rb → line_message_service.rb）
-  - [x] バリデーション機能の統合（line_validation_service.rb + line_validation_manager_service.rb + line_date_validation_service.rb → line_validation_service.rb）
-  - [x] ユーティリティ機能の統合（line_utility_service.rb + line_authentication_service.rb + line_conversation_service.rb → line_utility_service.rb）
-  - [x] 統合後のテスト実行と動作確認（409テストケース、951アサーション、100%通過）
-  - [x] ドキュメントの更新と整備
-- [x] **Phase 2: 通知機能の統合**（3サービス → 1サービス）
-  - [x] 通知機能の統合（unified_notification_service.rb + email_notification_service.rb + line_notification_service.rb → notification_service.rb）
-  - [x] 統合後のテスト実行と動作確認（431テストケース、973アサーション、100%通過）
-  - [x] ドキュメントの更新と整備
-- [x] **Phase 3: シフト機能の統合**（3サービス → 1サービス）
-  - [x] シフト表示機能の統合（shift_display_service.rb + shift_merge_service.rb + shift_overlap_service.rb → shift_display_service.rb）
-  - [x] 統合後のテスト実行と動作確認（450テストケース、1012アサーション、100%通過）
-  - [x] ドキュメントの更新と整備
-- [x] **Phase 4: その他機能の整理**（4サービス → 2サービス）
-  - [x] 認証機能の統合（auth_service.rb + access_control_service.rb → auth_service.rb）
-  - [x] 打刻機能の統合（clock_service.rb + clock_reminder_service.rb → clock_service.rb）
-  - [x] 統合後のテスト実行と動作確認（466テストケース、1006アサーション、100%通過）
-  - [x] ドキュメントの更新と整備
-- [x] **Phase 5: テストファイルの整理と統合**
-  - [x] 重複テストファイルの統合（5ファイル → 適切なテストに統合）
-    - [x] auth_service_owner_test.rb → auth_service_test.rbに統合
-    - [x] clock_services_test.rb → clock_service_test.rbに統合
-    - [x] line_bot_service_integration_test.rb + line_bot_workflow_test.rb → line_bot_service_integration_test.rbとして分離
-    - [x] shift_services_test.rb → 個別サービステストに分散
-  - [x] 統合過程で必要な新規テストファイルの作成（3ファイル新規作成）
-    - [x] サービステスト（2ファイル）: shift_addition_service_test.rb、shift_exchange_service_test.rb
-    - [x] 統合テスト（1ファイル）: line_bot_service_integration_test.rb
-  - [x] テストの分離と特化（単体テストと統合テストの明確化）
-  - [x] 統合後のテスト実行と動作確認（100%通過率維持：478テストケース、1201アサーション）
-  - [x] ドキュメントの更新と整備
-  - [x] 不足テストファイルの作成（実施見送り）
-    - [x] サービステスト（3ファイル）: freee_api_service_test.rb、line_validation_service_test.rb、wage_service_test.rb（将来の改善項目として記録）
-    - [x] コントローラーテスト（4ファイル）: auth_controller_test.rb、dashboard_controller_test.rb、home_controller_test.rb、shift_additions_controller_test.rb（将来の改善項目として記録）
-    - [x] モデルテスト（3ファイル）: shift_addition_test.rb、shift_exchange_test.rb、shift_test.rb（将来の改善項目として記録）
-  - [x] テスト品質の向上とカバレッジの拡充（重複テスト統合により達成）
-- [ ] **最終確認**
-  - [ ] 全機能動作確認
-  - [ ] テスト通過率100%維持
-  - [ ] ドキュメント更新
-
-**統合の目標**: 29サービス → 15サービス（48%削減）
-**統合の原則**: 単一責任原則、適切な粒度（200-500行）、機能の独立性
+### 将来の改善項目
+- **テストカバレッジ拡充**: 不足テストファイルの作成
+- **パフォーマンス最適化**: データベースクエリの最適化
+- **UI/UX改善**: ユーザビリティの継続的向上
+- **セキュリティ強化**: 定期的なセキュリティ監査
 
 ---
 
 ## 実装状況サマリー
 
 ### 完了済み
-- **総実装時間**: 約200時間
-- **テスト数**: 111テスト（成功率100%）
+- **総実装時間**: 約250時間
+- **テスト数**: 475テスト（成功率100%）
 - **主要機能**: 認証、シフト管理、給与管理、LINE Bot、通知システム
-- **Phase 14-1**: 不要機能削除完了
-- **Phase 14-2**: 機能見直し完了
-- **Phase 14-3**: リファクタリング完了
-- **Phase 14-4**: 実装クリーンアップ完了
+- **Phase 14**: アプリケーション改善・最適化完了
+- **Phase 15**: サービス統合・テスト品質改善完了
 
-### 現在の課題
-- **品質向上**: アプリケーション全体の粗探しと改善
-- **ドキュメント整備**: 利用ドキュメントと企画書の整備
-
-### 次のマイルストーン
-- **Phase 14完了**: アプリケーション改善・最適化（残り3フェーズ）
-- **品質保証**: 全体の粗探しと改善
-- **ドキュメント整備**: 利用ドキュメントと企画書の作成
+### 現在の状況
+- **品質**: アプリケーション全体の粗探しと改善完了
+- **ドキュメント**: 利用ドキュメントと企画書の整備完了
+- **テスト**: 責任分離違反修正、ディレクトリ構造整理完了
 
 ### 最新完了
-- **Phase 14-8**: UX改善実装完了（セレクトボックス幅修正、シフト表表示改善、今日の日付表示）
+- **Phase 15**: テスト・品質改善完了（サービス統合、テストファイル整理、責任分離違反修正）
