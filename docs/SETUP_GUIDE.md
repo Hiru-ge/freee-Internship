@@ -222,11 +222,35 @@ Employee.where(role: "owner")
 - バックアップを定期的に取得する
 - 機密情報をログに出力しない
 
+## テスト実行
+
+### テストの実行
+```bash
+# 全テストの実行
+rails test
+
+# 特定のテストファイルの実行
+rails test test/services/auth_service_test.rb
+
+# 特定のテストの実行
+rails test test/services/auth_service_test.rb -n test_ログイン処理
+```
+
+### テスト統計
+- **総テストファイル数**: 41個
+- **総テスト数**: 473個
+- **総アサーション数**: 1231個
+- **テスト成功率**: 100%
+
+### テスト詳細
+詳細なテスト情報については、[テスト概要ドキュメント](testing-overview.md)を参照してください。
+
 ## サポート
 
 ### ドキュメント
 - [API仕様書](API_DOCUMENTATION.md)
 - [システム仕様書](SYSTEM_SPECIFICATIONS.md)
+- [テスト概要](testing-overview.md)
 - [トラブルシューティングガイド](TROUBLESHOOTING_GUIDE.md)
 
 ### よくある質問

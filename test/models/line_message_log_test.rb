@@ -17,8 +17,18 @@ class LineMessageLogTest < ActiveSupport::TestCase
   end
 
   test "should require line_user_id" do
+    # line_user_idなしで作成を試行
     @line_message_log.line_user_id = nil
-    assert_not @line_message_log.valid?
+    assert_not @line_message_log.valid?, "line_user_idなしでは無効であるべき"
+    assert_includes @line_message_log.errors[:line_user_id], "can't be blank"
+
+    # line_user_idありで作成
+    @line_message_log.line_user_id = "test_user"
+    assert @line_message_log.valid?, "line_user_idありでは有効であるべき"
+
+    # 実際に保存できることを確認
+    assert @line_message_log.save, "有効なデータは保存できるべき"
+    @line_message_log.destroy
   end
 
   test "should require message_type" do
@@ -47,16 +57,53 @@ class LineMessageLogTest < ActiveSupport::TestCase
   end
 
   test "should have inbound scope" do
-    @line_message_log.save!
-    inbound_log = LineMessageLog.inbound.first
-    assert_equal "inbound", inbound_log.direction
+    # テスト用のログデータを作成
+    inbound_log = LineMessageLog.create!(
+      line_user_id: "test_user",
+      message_type: "text",
+      direction: "inbound",
+      message_content: "テストメッセージ"
+    )
+    outbound_log = LineMessageLog.create!(
+      line_user_id: "test_user",
+      message_type: "text",
+      direction: "outbound",
+      message_content: "返信メッセージ"
+    )
+
+    # inboundスコープが正しく動作することを確認
+    inbound_logs = LineMessageLog.inbound
+    assert_includes inbound_logs, inbound_log
+    assert_not_includes inbound_logs, outbound_log
+
+    # クリーンアップ
+    inbound_log.destroy
+    outbound_log.destroy
   end
 
   test "should have outbound scope" do
-    @line_message_log.direction = "outbound"
-    @line_message_log.save!
-    outbound_log = LineMessageLog.outbound.first
-    assert_equal "outbound", outbound_log.direction
+    # テスト用のログデータを作成
+    inbound_log = LineMessageLog.create!(
+      line_user_id: "test_user",
+      message_type: "text",
+      direction: "inbound",
+      message_content: "テストメッセージ"
+    )
+    outbound_log = LineMessageLog.create!(
+      line_user_id: "test_user",
+      message_type: "text",
+      direction: "outbound",
+      message_content: "返信メッセージ"
+    )
+
+    # outboundスコープが正しく動作することを確認
+    outbound_logs = LineMessageLog.outbound
+    assert_includes outbound_logs, outbound_log
+    assert_not_includes outbound_logs, inbound_log
+
+    # クリーンアップ
+    inbound_log.destroy
+    outbound_log.destroy
   end
 
   test "should log inbound message" do

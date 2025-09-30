@@ -88,7 +88,15 @@ class LineShiftManagementServiceTest < ActiveSupport::TestCase
     assert result.include?("過去の日付")
   end
 
-  test "シフト日付入力の処理（無効な形式）" do
+  test "シフト日付入力の処理（成功パターン）" do
+    tomorrow = (Date.current + 1).strftime("%m/%d")
+    result = @service.handle_shift_date_input(@line_user_id, tomorrow)
+
+    assert_not_nil result
+    assert result.is_a?(String)
+  end
+
+  test "シフト日付入力の処理（失敗パターン）" do
     result = @service.handle_shift_date_input(@line_user_id, "invalid_date")
 
     assert_not_nil result
@@ -110,7 +118,7 @@ class LineShiftManagementServiceTest < ActiveSupport::TestCase
     assert_not_nil result
   end
 
-  test "シフト追加時間入力の処理（無効な形式）" do
+  test "シフト追加時間入力の処理（失敗パターン）" do
     state = { "selected_date" => (Date.current + 1).strftime("%m/%d") }
     result = @service.handle_shift_addition_time_input(@line_user_id, "invalid_time", state)
 
@@ -141,7 +149,7 @@ class LineShiftManagementServiceTest < ActiveSupport::TestCase
            result.include?("エラーが発生しました")
   end
 
-  test "欠勤申請日付入力の処理（無効な形式）" do
+  test "欠勤申請日付入力の処理（失敗パターン）" do
     state = {}
     result = @service.handle_shift_deletion_date_input(@line_user_id, "invalid_date", state)
 
@@ -156,7 +164,7 @@ class LineShiftManagementServiceTest < ActiveSupport::TestCase
     assert_not_nil result
   end
 
-  test "欠勤理由入力の処理（空の理由）" do
+  test "欠勤理由入力の処理（失敗パターン）" do
     state = { "shift_id" => "1" }
     result = @service.handle_shift_deletion_reason_input(@line_user_id, "", state)
 
@@ -179,7 +187,7 @@ class LineShiftManagementServiceTest < ActiveSupport::TestCase
     assert result.include?("欠勤理由を入力してください") || result.include?("シフトが見つかりません")
   end
 
-  test "シフト選択のPostback処理（無効な形式）" do
+  test "シフト選択のPostback処理（失敗パターン）" do
     result = @service.handle_deletion_shift_selection(@line_user_id, "invalid_postback")
 
     assert_not_nil result
@@ -262,7 +270,7 @@ class LineShiftManagementServiceTest < ActiveSupport::TestCase
     assert result.include?("キャンセルしました")
   end
 
-  test "確認入力の処理（無効な入力）" do
+  test "確認入力の処理（失敗パターン）" do
     state = { "shift_id" => "1", "target_employee_id" => "1" }
     result = @service.handle_confirmation_input(@line_user_id, "maybe", state)
 
@@ -276,7 +284,7 @@ class LineShiftManagementServiceTest < ActiveSupport::TestCase
     assert_not_nil result
   end
 
-  test "シフト選択入力の処理（無効な形式）" do
+  test "シフト選択入力の処理（失敗パターン）" do
     result = @service.handle_shift_selection_input(@line_user_id, "invalid_selection", {})
 
     assert_not_nil result
@@ -319,7 +327,7 @@ class LineShiftManagementServiceTest < ActiveSupport::TestCase
     assert result.include?("キャンセルしました")
   end
 
-  test "シフト追加確認入力の処理（無効な入力）" do
+  test "シフト追加確認入力の処理（失敗パターン）" do
     state = {
       "selected_date" => (Date.current + 1).strftime("%m/%d"),
       "start_time" => "09:00",

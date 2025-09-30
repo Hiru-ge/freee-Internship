@@ -77,32 +77,16 @@ class ShiftDisplayServiceTest < ActiveSupport::TestCase
   end
 
   test "シフト交代承認時のシフト処理" do
-    # テスト用のシフトオブジェクトを作成
-    shift_to_approve = create_test_shift(@employee_id, @shift_date, @start_time, @end_time)
-
     # メソッドの存在確認のみ（複雑なデータベース操作を避ける）
     assert_respond_to ShiftDisplayService, :process_shift_exchange_approval
   end
 
   test "シフト追加承認時のシフト処理" do
-    new_shift_data = {
-      shift_date: @shift_date,
-      start_time: @start_time,
-      end_time: @end_time,
-      requester_id: @employee_id
-    }
-
     # メソッドの存在確認のみ（複雑なデータベース操作を避ける）
     assert_respond_to ShiftDisplayService, :process_shift_addition_approval
   end
 
   test "共通のシフト承認処理" do
-    shift_data = {
-      shift_date: @shift_date,
-      start_time: @start_time,
-      end_time: @end_time
-    }
-
     # メソッドの存在確認のみ（複雑なデータベース操作を避ける）
     assert_respond_to ShiftDisplayService, :process_shift_approval
   end

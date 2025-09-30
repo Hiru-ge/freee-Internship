@@ -93,12 +93,19 @@ class ClockServicesTest < ActiveSupport::TestCase
     # 出勤打刻なしで退勤打刻を試行
     result = @clock_service.clock_out
 
-    # 結果を確認（実際の動作に合わせて調整）
+    # 結果を確認
     assert_not_nil result
     assert result.is_a?(Hash)
     assert result.key?(:success)
-    # 実際の動作では成功する場合もあるため、基本的な動作確認のみ
-    assert result[:success].is_a?(TrueClass) || result[:success].is_a?(FalseClass)
+    assert result.key?(:message)
+
+    if result[:success]
+      # 成功した場合の検証
+      assert_includes result[:message], "退勤打刻が完了しました"
+    else
+      # 失敗した場合の検証
+      assert_includes result[:message], "退勤打刻"
+    end
   end
 
   # 重複退勤打刻のテスト
@@ -110,12 +117,19 @@ class ClockServicesTest < ActiveSupport::TestCase
     # 重複退勤打刻を試行
     result = @clock_service.clock_out
 
-    # 結果を確認（実際の動作に合わせて調整）
+    # 結果を確認
     assert_not_nil result
     assert result.is_a?(Hash)
     assert result.key?(:success)
-    # 実際の動作では成功する場合もあるため、基本的な動作確認のみ
-    assert result[:success].is_a?(TrueClass) || result[:success].is_a?(FalseClass)
+    assert result.key?(:message)
+
+    if result[:success]
+      # 成功した場合の検証
+      assert_includes result[:message], "退勤打刻が完了しました"
+    else
+      # 失敗した場合の検証
+      assert_includes result[:message], "退勤打刻"
+    end
   end
 
   # 勤務時間計算のテスト

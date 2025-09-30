@@ -15,6 +15,16 @@ class EmployeeTest < ActiveSupport::TestCase
     # line_idカラムが存在することを確認
     assert @employee.respond_to?(:line_id)
     assert @employee.respond_to?(:line_id=)
+
+    # line_idを設定してEmployeeを作成
+    @employee.line_id = "line_user_123"
+    assert_equal "line_user_123", @employee.line_id
+    assert @employee.valid?
+
+    # line_idがnilの場合も正常に動作することを確認
+    @employee.line_id = nil
+    assert_nil @employee.line_id
+    assert @employee.valid?
   end
 
   test "should allow nil line_id" do

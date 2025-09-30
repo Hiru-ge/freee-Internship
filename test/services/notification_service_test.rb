@@ -84,36 +84,90 @@ class NotificationServiceTest < ActiveSupport::TestCase
   # ===== 欠勤申請通知テスト =====
 
   test "欠勤申請通知の送信" do
-    # テスト環境では通知は送信されないが、メソッドの動作をテスト
-    deletion_request = mock_deletion_request
+    # テスト用の欠勤申請を作成
+    employee = Employee.create!(employee_id: "test_employee", role: "employee")
+    shift = Shift.create!(
+      employee_id: employee.employee_id,
+      shift_date: Date.current + 1.day,
+      start_time: Time.zone.parse("09:00"),
+      end_time: Time.zone.parse("18:00")
+    )
+    deletion_request = ShiftDeletion.create!(
+      request_id: "test_deletion_request",
+      requester_id: employee.employee_id,
+      shift: shift,
+      reason: "体調不良",
+      status: "pending"
+    )
 
+    # 通知送信を実行
     result = @service.send_shift_deletion_request_notification(deletion_request)
+
     # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
-    assert_nil result
-    # エラーが発生しないことを確認
-    assert_nothing_raised { @service.send_shift_deletion_request_notification(deletion_request) }
+    assert_nil result, "テスト環境では通知は送信されない"
+
+    # クリーンアップ
+    deletion_request.destroy
+    shift.destroy
+    employee.destroy
   end
 
   test "欠勤申請承認通知の送信" do
-    # テスト環境では通知は送信されないが、メソッドの動作をテスト
-    deletion_request = mock_deletion_request
+    # テスト用の欠勤申請を作成
+    employee = Employee.create!(employee_id: "test_employee", role: "employee")
+    shift = Shift.create!(
+      employee_id: employee.employee_id,
+      shift_date: Date.current + 1.day,
+      start_time: Time.zone.parse("09:00"),
+      end_time: Time.zone.parse("18:00")
+    )
+    deletion_request = ShiftDeletion.create!(
+      request_id: "test_deletion_request",
+      requester_id: employee.employee_id,
+      shift: shift,
+      reason: "体調不良",
+      status: "approved"
+    )
 
+    # 通知送信を実行
     result = @service.send_shift_deletion_approval_notification(deletion_request)
+
     # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
-    assert_nil result
-    # エラーが発生しないことを確認
-    assert_nothing_raised { @service.send_shift_deletion_approval_notification(deletion_request) }
+    assert_nil result, "テスト環境では通知は送信されない"
+
+    # クリーンアップ
+    deletion_request.destroy
+    shift.destroy
+    employee.destroy
   end
 
   test "欠勤申請拒否通知の送信" do
-    # テスト環境では通知は送信されないが、メソッドの動作をテスト
-    deletion_request = mock_deletion_request
+    # テスト用の欠勤申請を作成
+    employee = Employee.create!(employee_id: "test_employee", role: "employee")
+    shift = Shift.create!(
+      employee_id: employee.employee_id,
+      shift_date: Date.current + 1.day,
+      start_time: Time.zone.parse("09:00"),
+      end_time: Time.zone.parse("18:00")
+    )
+    deletion_request = ShiftDeletion.create!(
+      request_id: "test_deletion_request",
+      requester_id: employee.employee_id,
+      shift: shift,
+      reason: "体調不良",
+      status: "rejected"
+    )
 
+    # 通知送信を実行
     result = @service.send_shift_deletion_rejection_notification(deletion_request)
+
     # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
-    assert_nil result
-    # エラーが発生しないことを確認
-    assert_nothing_raised { @service.send_shift_deletion_rejection_notification(deletion_request) }
+    assert_nil result, "テスト環境では通知は送信されない"
+
+    # クリーンアップ
+    deletion_request.destroy
+    shift.destroy
+    employee.destroy
   end
 
   # ===== LINE通知テスト =====
@@ -175,11 +229,18 @@ class NotificationServiceTest < ActiveSupport::TestCase
   # ===== メール通知テスト =====
 
   test "従業員情報取得" do
-    # FreeeApiServiceのモックが必要
-    # 実際のテストでは適切なモックを設定
-    result = @service.get_employee_with_email(@employee_id)
-    # テスト環境ではnilが返される可能性が高い
-    assert_nil result
+    # 存在しない従業員IDで検索
+    result = @service.get_employee_with_email("nonexistent_employee")
+    assert_nil result, "存在しない従業員IDはnilを返すべき"
+
+    # 有効な従業員IDで検索（テスト用データを作成）
+    employee = Employee.create!(employee_id: "test_employee", role: "employee")
+    result = @service.get_employee_with_email(employee.employee_id)
+    # テスト環境ではnilが返される可能性が高いが、エラーが発生しないことを確認
+    assert_nil result, "テスト環境では従業員情報は取得されない"
+
+    # クリーンアップ
+    employee.destroy
   end
 
   test "シフト交代依頼メール送信" do

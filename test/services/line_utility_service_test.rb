@@ -11,7 +11,16 @@ class LineUtilityServiceTest < ActiveSupport::TestCase
   end
 
   test "LineUtilityServiceが正常に初期化される" do
+    # 初期化後の状態を検証
     assert_not_nil @service
+    assert_respond_to @service, :extract_user_id
+    assert_respond_to @service, :extract_group_id
+    assert_respond_to @service, :group_message?
+
+    # 基本的な機能が動作することを確認
+    test_event = { "source" => { "userId" => "test_user" } }
+    user_id = @service.extract_user_id(test_event)
+    assert_equal "test_user", user_id
   end
 
   test "ユーザーIDの抽出" do
@@ -121,7 +130,14 @@ class LineUtilityServiceTest < ActiveSupport::TestCase
     assert result.include?("見つかりませんでした")
   end
 
-  test "従業員名入力の処理（無効な名前）" do
+  test "従業員名入力の処理（成功パターン）" do
+    result = @service.handle_employee_name_input(@line_user_id, "テスト従業員")
+
+    assert_not_nil result
+    assert result.is_a?(String)
+  end
+
+  test "従業員名入力の処理（失敗パターン）" do
     result = @service.handle_employee_name_input(@line_user_id, "a" * 25)
 
     assert_not_nil result
@@ -138,7 +154,7 @@ class LineUtilityServiceTest < ActiveSupport::TestCase
     assert_not_nil result
   end
 
-  test "従業員選択入力の処理（無効な番号）" do
+  test "従業員選択入力の処理（失敗パターン）" do
     employee_matches = [
       { id: 1, display_name: "テスト従業員1" }
     ]
@@ -161,7 +177,7 @@ class LineUtilityServiceTest < ActiveSupport::TestCase
     assert_not_nil result
   end
 
-  test "認証コード入力の処理（無効なコード）" do
+  test "認証コード入力の処理（失敗パターン）" do
     result = @service.handle_verification_code_input(@line_user_id, "1", "000000")
 
     assert_not_nil result
@@ -252,10 +268,15 @@ class LineUtilityServiceTest < ActiveSupport::TestCase
   end
 
   test "シフト重複チェック" do
+    # 重複するシフトでチェック
     result = @service.has_shift_overlap?(@employee.employee_id, Date.current, "09:00", "17:00")
-
     assert_not_nil result
     assert result.is_a?(TrueClass) || result.is_a?(FalseClass)
+
+    # 重複しないシフトでチェック
+    non_overlapping_result = @service.has_shift_overlap?(@employee.employee_id, Date.current + 1.day, "09:00", "17:00")
+    assert_not_nil non_overlapping_result
+    assert non_overlapping_result.is_a?(TrueClass) || non_overlapping_result.is_a?(FalseClass)
   end
 
   test "依頼可能な従業員と重複している従業員を取得" do
@@ -304,10 +325,19 @@ class LineUtilityServiceTest < ActiveSupport::TestCase
   end
 
   test "現在の日時を取得" do
+    # メソッドを実行
     result = @service.current_time
 
+    # 結果の型と内容を検証
     assert_not_nil result
     assert result.is_a?(Time)
+
+    # 現在時刻に近い値が返されることを確認
+    now = Time.current
+    assert (now - result).abs < 1.second, "現在時刻に近い値が返されるべき"
+
+    # タイムゾーンが正しく設定されていることを確認
+    assert_equal "JST", result.zone, "正しいタイムゾーンが設定されるべき"
   end
 
   test "現在の日付を取得" do
