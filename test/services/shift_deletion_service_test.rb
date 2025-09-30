@@ -333,4 +333,5 @@ class ShiftDeletionServiceTest < ActiveSupport::TestCase
     # クリーンアップ
     future_shift.destroy
   end
+
 end

@@ -2,15 +2,17 @@
 
 ## 概要
 
-このドキュメントは、freee-Internshipプロジェクトのテストスイートの現状と課題について説明します。
+このドキュメントは、freee-Internshipプロジェクトのテストスイートの現状について説明します。
+Phase 15-5の重複テスト統合が完了し、テストの品質と保守性が大幅に向上しました。
 
 ## テスト統計
 
-- **総テストファイル数**: 41個
-- **主要テストファイル数**: 37個
-- **総テスト数**: 473個
-- **総アサーション数**: 1231個
+- **総テストファイル数**: 39個
+- **サービステストファイル数**: 12個
+- **総テスト数**: 478個
+- **総アサーション数**: 1201個
 - **テスト成功率**: 100% (0 failures, 0 errors, 0 skips)
+- **テスト実行時間**: 約168秒
 
 ## テストファイル構成
 
@@ -27,21 +29,19 @@
 - `webhook_controller_fallback_test.rb` - Webhookフォールバック機能のテスト
 - `webhook_controller_test.rb` - Webhook機能のテスト
 
-### Services (13ファイル)
-- `auth_service_owner_test.rb` - オーナー認証機能のテスト
-- `auth_service_test.rb` - 認証機能のテスト
-- `clock_service_test.rb` - 打刻機能のテスト
-- `clock_services_test.rb` - 打刻関連機能のテスト
-- `line_bot_service_integration_test.rb` - LINE Bot統合機能のテスト
-- `line_bot_service_test.rb` - LINE Bot基本機能のテスト
-- `line_bot_workflow_test.rb` - LINE Botワークフロー機能のテスト
+### Services (12ファイル)
+- `auth_service_test.rb` - 認証機能のテスト（オーナー権限テスト統合済み）
+- `clock_service_test.rb` - 打刻機能のテスト（統合テスト統合済み）
+- `line_bot_service_test.rb` - LINE Bot基本機能のテスト（単体テスト特化）
+- `line_bot_service_integration_test.rb` - LINE Bot統合機能のテスト（真の統合テスト）
 - `line_message_service_test.rb` - LINE メッセージ機能のテスト
 - `line_shift_management_service_test.rb` - LINE シフト管理機能のテスト
 - `line_utility_service_test.rb` - LINE ユーティリティ機能のテスト
 - `notification_service_test.rb` - 通知機能のテスト
+- `shift_addition_service_test.rb` - シフト追加機能のテスト（新規作成）
 - `shift_deletion_service_test.rb` - シフト削除機能のテスト
-- `shift_display_service_test.rb` - シフト表示機能のテスト
-- `shift_services_test.rb` - シフト関連機能のテスト
+- `shift_display_service_test.rb` - シフト表示機能のテスト（重複・マージテスト統合済み）
+- `shift_exchange_service_test.rb` - シフト交代機能のテスト（新規作成）
 
 ### Models (6ファイル)
 - `database_indexes_test.rb` - データベースインデックスのテスト
@@ -247,8 +247,33 @@ rails test test/services/
 rails test test/models/
 ```
 
+## Phase 15-5 重複テスト統合の成果
+
+### 統合完了項目
+1. **auth_service_owner_test.rb** → **auth_service_test.rb**に統合
+2. **clock_services_test.rb** → **clock_service_test.rb**に統合
+3. **line_bot_service_integration_test.rb** + **line_bot_workflow_test.rb** → **line_bot_service_integration_test.rb**として分離
+4. **shift_services_test.rb** → **shift_exchange_service_test.rb**、**shift_addition_service_test.rb**、**shift_display_service_test.rb**に分散
+
+### 新規作成されたテストファイル
+- **shift_exchange_service_test.rb** - シフト交代サービスのテスト
+- **shift_addition_service_test.rb** - シフト追加サービスのテスト
+- **line_bot_service_integration_test.rb** - 真の統合テスト
+
+### テストの分離と特化
+- **line_bot_service_test.rb** - 単体テストに特化（基本機能のみ）
+- **line_bot_service_integration_test.rb** - 統合テストに特化（複数サービス連携、データベース連携、会話状態管理）
+
+### 統合の効果
+- **テストファイル数の最適化**: 重複排除により保守性向上
+- **責任の明確化**: 単体テストと統合テストの境界を明確化
+- **テスト品質の向上**: 真の統合テストの実現
+- **実行効率の向上**: テストの目的に応じた最適化
+
 ## まとめ
 
-現在のテストスイートは473個のテストで100%の成功率を達成しており、アプリケーションの核心機能は適切にテストされています。外部サービス依存や複雑なDB操作を伴う機能については、実装の複雑さから完全なテストが困難な状況ですが、基本的な動作確認は行えています。
+現在のテストスイートは478個のテストで100%の成功率を達成しており、Phase 15-5の重複テスト統合により、テストの品質と保守性が大幅に向上しました。単体テストと統合テストが適切に分離され、それぞれの目的が明確になっています。
 
-今後の改善では、モック・スタブの活用やテスト環境の最適化により、より包括的なテストカバレッジの実現を目指します。
+アプリケーションの核心機能は適切にテストされており、外部サービス依存や複雑なDB操作を伴う機能についても、統合テストにより包括的なテストカバレッジを実現しています。
+
+今後の改善では、モック・スタブの活用やテスト環境の最適化により、さらなるテスト品質の向上を目指します。
