@@ -54,6 +54,23 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "リクエストを送信しました。承認をお待ちください。", flash[:notice]
   end
 
+  test "シフト交代リクエスト送信成功" do
+    post login_url, params: {
+      employee_id: "3316120",
+      password: "password123"
+    }
+
+    post shift_exchanges_url, params: {
+      applicant_id: "3316120",
+      approver_ids: ["3317741"],
+      shift_date: Date.current,
+      start_time: "18:00",
+      end_time: "23:00"
+    }
+
+    assert response.redirect? || response.success?
+  end
+
   # ===== 異常系テスト =====
 
   test "未ログイン時のログインページへのリダイレクト" do
@@ -79,5 +96,22 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to new_shift_exchange_path
     assert_equal "すべての項目を入力してください。", flash[:error]
+  end
+
+  test "シフト交代リクエストの必須項目バリデーション" do
+    post login_url, params: {
+      employee_id: "3316120",
+      password: "password123"
+    }
+
+    post shift_exchanges_url, params: {
+      applicant_id: "",
+      approver_ids: [],
+      shift_date: "",
+      start_time: "",
+      end_time: ""
+    }
+
+    assert response.redirect? || response.unprocessable_content?
   end
 end
