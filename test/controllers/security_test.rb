@@ -343,7 +343,9 @@ class SecurityTest < ActionDispatch::IntegrationTest
     }
 
     # レスポンスの基本テスト
-    assert true, "XSS対策の基本テスト"
+    assert_response :success
+    # XSS攻撃が適切にエスケープされていることを確認
+    assert_not_includes response.body, "<script>", "XSS攻撃がエスケープされていません"
   end
 
   # ===== レート制限テスト =====
@@ -367,7 +369,9 @@ class SecurityTest < ActionDispatch::IntegrationTest
     get "/auth/login"
 
     # セキュリティヘッダーの存在を確認
-    assert true, "セキュリティヘッダーの基本テスト"
+    assert_response :success
+    # 基本的なセキュリティヘッダーの存在を確認
+    assert_not_nil response.headers["X-Content-Type-Options"], "X-Content-Type-Optionsヘッダーが設定されていません"
   end
 
   # ===== 認証コントローラーテスト =====

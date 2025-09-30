@@ -62,20 +62,20 @@ class WebhookControllerFallbackTest < ActionDispatch::IntegrationTest
     controller = WebhookController.new
     client = controller.send(:fallback_client)
 
-    # フォールバッククライアントに必要なメソッドが存在することを確認
-    assert_respond_to client, :validate_signature
-    assert_respond_to client, :parse_events_from
-    assert_respond_to client, :reply_message
+    # フォールバッククライアントのメソッドが正常に動作することを確認
+    assert_nothing_raised { client.validate_signature(@valid_body, @valid_signature) }
+    assert_nothing_raised { client.parse_events_from(@valid_body) }
+    assert_nothing_raised { client.reply_message("test_token", "test_message") }
   end
 
   test "mock client should have required methods" do
     controller = WebhookController.new
     client = controller.send(:mock_client)
 
-    # モッククライアントに必要なメソッドが存在することを確認
-    assert_respond_to client, :validate_signature
-    assert_respond_to client, :parse_events_from
-    assert_respond_to client, :reply_message
+    # モッククライアントのメソッドが正常に動作することを確認
+    assert_nothing_raised { client.validate_signature(@valid_body, @valid_signature) }
+    assert_nothing_raised { client.parse_events_from(@valid_body) }
+    assert_nothing_raised { client.reply_message("test_token", "test_message") }
   end
 
   test "fallback client should handle JSON parsing errors gracefully" do
@@ -102,11 +102,11 @@ class WebhookControllerFallbackTest < ActionDispatch::IntegrationTest
     events = client.parse_events_from(@valid_body)
     event = events.first
 
-    # イベントオブジェクトが正しいメソッドを持つことを確認
-    assert_respond_to event, :type
-    assert_respond_to event, :message
-    assert_respond_to event, :source
-    assert_respond_to event, :replyToken
+    # イベントオブジェクトが正しい値を返すことを確認
+    assert_not_nil event.type
+    assert_not_nil event.message
+    assert_not_nil event.source
+    assert_not_nil event.replyToken
 
     # 値が正しく設定されていることを確認
     assert_equal "message", event.type

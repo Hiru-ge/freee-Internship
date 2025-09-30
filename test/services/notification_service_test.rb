@@ -12,119 +12,164 @@ class NotificationServiceTest < ActiveSupport::TestCase
   # ===== シフト交代通知テスト =====
 
   test "シフト交代依頼通知の送信" do
-    # テスト環境では通知は送信されない
+    # テスト環境では通知は送信されないが、メソッドの動作をテスト
     requests = []
     params = {}
 
     result = @service.send_shift_exchange_request_notification(requests, params)
+    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
     assert_nil result
+    # エラーが発生しないことを確認
+    assert_nothing_raised { @service.send_shift_exchange_request_notification(requests, params) }
   end
 
   test "シフト交代承認通知の送信" do
-    # テスト環境では通知は送信されない
+    # テスト環境では通知は送信されないが、メソッドの動作をテスト
     exchange_request = mock_exchange_request
 
     result = @service.send_shift_exchange_approval_notification(exchange_request)
+    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
     assert_nil result
+    # エラーが発生しないことを確認
+    assert_nothing_raised { @service.send_shift_exchange_approval_notification(exchange_request) }
   end
 
   test "シフト交代拒否通知の送信" do
-    # テスト環境では通知は送信されない
+    # テスト環境では通知は送信されないが、メソッドの動作をテスト
     exchange_request = mock_exchange_request
 
     result = @service.send_shift_exchange_rejection_notification(exchange_request)
+    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
     assert_nil result
+    # エラーが発生しないことを確認
+    assert_nothing_raised { @service.send_shift_exchange_rejection_notification(exchange_request) }
   end
 
   # ===== シフト追加通知テスト =====
 
   test "シフト追加依頼通知の送信" do
-    # テスト環境では通知は送信されない
+    # テスト環境では通知は送信されないが、メソッドの動作をテスト
     requests = []
     params = {}
 
     result = @service.send_shift_addition_request_notification(requests, params)
+    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
     assert_nil result
+    # エラーが発生しないことを確認
+    assert_nothing_raised { @service.send_shift_addition_request_notification(requests, params) }
   end
 
   test "シフト追加承認通知の送信" do
-    # テスト環境では通知は送信されない
+    # テスト環境では通知は送信されないが、メソッドの動作をテスト
     addition_request = mock_addition_request
 
     result = @service.send_shift_addition_approval_notification(addition_request)
+    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
     assert_nil result
+    # エラーが発生しないことを確認
+    assert_nothing_raised { @service.send_shift_addition_approval_notification(addition_request) }
   end
 
   test "シフト追加拒否通知の送信" do
-    # テスト環境では通知は送信されない
+    # テスト環境では通知は送信されないが、メソッドの動作をテスト
     addition_request = mock_addition_request
 
     result = @service.send_shift_addition_rejection_notification(addition_request)
+    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
     assert_nil result
+    # エラーが発生しないことを確認
+    assert_nothing_raised { @service.send_shift_addition_rejection_notification(addition_request) }
   end
 
   # ===== 欠勤申請通知テスト =====
 
   test "欠勤申請通知の送信" do
-    # テスト環境では通知は送信されない
+    # テスト環境では通知は送信されないが、メソッドの動作をテスト
     deletion_request = mock_deletion_request
 
     result = @service.send_shift_deletion_request_notification(deletion_request)
+    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
     assert_nil result
+    # エラーが発生しないことを確認
+    assert_nothing_raised { @service.send_shift_deletion_request_notification(deletion_request) }
   end
 
   test "欠勤申請承認通知の送信" do
-    # テスト環境では通知は送信されない
+    # テスト環境では通知は送信されないが、メソッドの動作をテスト
     deletion_request = mock_deletion_request
 
     result = @service.send_shift_deletion_approval_notification(deletion_request)
+    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
     assert_nil result
+    # エラーが発生しないことを確認
+    assert_nothing_raised { @service.send_shift_deletion_approval_notification(deletion_request) }
   end
 
   test "欠勤申請拒否通知の送信" do
-    # テスト環境では通知は送信されない
+    # テスト環境では通知は送信されないが、メソッドの動作をテスト
     deletion_request = mock_deletion_request
 
     result = @service.send_shift_deletion_rejection_notification(deletion_request)
+    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
     assert_nil result
+    # エラーが発生しないことを確認
+    assert_nothing_raised { @service.send_shift_deletion_rejection_notification(deletion_request) }
   end
 
   # ===== LINE通知テスト =====
 
   test "認証コード送信通知" do
-    # テスト環境では実際の送信は行わない
+    # テスト環境では実際の送信は行わないが、メソッドの動作をテスト
     result = @service.send_verification_code_notification(@line_user_id, "テスト従業員")
+    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
     assert_nil result
+    # エラーが発生しないことを確認
+    assert_nothing_raised { @service.send_verification_code_notification(@line_user_id, "テスト従業員") }
   end
 
   test "認証完了通知" do
-    # テスト環境では実際の送信は行わない
+    # テスト環境では実際の送信は行わないが、メソッドの動作をテスト
     result = @service.send_authentication_success_notification(@line_user_id, "テスト従業員")
+    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
     assert_nil result
+    # エラーが発生しないことを確認
+    assert_nothing_raised { @service.send_authentication_success_notification(@line_user_id, "テスト従業員") }
   end
 
   test "エラー通知" do
-    # テスト環境では実際の送信は行わない
+    # テスト環境では実際の送信は行わないが、メソッドの動作をテスト
     result = @service.send_error_notification(@line_user_id, "テストエラー")
+    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
     assert_nil result
+    # エラーが発生しないことを確認
+    assert_nothing_raised { @service.send_error_notification(@line_user_id, "テストエラー") }
   end
 
   test "成功通知" do
-    # テスト環境では実際の送信は行わない
+    # テスト環境では実際の送信は行わないが、メソッドの動作をテスト
     result = @service.send_success_notification(@line_user_id, "テスト成功")
+    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
     assert_nil result
+    # エラーが発生しないことを確認
+    assert_nothing_raised { @service.send_success_notification(@line_user_id, "テスト成功") }
   end
 
   test "警告通知" do
-    # テスト環境では実際の送信は行わない
+    # テスト環境では実際の送信は行わないが、メソッドの動作をテスト
     result = @service.send_warning_notification(@line_user_id, "テスト警告")
+    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
     assert_nil result
+    # エラーが発生しないことを確認
+    assert_nothing_raised { @service.send_warning_notification(@line_user_id, "テスト警告") }
   end
 
   test "情報通知" do
-    # テスト環境では実際の送信は行わない
+    # テスト環境では実際の送信は行わないが、メソッドの動作をテスト
     result = @service.send_info_notification(@line_user_id, "テスト情報")
+    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
     assert_nil result
+    # エラーが発生しないことを確認
+    assert_nothing_raised { @service.send_info_notification(@line_user_id, "テスト情報") }
   end
 
   # ===== メール通知テスト =====

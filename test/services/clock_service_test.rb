@@ -11,76 +11,85 @@ class ClockServiceTest < ActiveSupport::TestCase
   # ===== 打刻機能テスト =====
 
   test "出勤打刻" do
-    # テスト環境では実際の出勤打刻処理をスキップ
-    assert_respond_to @service, :clock_in
+    # 出勤打刻の基本動作をテスト
+    result = @service.clock_in
+    assert_not_nil result
+    assert result.is_a?(Hash)
+    assert result.key?(:success)
   end
 
   test "退勤打刻" do
-    # テスト環境では実際の退勤打刻処理をスキップ
-    assert_respond_to @service, :clock_out
+    # 退勤打刻の基本動作をテスト
+    result = @service.clock_out
+    assert_not_nil result
+    assert result.is_a?(Hash)
+    assert result.key?(:success)
   end
 
   test "打刻状態の取得" do
-    # テスト環境では実際の打刻状態取得処理をスキップ
-    assert_respond_to @service, :get_clock_status
+    # 打刻状態取得の基本動作をテスト
+    result = @service.get_clock_status
+    assert_not_nil result
+    assert result.is_a?(Hash)
+    assert result.key?(:can_clock_in)
+    assert result.key?(:can_clock_out)
+    assert result.key?(:message)
   end
 
   test "月次勤怠データの取得" do
-    # テスト環境では実際の月次勤怠データ取得処理をスキップ
-    assert_respond_to @service, :get_attendance_for_month
+    # 月次勤怠データ取得の基本動作をテスト
+    result = @service.get_attendance_for_month(Date.current.year, Date.current.month)
+    assert_not_nil result
+    assert result.is_a?(Array)
   end
 
   # ===== 打刻リマインダー機能テスト =====
 
   test "出勤打刻忘れチェック" do
-    # テスト環境では実際の出勤打刻忘れチェック処理をスキップ
-    assert_respond_to ClockService, :check_forgotten_clock_ins
+    # 出勤打刻忘れチェックの基本動作をテスト
+    # メソッドが正常に実行されることを確認（戻り値はvoid）
+    assert_nothing_raised { ClockService.check_forgotten_clock_ins }
   end
 
   test "退勤打刻忘れチェック" do
-    # テスト環境では実際の退勤打刻忘れチェック処理をスキップ
-    assert_respond_to ClockService, :check_forgotten_clock_outs
+    # 退勤打刻忘れチェックの基本動作をテスト
+    # メソッドが正常に実行されることを確認（戻り値はvoid）
+    assert_nothing_raised { ClockService.check_forgotten_clock_outs }
   end
 
   test "今日の打刻記録を取得" do
-    # テスト環境では実際の打刻記録取得処理をスキップ
-    assert_respond_to @service, :get_time_clocks_for_today
+    # 今日の打刻記録取得の基本動作をテスト
+    result = @service.get_time_clocks_for_today(@employee_id)
+    assert_not_nil result
+    assert result.is_a?(Array)
   end
 
   test "出勤打刻リマインダーメール送信" do
-    # テスト環境では実際の出勤打刻リマインダーメール送信処理をスキップ
-    assert_respond_to @service, :send_clock_in_reminder
+    # 出勤打刻リマインダーメール送信の基本動作をテスト
+    employee = Employee.create!(employee_id: "test_employee", role: "employee")
+    shift = Shift.create!(employee_id: employee.employee_id, shift_date: Date.current, start_time: Time.zone.parse("09:00"), end_time: Time.zone.parse("18:00"))
+
+    # メソッドが正常に実行されることを確認（戻り値はvoid）
+    assert_nothing_raised { @service.send_clock_in_reminder(employee, shift) }
+
+    # クリーンアップ
+    shift.destroy
+    employee.destroy
   end
 
   test "退勤打刻リマインダーメール送信" do
-    # テスト環境では実際の退勤打刻リマインダーメール送信処理をスキップ
-    assert_respond_to @service, :send_clock_out_reminder
+    # 退勤打刻リマインダーメール送信の基本動作をテスト
+    employee = Employee.create!(employee_id: "test_employee", role: "employee")
+    shift = Shift.create!(employee_id: employee.employee_id, shift_date: Date.current, start_time: Time.zone.parse("09:00"), end_time: Time.zone.parse("18:00"))
+
+    # メソッドが正常に実行されることを確認（戻り値はvoid）
+    assert_nothing_raised { @service.send_clock_out_reminder(employee, shift) }
+
+    # クリーンアップ
+    shift.destroy
+    employee.destroy
   end
 
   # ===== プライベートメソッドテスト =====
-
-  test "打刻用のフォームデータを作成" do
-    # プライベートメソッドのテストはスキップ
-    assert true
-  end
-
-  test "シフト時間をフォーマット" do
-    # プライベートメソッドのテストはスキップ
-    assert true
-  end
-
-  test "シフト開始時刻を過ぎて1時間以内かチェック" do
-    # プライベートメソッドのテストはスキップ
-    assert true
-  end
-
-  test "シフト終了時刻を過ぎて1時間以内かチェック" do
-    # プライベートメソッドのテストはスキップ
-    assert true
-  end
-
-  test "15分間隔でリマインダーを送信するかチェック" do
-    # プライベートメソッドのテストはスキップ
-    assert true
-  end
+  # プライベートメソッドのテストは削除（意味のないassert trueテストのため）
 end

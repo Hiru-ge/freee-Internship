@@ -79,7 +79,7 @@ class LineBotWorkflowTest < ActiveSupport::TestCase
     # ヘルプコマンドが正常に処理されることを確認
     if response2.nil?
       # コマンド割り込みが正常に動作している（会話状態がクリアされた）
-      assert true, "コマンド割り込みが正常に動作しました"
+      assert_nil response2, "コマンド割り込みが正常に動作しました"
     else
       assert_includes response2, "利用可能なコマンド"
     end

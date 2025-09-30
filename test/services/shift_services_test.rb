@@ -85,7 +85,7 @@ class ShiftServicesTest < ActiveSupport::TestCase
   # 正常なシフト交代依頼作成のテスト
   test "should create shift exchange request successfully" do
     # 既存のシフトを作成
-    Shift.create!(
+    shift = Shift.create!(
       employee_id: @employee1.employee_id,
       shift_date: @future_date,
       start_time: Time.zone.parse("09:00"),
@@ -107,7 +107,7 @@ class ShiftServicesTest < ActiveSupport::TestCase
     assert_includes result[:message], "リクエストを送信しました"
 
     # リクエストが作成されていることを確認
-    assert true, "シフト交代依頼作成の基本テスト"
+    assert ShiftExchange.exists?(shift_id: shift.id), "シフト交代依頼が作成されていません"
   end
 
   # 承認処理のテスト
@@ -228,7 +228,7 @@ class ShiftServicesTest < ActiveSupport::TestCase
     assert_includes result[:message], "シフト追加リクエストを送信しました"
 
     # リクエストが作成されていることを確認
-    assert true, "シフト追加依頼作成の基本テスト"
+    assert ShiftAddition.exists?(requester_id: @employee1.employee_id), "シフト追加依頼が作成されていません"
   end
 
   # 承認処理のテスト

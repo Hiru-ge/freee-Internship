@@ -26,89 +26,136 @@ class AuthServiceTest < ActiveSupport::TestCase
   end
 
   test "ログイン処理" do
-    # テスト環境では実際のログイン処理をスキップ
-    assert_respond_to AuthService, :login
+    # ログイン処理の基本動作をテスト
+    result = AuthService.login(@employee_id, @password)
+    assert_not_nil result
+    assert result.is_a?(Hash)
+    assert result.key?(:success)
   end
 
   test "パスワード変更" do
-    # テスト環境では実際のパスワード変更処理をスキップ
-    assert_respond_to AuthService, :change_password
+    # パスワード変更の基本動作をテスト
+    result = AuthService.change_password(@employee_id, @password, "new_password")
+    assert_not_nil result
+    assert result.is_a?(Hash)
+    assert result.key?(:success)
   end
 
   test "初回パスワード設定" do
-    # テスト環境では実際のパスワード設定処理をスキップ
-    assert_respond_to AuthService, :set_initial_password
+    # 初回パスワード設定の基本動作をテスト
+    result = AuthService.set_initial_password(@employee_id, @password)
+    assert_not_nil result
+    assert result.is_a?(Hash)
+    assert result.key?(:success)
   end
 
   test "認証コード送信" do
-    # テスト環境では実際の認証コード送信処理をスキップ
-    assert_respond_to AuthService, :send_verification_code
+    # 認証コード送信の基本動作をテスト
+    result = AuthService.send_verification_code(@employee_id)
+    assert_not_nil result
+    assert result.is_a?(Hash)
+    assert result.key?(:success)
   end
 
   test "認証コード検証" do
-    # テスト環境では実際の認証コード検証処理をスキップ
-    assert_respond_to AuthService, :verify_code
+    # 認証コード検証の基本動作をテスト
+    result = AuthService.verify_code(@employee_id, "123456")
+    assert_not_nil result
+    assert result.is_a?(Hash)
+    assert result.key?(:success)
   end
 
   test "認証付き初回パスワード設定" do
-    # テスト環境では実際の認証付きパスワード設定処理をスキップ
-    assert_respond_to AuthService, :set_initial_password_with_verification
+    # 認証付き初回パスワード設定の基本動作をテスト
+    result = AuthService.set_initial_password_with_verification(@employee_id, @password, "123456")
+    assert_not_nil result
+    assert result.is_a?(Hash)
+    assert result.key?(:success)
   end
 
   test "パスワードリセット用認証コード送信" do
-    # テスト環境では実際のパスワードリセット用認証コード送信処理をスキップ
-    assert_respond_to AuthService, :send_password_reset_code
+    # パスワードリセット用認証コード送信の基本動作をテスト
+    result = AuthService.send_password_reset_code(@employee_id)
+    assert_not_nil result
+    assert result.is_a?(Hash)
+    assert result.key?(:success)
   end
 
   test "パスワードリセット用認証コード検証" do
-    # テスト環境では実際のパスワードリセット用認証コード検証処理をスキップ
-    assert_respond_to AuthService, :verify_password_reset_code
+    # パスワードリセット用認証コード検証の基本動作をテスト
+    result = AuthService.verify_password_reset_code(@employee_id, "123456")
+    assert_not_nil result
+    assert result.is_a?(Hash)
+    assert result.key?(:success)
   end
 
   test "認証コード付きパスワード再設定" do
-    # テスト環境では実際の認証コード付きパスワード再設定処理をスキップ
-    assert_respond_to AuthService, :reset_password_with_verification
+    # 認証コード付きパスワード再設定の基本動作をテスト
+    result = AuthService.reset_password_with_verification(@employee_id, "new_password", "123456")
+    assert_not_nil result
+    assert result.is_a?(Hash)
+    assert result.key?(:success)
   end
 
   test "オーナー権限チェック" do
-    # テスト環境では実際のオーナー権限チェック処理をスキップ
-    assert_respond_to AuthService, :is_owner?
+    # オーナー権限チェックの基本動作をテスト
+    result = AuthService.is_owner?(@employee_id)
+    assert_not_nil result
+    assert result.is_a?(TrueClass) || result.is_a?(FalseClass)
   end
 
   test "freeeAPIの従業員情報から役割を判定" do
-    # テスト環境では実際の役割判定処理をスキップ
-    assert_respond_to AuthService, :determine_role_from_freee
+    # freeeAPIの従業員情報から役割を判定の基本動作をテスト
+    employee_info = { "id" => 3313254, "display_name" => "テスト従業員" }
+    result = AuthService.determine_role_from_freee(employee_info)
+    assert_not_nil result
+    assert result.is_a?(String)
+    assert_includes ["owner", "employee"], result
   end
 
   test "freee APIから従業員情報を取得" do
-    # テスト環境では実際の従業員情報取得処理をスキップ
-    assert_respond_to AuthService, :get_employee_info_from_freee
+    # freee APIから従業員情報を取得の基本動作をテスト
+    result = AuthService.get_employee_info_from_freee(@employee_id)
+    assert_not_nil result
+    assert result.is_a?(Hash)
   end
 
   # ===== アクセス制御機能テスト =====
 
   test "メールアドレスが許可されているかチェック" do
-    # テスト環境では実際のメールアドレスチェック処理をスキップ
-    assert_respond_to AuthService, :allowed_email?
+    # メールアドレスが許可されているかチェックの基本動作をテスト
+    result = AuthService.allowed_email?(@email)
+    assert_not_nil result
+    assert result.is_a?(TrueClass) || result.is_a?(FalseClass)
   end
 
   test "認証コードを生成・送信（アクセス制御用）" do
-    # テスト環境では実際の認証コード生成・送信処理をスキップ
-    assert_respond_to AuthService, :send_access_control_verification_code
+    # 認証コードを生成・送信（アクセス制御用）の基本動作をテスト
+    result = AuthService.send_access_control_verification_code(@email)
+    assert_not_nil result
+    assert result.is_a?(Hash)
+    assert result.key?(:success)
   end
 
   test "認証コードを検証（アクセス制御用）" do
-    # テスト環境では実際の認証コード検証処理をスキップ
-    assert_respond_to AuthService, :verify_access_control_code
+    # 認証コードを検証（アクセス制御用）の基本動作をテスト
+    result = AuthService.verify_access_control_code(@email, "123456")
+    assert_not_nil result
+    assert result.is_a?(Hash)
+    assert result.key?(:success)
   end
 
   test "特定の許可メールアドレス一覧を取得" do
-    # テスト環境では実際の許可メールアドレス一覧取得処理をスキップ
-    assert_respond_to AuthService, :specific_allowed_emails
+    # 特定の許可メールアドレス一覧を取得の基本動作をテスト
+    result = AuthService.specific_allowed_emails
+    assert_not_nil result
+    assert result.is_a?(Array)
   end
 
   test "メールアドレスの形式をチェック" do
-    # テスト環境では実際のメールアドレス形式チェック処理をスキップ
-    assert_respond_to AuthService, :valid_email_format?
+    # メールアドレスの形式をチェックの基本動作をテスト
+    result = AuthService.valid_email_format?(@email)
+    assert_not_nil result
+    assert result.is_a?(TrueClass) || result.is_a?(FalseClass)
   end
 end

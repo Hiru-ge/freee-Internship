@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "ostruct"
 
 class ShiftDisplayServiceTest < ActiveSupport::TestCase
   def setup
@@ -78,9 +79,8 @@ class ShiftDisplayServiceTest < ActiveSupport::TestCase
   test "シフト交代承認時のシフト処理" do
     # テスト用のシフトオブジェクトを作成
     shift_to_approve = create_test_shift(@employee_id, @shift_date, @start_time, @end_time)
-    approver_id = "approver_employee_id"
 
-    # 実際のデータベース操作を避けるため、メソッドの存在確認のみ
+    # メソッドの存在確認のみ（複雑なデータベース操作を避ける）
     assert_respond_to ShiftDisplayService, :process_shift_exchange_approval
   end
 
@@ -92,7 +92,7 @@ class ShiftDisplayServiceTest < ActiveSupport::TestCase
       requester_id: @employee_id
     }
 
-    # 実際のデータベース操作を避けるため、メソッドの存在確認のみ
+    # メソッドの存在確認のみ（複雑なデータベース操作を避ける）
     assert_respond_to ShiftDisplayService, :process_shift_addition_approval
   end
 
@@ -103,7 +103,7 @@ class ShiftDisplayServiceTest < ActiveSupport::TestCase
       end_time: @end_time
     }
 
-    # 実際のデータベース操作を避けるため、メソッドの存在確認のみ
+    # メソッドの存在確認のみ（複雑なデータベース操作を避ける）
     assert_respond_to ShiftDisplayService, :process_shift_approval
   end
 
