@@ -3,8 +3,9 @@
 require "test_helper"
 
 class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
-  # シフト交代リクエスト画面の表示テスト（ログイン済み）
-  test "should get new shift exchange request when logged in" do
+  # ===== 正常系テスト =====
+
+  test "ログイン済みでのシフト交代リクエスト画面の表示" do
     post login_url, params: {
       employee_id: "3316120",
       password: "password123"
@@ -16,20 +17,12 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
     assert_select "form[action=?]", shift_exchanges_path
   end
 
-  # シフト交代リクエスト画面の表示テスト（未ログイン）
-  test "should redirect to login when not logged in" do
-    get new_shift_exchange_url
-    assert_redirected_to login_url
-  end
-
-  # シフト交代リクエストの作成テスト
-  test "should create shift exchange request" do
+  test "シフト交代リクエストの作成" do
     post login_url, params: {
       employee_id: "3316120",
       password: "password123"
     }
 
-    # テスト用のEmployeeレコードを作成（存在しない場合のみ）
     Employee.find_or_create_by(employee_id: "3316120") do |emp|
       emp.password_hash = BCrypt::Password.create("password123")
       emp.role = "employee"
@@ -40,15 +33,12 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
       emp.role = "employee"
     end
 
-    # テスト用のシフトデータを作成（申請者のシフト）
     Shift.create!(
       employee_id: "3316120",
       shift_date: Date.current,
       start_time: Time.zone.parse("09:00"),
       end_time: Time.zone.parse("18:00")
     )
-
-    # 承認者のシフトは作成しない（利用可能にするため）
 
     assert_difference("ShiftExchange.count", 1) do
       post shift_exchanges_url, params: {
@@ -64,8 +54,14 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "リクエストを送信しました。承認をお待ちください。", flash[:notice]
   end
 
-  # シフト交代リクエストの作成テスト（パラメータ不足）
-  test "should not create shift exchange request with missing parameters" do
+  # ===== 異常系テスト =====
+
+  test "未ログイン時のログインページへのリダイレクト" do
+    get new_shift_exchange_url
+    assert_redirected_to login_url
+  end
+
+  test "パラメータ不足でのシフト交代リクエスト作成失敗" do
     post login_url, params: {
       employee_id: "3316120",
       password: "password123"

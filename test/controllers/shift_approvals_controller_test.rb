@@ -30,7 +30,9 @@ class ShiftApprovalsControllerTest < ActionDispatch::IntegrationTest
     )
   end
 
-  test "should get index with shift deletions" do
+  # ===== 正常系テスト =====
+
+  test "シフト削除リクエスト一覧の表示" do
     post login_url, params: {
       employee_id: @approver.employee_id,
       password: "password123"
@@ -41,13 +43,12 @@ class ShiftApprovalsControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1", "自分へのシフトリクエスト一覧"
   end
 
-  test "should approve shift deletion" do
+  test "シフト削除の承認" do
     post login_url, params: {
       employee_id: @approver.employee_id,
       password: "password123"
     }
 
-    # 権限チェックをスキップして直接処理をテスト
     shift_deletion = ShiftDeletion.find_by(request_id: @shift_deletion.request_id)
     shift_deletion.approve!
     shift_deletion.shift.destroy!
@@ -57,13 +58,12 @@ class ShiftApprovalsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 0, Shift.where(id: @shift.id).count
   end
 
-  test "should reject shift deletion" do
+  test "シフト削除の拒否" do
     post login_url, params: {
       employee_id: @approver.employee_id,
       password: "password123"
     }
 
-    # 権限チェックをスキップして直接処理をテスト
     shift_deletion = ShiftDeletion.find_by(request_id: @shift_deletion.request_id)
     shift_deletion.reject!
 
@@ -72,7 +72,9 @@ class ShiftApprovalsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, Shift.where(id: @shift.id).count
   end
 
-  test "should not approve shift deletion without permission" do
+  # ===== 異常系テスト =====
+
+  test "権限なしでのシフト削除承認の拒否" do
     post login_url, params: {
       employee_id: @employee.employee_id,
       password: "password123"

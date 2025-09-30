@@ -9,72 +9,40 @@ class LineBotServiceTest < ActiveSupport::TestCase
     @test_group_id = "G1234567890abcdef"
   end
 
-  # ===== 単体テスト: LineBotServiceの基本機能 =====
+  # ===== 正常系テスト =====
 
-  test "should initialize LineBotService" do
+  test "LineBotServiceの初期化" do
     assert_not_nil @line_bot_service
   end
 
-  test "should handle help command" do
+  test "ヘルプコマンドの処理" do
     event = mock_line_event(source_type: "user", user_id: @test_user_id, message_text: "ヘルプ")
     response = @line_bot_service.handle_message(event)
     assert_not_nil response
     assert_includes response, "利用可能なコマンド"
   end
 
-  test "should handle unknown command" do
-    event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    event["message"]["text"] = "unknown_command"
-    response = @line_bot_service.handle_message(event)
-    assert_not_nil response, "未知のコマンドにはエラーメッセージが返されるべき"
-    assert_includes response, "コマンドは認識できませんでした"
-  end
-
-  test "should ignore non-command messages in group chat" do
-    event = mock_line_event(source_type: "group", group_id: @test_group_id, user_id: @test_user_id, message_text: "おはようございます")
-    response = @line_bot_service.handle_message(event)
-    # グループチャットでのレスポンスを確認
-    assert response.nil? || response.is_a?(String) || response.is_a?(Hash)
-  end
-
-  test "should return error message for non-command in individual chat" do
-    event = mock_line_event(source_type: "user", user_id: @test_user_id, message_text: "こんにちは")
-    response = @line_bot_service.handle_message(event)
-    assert_not_nil response, "個人チャットでコマンド以外のメッセージにはエラーメッセージが返されるべき"
-    assert_includes response, "コマンドは認識できませんでした"
-  end
-
-  test "should handle valid command in personal chat" do
+  test "個人チャットでの有効なコマンド処理" do
     event = mock_line_event(source_type: "user", user_id: @test_user_id, message_text: "ヘルプ")
     response = @line_bot_service.handle_message(event)
     assert_not_nil response
     assert_includes response, "利用可能なコマンド"
   end
 
-  test "should handle valid command in group chat" do
+  test "グループチャットでの有効なコマンド処理" do
     event = mock_line_event(source_type: "group", user_id: @test_user_id, group_id: "test_group_123", message_text: "ヘルプ")
     response = @line_bot_service.handle_message(event)
     assert_not_nil response
     assert_includes response, "利用可能なコマンド"
   end
 
-  test "should handle group_message? method correctly" do
-    personal_event = mock_line_event(source_type: "user", user_id: @test_user_id)
-    assert_not @line_bot_service.send(:group_message?, personal_event), "個人チャットはgroup_message?でfalseが返されるべき"
-    group_event = mock_line_event(source_type: "group", user_id: @test_user_id, group_id: "test_group_123")
-    # group_message?メソッドの実装に応じてテストを調整
-    result = @line_bot_service.send(:group_message?, group_event)
-    assert result.is_a?(TrueClass) || result.is_a?(FalseClass), "group_message?はbooleanを返すべき"
-  end
-
-  test "should return flex message for request check command" do
+  test "依頼確認コマンドでFlexメッセージを返す" do
     employee = Employee.create!(employee_id: "test_employee_123", role: "employee", line_id: @test_user_id)
     other_employee = Employee.create!(employee_id: "other_employee_123", role: "employee")
     shift = Shift.create!(employee: employee, shift_date: Date.current + 1, start_time: "09:00", end_time: "18:00")
     shift_exchange = ShiftExchange.create!(request_id: "exchange_123", requester_id: other_employee.employee_id, approver_id: employee.employee_id, shift: shift, status: "pending")
     event = mock_line_event(source_type: "user", user_id: @test_user_id, message_text: "依頼確認")
     response = @line_bot_service.handle_message(event)
-    # レスポンスの形式を確認
     assert response.is_a?(Hash) || response.is_a?(String)
     shift_exchange.destroy
     shift.destroy
@@ -82,19 +50,48 @@ class LineBotServiceTest < ActiveSupport::TestCase
     other_employee.destroy
   end
 
-  test "should return no pending requests message when no requests exist" do
+  test "依頼がない場合のメッセージ表示" do
     employee = Employee.create!(employee_id: "test_employee_456", role: "employee", line_id: @test_user_id)
     event = mock_line_event(source_type: "user", user_id: @test_user_id, message_text: "依頼確認")
     response = @line_bot_service.handle_message(event)
-    # レスポンスの形式を確認
     assert response.is_a?(Hash) || response.is_a?(String)
     employee.destroy
   end
 
-  test "should return authentication required message for unauthenticated user" do
+  test "group_message?メソッドの動作確認" do
+    personal_event = mock_line_event(source_type: "user", user_id: @test_user_id)
+    assert_not @line_bot_service.send(:group_message?, personal_event)
+    group_event = mock_line_event(source_type: "group", user_id: @test_user_id, group_id: "test_group_123")
+    result = @line_bot_service.send(:group_message?, group_event)
+    assert result.is_a?(TrueClass) || result.is_a?(FalseClass)
+  end
+
+  # ===== 異常系テスト =====
+
+  test "未知のコマンドの処理" do
+    event = mock_line_event(source_type: "user", user_id: @test_user_id)
+    event["message"]["text"] = "unknown_command"
+    response = @line_bot_service.handle_message(event)
+    assert_not_nil response
+    assert_includes response, "コマンドは認識できませんでした"
+  end
+
+  test "グループチャットでの非コマンドメッセージの無視" do
+    event = mock_line_event(source_type: "group", group_id: @test_group_id, user_id: @test_user_id, message_text: "おはようございます")
+    response = @line_bot_service.handle_message(event)
+    assert response.nil? || response.is_a?(String) || response.is_a?(Hash)
+  end
+
+  test "個人チャットでの非コマンドメッセージのエラー表示" do
+    event = mock_line_event(source_type: "user", user_id: @test_user_id, message_text: "こんにちは")
+    response = @line_bot_service.handle_message(event)
+    assert_not_nil response
+    assert_includes response, "コマンドは認識できませんでした"
+  end
+
+  test "未認証ユーザーの認証要求メッセージ" do
     event = mock_line_event(source_type: "user", user_id: @test_user_id, message_text: "依頼確認")
     response = @line_bot_service.handle_message(event)
-    # 認証が必要な場合のレスポンスを確認
     assert response.is_a?(String) || response.is_a?(Hash)
   end
 

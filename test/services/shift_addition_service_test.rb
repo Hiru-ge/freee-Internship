@@ -23,9 +23,62 @@ class ShiftAdditionServiceTest < ActiveSupport::TestCase
     Employee.where(employee_id: ["test_employee_1", "test_employee_2"]).destroy_all
   end
 
-  # ===== ShiftAdditionService テスト =====
+  # ===== 正常系テスト =====
 
-  test "should reject shift addition request for past date" do
+  test "シフト追加依頼の作成" do
+    future_date = Date.current + 1.day
+    params = {
+      requester_id: @employee1.employee_id,
+      shift_date: future_date.strftime("%Y-%m-%d"),
+      start_time: "09:00",
+      end_time: "18:00",
+      target_employee_ids: [@employee2.employee_id]
+    }
+
+    result = @service.create_addition_request(params)
+
+    assert result[:success]
+    assert_includes result[:message], "シフト追加リクエストを送信しました"
+    assert ShiftAddition.exists?(requester_id: @employee1.employee_id)
+  end
+
+  test "シフト追加依頼の承認" do
+    future_date = Date.current + 1.day
+    addition_request = ShiftAddition.create!(
+      request_id: "ADDITION_001",
+      requester_id: @employee1.employee_id,
+      target_employee_id: @employee2.employee_id,
+      shift_date: future_date,
+      start_time: Time.zone.parse("09:00"),
+      end_time: Time.zone.parse("18:00"),
+      status: "pending"
+    )
+
+    addition_request.update!(status: "approved")
+    addition_request.reload
+    assert_equal "approved", addition_request.status
+  end
+
+  test "シフト追加依頼の拒否" do
+    future_date = Date.current + 1.day
+    addition_request = ShiftAddition.create!(
+      request_id: "ADDITION_001",
+      requester_id: @employee1.employee_id,
+      target_employee_id: @employee2.employee_id,
+      shift_date: future_date,
+      start_time: Time.zone.parse("09:00"),
+      end_time: Time.zone.parse("18:00"),
+      status: "pending"
+    )
+
+    addition_request.update!(status: "rejected")
+    addition_request.reload
+    assert_equal "rejected", addition_request.status
+  end
+
+  # ===== 異常系テスト =====
+
+  test "過去の日付のシフト追加依頼の拒否" do
     past_date = Date.current - 1.day
     params = {
       requester_id: @employee1.employee_id,
@@ -41,9 +94,8 @@ class ShiftAdditionServiceTest < ActiveSupport::TestCase
     assert_includes result[:message], "過去の日付のシフト追加依頼はできません"
   end
 
-  test "should reject duplicate shift addition request" do
+  test "重複したシフト追加依頼の処理" do
     future_date = Date.current + 1.day
-    # 既存のpendingリクエストを作成
     ShiftAddition.create!(
       request_id: "ADDITION_001",
       requester_id: @employee1.employee_id,
@@ -66,66 +118,5 @@ class ShiftAdditionServiceTest < ActiveSupport::TestCase
 
     assert result[:success]
     assert_includes result[:message], "シフト追加リクエストを送信しました"
-  end
-
-  test "should create shift addition request successfully" do
-    future_date = Date.current + 1.day
-    params = {
-      requester_id: @employee1.employee_id,
-      shift_date: future_date.strftime("%Y-%m-%d"),
-      start_time: "09:00",
-      end_time: "18:00",
-      target_employee_ids: [@employee2.employee_id]
-    }
-
-    result = @service.create_addition_request(params)
-
-    assert result[:success]
-    assert_includes result[:message], "シフト追加リクエストを送信しました"
-
-    # リクエストが作成されていることを確認
-    assert ShiftAddition.exists?(requester_id: @employee1.employee_id), "シフト追加依頼が作成されていません"
-  end
-
-  test "should approve shift addition request successfully" do
-    future_date = Date.current + 1.day
-    # シフト追加依頼を作成
-    addition_request = ShiftAddition.create!(
-      request_id: "ADDITION_001",
-      requester_id: @employee1.employee_id,
-      target_employee_id: @employee2.employee_id,
-      shift_date: future_date,
-      start_time: Time.zone.parse("09:00"),
-      end_time: Time.zone.parse("18:00"),
-      status: "pending"
-    )
-
-    # 承認処理を直接実行
-    addition_request.update!(status: "approved")
-
-    # リクエストのステータスが更新されていることを確認
-    addition_request.reload
-    assert_equal "approved", addition_request.status
-  end
-
-  test "should reject shift addition request successfully" do
-    future_date = Date.current + 1.day
-    # シフト追加依頼を作成
-    addition_request = ShiftAddition.create!(
-      request_id: "ADDITION_001",
-      requester_id: @employee1.employee_id,
-      target_employee_id: @employee2.employee_id,
-      shift_date: future_date,
-      start_time: Time.zone.parse("09:00"),
-      end_time: Time.zone.parse("18:00"),
-      status: "pending"
-    )
-
-    # 拒否処理を直接実行
-    addition_request.update!(status: "rejected")
-
-    # リクエストのステータスが更新されていることを確認
-    addition_request.reload
-    assert_equal "rejected", addition_request.status
   end
 end

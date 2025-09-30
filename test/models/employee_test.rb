@@ -11,30 +11,35 @@ class EmployeeTest < ActiveSupport::TestCase
     )
   end
 
-  test "should have line_id attribute" do
-    # line_idカラムが存在することを確認
+  # ===== 正常系テスト =====
+
+  test "line_id属性の存在確認" do
     assert @employee.respond_to?(:line_id)
     assert @employee.respond_to?(:line_id=)
 
-    # line_idを設定してEmployeeを作成
     @employee.line_id = "line_user_123"
     assert_equal "line_user_123", @employee.line_id
     assert @employee.valid?
 
-    # line_idがnilの場合も正常に動作することを確認
     @employee.line_id = nil
     assert_nil @employee.line_id
     assert @employee.valid?
   end
 
-  test "should allow nil line_id" do
-    # line_idはNULL許可
+  test "nilのline_idの許可" do
     @employee.line_id = nil
     assert @employee.valid?
   end
 
-  test "should validate line_id uniqueness" do
-    # line_idのユニーク制約テスト
+  test "LINEアカウントとの紐付け" do
+    line_id = "U1234567890abcdef"
+    @employee.line_id = line_id
+    assert_equal line_id, @employee.line_id
+  end
+
+  # ===== 異常系テスト =====
+
+  test "line_idのユニーク制約" do
     line_id = "U1234567890abcdef"
     @employee.line_id = line_id
     @employee.save!
@@ -46,16 +51,6 @@ class EmployeeTest < ActiveSupport::TestCase
       line_id: line_id
     )
 
-    # 同じline_idは使用できない
     assert_not duplicate_employee.valid?
-  end
-
-  test "should link to line account" do
-    # LINEアカウントとの紐付けテスト
-    line_id = "U1234567890abcdef"
-    @employee.line_id = line_id
-
-    # まだline_idカラムがないため、このテストは失敗する
-    assert_equal line_id, @employee.line_id
   end
 end

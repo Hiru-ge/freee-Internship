@@ -22,7 +22,7 @@ class ShiftDisplayServiceTest < ActiveSupport::TestCase
     )
   end
 
-  # ===== シフト表示機能テスト =====
+  # ===== 正常系テスト =====
 
   test "月次シフトデータの取得" do
     year = Date.current.year
@@ -213,8 +213,7 @@ class ShiftDisplayServiceTest < ActiveSupport::TestCase
 
   # ===== シフト表示・重複・マージテスト（shift_services_test.rbから統合） =====
 
-  test "should display shift information correctly" do
-    # テスト用のシフトを作成
+  test "シフト情報の正確な表示" do
     shift_date = Date.current
     shift = Shift.create!(
       employee_id: @employee1.employee_id,
@@ -223,24 +222,20 @@ class ShiftDisplayServiceTest < ActiveSupport::TestCase
       end_time: Time.zone.parse("18:00")
     )
 
-    # シフト情報を取得
     shifts = Shift.where(employee_id: @employee1.employee_id, shift_date: shift_date)
     assert_equal 1, shifts.count
     assert_equal shift.id, shifts.first.id
 
-    # クリーンアップ
     shift.destroy
   end
 
-  test "should handle empty shift information" do
-    # シフト情報を取得
+  test "空のシフト情報の処理" do
     shift_date = Date.current
     shifts = Shift.where(employee_id: @employee1.employee_id, shift_date: shift_date)
     assert_equal 0, shifts.count
   end
 
-  test "should detect overlapping shifts" do
-    # 重複するシフトを作成
+  test "重複シフトの検出" do
     shift_date = Date.current
     shift1 = Shift.create!(
       employee_id: @employee1.employee_id,
@@ -256,7 +251,6 @@ class ShiftDisplayServiceTest < ActiveSupport::TestCase
       end_time: Time.zone.parse("15:00")
     )
 
-    # 重複チェック（手動実装）
     overlapping_shifts = []
     shifts = Shift.where(employee_id: @employee1.employee_id, shift_date: shift_date)
 
@@ -273,13 +267,11 @@ class ShiftDisplayServiceTest < ActiveSupport::TestCase
     assert_includes overlapping_shifts.first, shift1.id
     assert_includes overlapping_shifts.first, shift2.id
 
-    # クリーンアップ
     shift1.destroy
     shift2.destroy
   end
 
-  test "should not detect overlaps for non-overlapping shifts" do
-    # 重複しないシフトを作成
+  test "非重複シフトの非検出" do
     shift_date = Date.current
     shift1 = Shift.create!(
       employee_id: @employee1.employee_id,
@@ -295,7 +287,6 @@ class ShiftDisplayServiceTest < ActiveSupport::TestCase
       end_time: Time.zone.parse("15:00")
     )
 
-    # 重複チェック（手動実装）
     overlapping_shifts = []
     shifts = Shift.where(employee_id: @employee1.employee_id, shift_date: shift_date)
 
@@ -310,13 +301,11 @@ class ShiftDisplayServiceTest < ActiveSupport::TestCase
 
     assert_equal 0, overlapping_shifts.length
 
-    # クリーンアップ
     shift1.destroy
     shift2.destroy
   end
 
-  test "should merge overlapping shifts correctly" do
-    # 重複するシフトを作成
+  test "重複シフトの正確なマージ" do
     shift_date = Date.current
     shift1 = Shift.create!(
       employee_id: @employee1.employee_id,
@@ -332,8 +321,6 @@ class ShiftDisplayServiceTest < ActiveSupport::TestCase
       end_time: Time.zone.parse("15:00")
     )
 
-    # シフトマージ処理（手動実装）
-    # 重複するシフトをマージして1つのシフトにする
     merged_shift = Shift.create!(
       employee_id: @employee1.employee_id,
       shift_date: shift_date,
@@ -341,20 +328,16 @@ class ShiftDisplayServiceTest < ActiveSupport::TestCase
       end_time: [shift1.end_time, shift2.end_time].max
     )
 
-    # 元のシフトを削除
     shift1.destroy
     shift2.destroy
 
-    # マージされたシフトが正しく作成されていることを確認
     assert_equal "09:00", merged_shift.start_time.strftime("%H:%M")
     assert_equal "15:00", merged_shift.end_time.strftime("%H:%M")
 
-    # クリーンアップ
     merged_shift.destroy
   end
 
-  test "should handle large number of shifts efficiently" do
-    # 大量のシフトを作成
+  test "大量シフトの効率的な処理" do
     shifts = []
     shift_date = Date.current
     100.times do |i|
@@ -366,32 +349,26 @@ class ShiftDisplayServiceTest < ActiveSupport::TestCase
       )
     end
 
-    # 大量のシフトを効率的に取得できることを確認
     start_time = Time.current
     retrieved_shifts = Shift.where(employee_id: @employee1.employee_id)
     end_time = Time.current
 
-    # パフォーマンステスト（1秒以内で処理されることを確認）
     processing_time = end_time - start_time
     assert processing_time < 1.0, "大量のシフト取得が1秒以内で完了するべき: #{processing_time}秒"
     assert_equal 100, retrieved_shifts.count
 
-    # クリーンアップ
     shifts.each(&:destroy)
   end
 
-  test "shifts_controller_data_should_not_have_n_plus_1_queries" do
-    # テスト用の従業員データを作成
+  test "N+1クエリ問題の回避" do
     employee_ids = %w[1001 1002 1003 1004 1005]
     month = Date.current.month
     year = Date.current.year
 
-    # テスト用の従業員データを作成
     employees = employee_ids.map do |id|
       Employee.create!(employee_id: id, role: "employee", line_id: "test_#{id}")
     end
 
-    # テスト用のシフトデータを作成
     employees.each do |employee|
       (1..5).each do |day|
         Shift.create!(
@@ -403,48 +380,39 @@ class ShiftDisplayServiceTest < ActiveSupport::TestCase
       end
     end
 
-    # 期待値: 従業員数に関係なく、クエリ数が一定であること
-    expected_query_count = 15 # 従業員取得 + シフト取得 + その他のクエリ
+    expected_query_count = 15
 
-    # クエリ数をカウント
     query_count = 0
     ActiveSupport::Notifications.subscribe("sql.active_record") do |*_args|
       query_count += 1
     end
 
-    # ShiftsController#dataの処理をシミュレート
     controller = ShiftsController.new
     controller.instance_variable_set(:@employee_ids, employee_ids)
 
-    # 最適化前の処理（N+1問題あり）
     shifts_in_db = Shift.for_month(year, month)
     employee_ids.each do |employee_id|
       employee_shift_records = shifts_in_db.where(employee_id: employee_id)
       employee_shift_records.each(&:employee_id)
     end
 
-    # クエリ数が期待値を超えないことを確認
     assert query_count <= expected_query_count, "N+1問題が発生しています。クエリ数: #{query_count}, 期待値: #{expected_query_count}"
 
-    # クリーンアップ（外部キー制約の順序を考慮）
     ShiftExchange.destroy_all
     ShiftAddition.destroy_all
     Shift.destroy_all
     Employee.destroy_all
   end
 
-  test "should_optimize_shift_queries_with_includes" do
-    # テスト用の従業員データを作成
+  test "includesを使用したクエリ最適化" do
     employee_ids = %w[1001 1002 1003]
     month = Date.current.month
     year = Date.current.year
 
-    # テスト用の従業員データを作成
     employees = employee_ids.map do |id|
       Employee.create!(employee_id: id, role: "employee", line_id: "test_#{id}")
     end
 
-    # テスト用のシフトデータを作成
     employees.each do |employee|
       (1..3).each do |day|
         Shift.create!(
@@ -456,41 +424,34 @@ class ShiftDisplayServiceTest < ActiveSupport::TestCase
       end
     end
 
-    # 最適化されたクエリ（includesを使用）
     query_count = 0
     ActiveSupport::Notifications.subscribe("sql.active_record") do |*_args|
       query_count += 1
     end
 
-    # 最適化された処理
     shifts_with_employees = Shift.for_month(year, month).includes(:employee)
     employee_ids.each do |employee_id|
       employee_shift_records = shifts_with_employees.where(employee_id: employee_id)
       employee_shift_records.each(&:employee_id)
     end
 
-    # クエリ数が最適化されていることを確認
     assert query_count <= 8, "クエリが最適化されていません。クエリ数: #{query_count}"
 
-    # クリーンアップ（外部キー制約の順序を考慮）
     ShiftExchange.destroy_all
     ShiftAddition.destroy_all
     Shift.destroy_all
     Employee.destroy_all
   end
 
-  test "should_cache_employee_data_to_reduce_queries" do
-    # テスト用の従業員データを作成
+  test "従業員データキャッシュによるクエリ削減" do
     employee_ids = %w[1001 1002 1003]
     month = Date.current.month
     year = Date.current.year
 
-    # テスト用の従業員データを作成
     employees = employee_ids.map do |id|
       Employee.create!(employee_id: id, role: "employee", line_id: "test_#{id}")
     end
 
-    # テスト用のシフトデータを作成
     employees.each do |employee|
       (1..3).each do |day|
         Shift.create!(
@@ -502,30 +463,24 @@ class ShiftDisplayServiceTest < ActiveSupport::TestCase
       end
     end
 
-    # キャッシュを使用した処理
     query_count = 0
     ActiveSupport::Notifications.subscribe("sql.active_record") do |*_args|
       query_count += 1
     end
 
-    # 従業員データをキャッシュ
     employee_cache = Employee.where(employee_id: employee_ids).index_by(&:employee_id)
 
-    # シフトデータを取得
     shifts_in_db = Shift.for_month(year, month)
     employee_ids.each do |employee_id|
       employee_shift_records = shifts_in_db.where(employee_id: employee_id)
       employee_shift_records.each do |shift_record|
-        # キャッシュから従業員データを取得（クエリなし）
         employee = employee_cache[shift_record.employee_id]
         assert_not_nil employee
       end
     end
 
-    # クエリ数が最小限であることを確認
     assert query_count <= 5, "キャッシュが効果的に機能していません。クエリ数: #{query_count}"
 
-    # クリーンアップ（外部キー制約の順序を考慮）
     ShiftExchange.destroy_all
     ShiftAddition.destroy_all
     Shift.destroy_all

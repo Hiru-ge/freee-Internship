@@ -18,8 +18,9 @@ class WebhookControllerTest < ActionDispatch::IntegrationTest
     ENV.delete("LINE_CHANNEL_TOKEN")
   end
 
-  test "should receive webhook callback" do
-    # 基本的なWebhook受信テスト
+  # ===== 正常系テスト =====
+
+  test "Webhookコールバックの受信" do
     post webhook_callback_path,
          params: webhook_payload,
          headers: webhook_headers
@@ -27,8 +28,7 @@ class WebhookControllerTest < ActionDispatch::IntegrationTest
     assert_response :ok
   end
 
-  test "should handle text message events" do
-    # テキストメッセージイベントの処理テスト
+  test "テキストメッセージイベントの処理" do
     post webhook_callback_path,
          params: text_message_payload,
          headers: webhook_headers
@@ -36,8 +36,7 @@ class WebhookControllerTest < ActionDispatch::IntegrationTest
     assert_response :ok
   end
 
-  test "should identify group vs individual messages" do
-    # グループと個人メッセージの識別テスト
+  test "グループと個人メッセージの識別" do
     post webhook_callback_path,
          params: group_message_payload,
          headers: webhook_headers

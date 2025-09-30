@@ -16,7 +16,9 @@ class ShiftDeletionsControllerTest < ActionDispatch::IntegrationTest
     )
   end
 
-  test "should get new when logged in" do
+  # ===== 正常系テスト =====
+
+  test "ログイン時のシフト削除申請画面表示" do
     post login_url, params: {
       employee_id: @employee.employee_id,
       password: "password123"
@@ -27,7 +29,7 @@ class ShiftDeletionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "form"
   end
 
-  test "should create shift deletion with valid parameters" do
+  test "有効なパラメータでのシフト削除申請作成" do
     post login_url, params: {
       employee_id: @employee.employee_id,
       password: "password123"
@@ -46,7 +48,9 @@ class ShiftDeletionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "欠勤申請を送信しました。承認をお待ちください。", flash[:success]
   end
 
-  test "should not create shift deletion with invalid parameters" do
+  # ===== 異常系テスト =====
+
+  test "無効なパラメータでのシフト削除申請作成失敗" do
     post login_url, params: {
       employee_id: @employee.employee_id,
       password: "password123"
@@ -64,7 +68,7 @@ class ShiftDeletionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_content
   end
 
-  test "should redirect to login when not authenticated" do
+  test "未認証時のログインページリダイレクト" do
     get new_shift_deletion_path, params: { shift_id: @shift.id }
     assert_redirected_to login_url
   end

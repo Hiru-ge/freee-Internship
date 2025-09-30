@@ -39,36 +39,11 @@ class SecurityTest < ActionDispatch::IntegrationTest
     }
   end
 
-  # ===== 認証・認可テスト =====
+  # ===== 正常系テスト =====
 
-  # 認証が必要なアクションのテスト
-  test "should require authentication for protected actions" do
-    # ログインせずに保護されたアクションにアクセス
-    get "/dashboard"
-    assert_response :redirect
-  end
-
-  # ===== GitHub Actions API認証テスト =====
-
-  test "should require API key for clock reminder endpoint" do
-    # APIキーなしでアクセス
-    post "/clock_reminder/trigger"
-    assert_response :unauthorized
-    assert_includes response.body, "API key required"
-  end
-
-  test "should reject invalid API key for clock reminder endpoint" do
-    # 無効なAPIキーでアクセス
-    post "/clock_reminder/trigger", headers: { "X-API-Key" => "invalid_key" }
-    assert_response :unauthorized
-    assert_includes response.body, "Invalid API key"
-  end
-
-  test "should accept valid API key for clock reminder endpoint" do
-    # 有効なAPIキーでアクセス
+  test "有効なAPIキーでのクロックリマインダーエンドポイントアクセス" do
     ENV["CLOCK_REMINDER_API_KEY"] = "test_api_key_123"
 
-    # ClockServiceをモック
     ClockService.define_singleton_method(:check_forgotten_clock_ins) { }
     ClockService.define_singleton_method(:check_forgotten_clock_outs) { }
 
@@ -79,67 +54,120 @@ class SecurityTest < ActionDispatch::IntegrationTest
     ENV.delete("CLOCK_REMINDER_API_KEY")
   end
 
-  test "should require authentication for shift exchanges" do
-    # ログインせずにシフト交代リクエストにアクセス
+  test "有効なCSRFトークンでのPOSTリクエスト成功" do
+    get "/auth/login"
+    csrf_token = session[:_csrf_token]
+    post "/auth/login", params: { employee_id: @employee.employee_id, password: "password123" },
+                        headers: { "X-CSRF-Token" => csrf_token }
+    follow_redirect!
+    assert_response :success
+
+    get "/dashboard"
+    csrf_token = session[:_csrf_token]
+
+    post "/dashboard/clock_in", params: {}, headers: { "X-CSRF-Token" => csrf_token }
+    assert_response :success
+  end
+
+  test "CSRFトークンなしのGETリクエストの正常処理" do
+    get "/auth/login"
+    assert_response :success
+  end
+
+  test "有効な認証情報でのログイン成功" do
+    post "/auth/login", params: {
+      employee_id: @employee.employee_id,
+      password: "password123"
+    }
+    assert_response :success
+  end
+
+  test "ログアウトの成功" do
+    post "/auth/logout"
+    assert_response :success
+  end
+
+  test "初回パスワード設定ページの表示" do
+    get "/auth/initial_password"
+    assert_response :success
+    assert_select "h1", "初回パスワード設定"
+  end
+
+  test "有効な認証情報での初回パスワード設定成功" do
+    post "/auth/initial_password", params: {
+      employee_id: @employee.employee_id,
+      new_password: "newpassword123",
+      confirm_password: "newpassword123"
+    }
+    assert_response :success
+  end
+
+  # ===== 異常系テスト =====
+
+  test "保護されたアクションへの認証要求" do
+    get "/dashboard"
+    assert_response :redirect
+  end
+
+  test "APIキーなしでのクロックリマインダーエンドポイントアクセス拒否" do
+    post "/clock_reminder/trigger"
+    assert_response :unauthorized
+    assert_includes response.body, "API key required"
+  end
+
+  test "無効なAPIキーでのクロックリマインダーエンドポイントアクセス拒否" do
+    post "/clock_reminder/trigger", headers: { "X-API-Key" => "invalid_key" }
+    assert_response :unauthorized
+    assert_includes response.body, "Invalid API key"
+  end
+
+  test "シフト交代リクエストへの認証要求" do
     get "/shift_exchanges/new"
     assert_response :redirect
   end
 
-  test "should require authentication for shift approvals" do
-    # ログインせずにシフト承認ページにアクセス
+  test "シフト承認ページへの認証要求" do
     get "/shift_approvals"
     assert_response :redirect
   end
 
-  # オーナー権限のテスト
-  test "should require owner permission for shift additions" do
+  test "従業員でのシフト追加リクエストアクセス拒否" do
     sign_in @employee
-
-    # 従業員がシフト追加リクエストにアクセス
     get "/shift_additions/new"
     assert_response :redirect
   end
 
-  test "should allow owner to access shift additions" do
+  test "オーナーでのシフト追加リクエストアクセス許可" do
     sign_in @owner
-
-    # オーナーがシフト追加リクエストにアクセス
     get "/shift_additions/new"
     assert_response :redirect
   end
 
-  test "should require owner permission for employees API" do
+  test "従業員での従業員一覧APIアクセス拒否" do
     sign_in @employee
-
-    # 従業員が従業員一覧APIにアクセス
     get "/shifts/employees"
     assert_response :redirect
   end
 
-  test "should allow owner to access employees API" do
+  test "オーナーでの従業員一覧APIアクセス許可" do
     sign_in @owner
-
-    # オーナーが従業員一覧APIにアクセス
     get "/shifts/employees"
     assert_response :redirect
   end
 
-  # シフト承認権限のテスト
-  test "should require approval permission for shift exchanges" do
+  test "シフト交代リクエスト承認権限の要求" do
     sign_in @employee
 
-    # 他の従業員のシフト交代リクエストを承認しようとする
     post "/shift_approvals/approve", params: {
       request_id: "test_request",
       request_type: "exchange"
     }
-    assert_response :success  # バリデーション失敗時はレンダリング（200）
+    assert_response :success
   end
 
-  test "should allow approval for own shift exchange requests" do
+  test "自分のシフト交代リクエストの承認許可" do
     sign_in @employee
 
-    # 自分のシフト交代リクエストを作成
     shift = Shift.create!(
       employee_id: @employee.employee_id,
       shift_date: Date.current + 1.day,
@@ -155,19 +183,15 @@ class SecurityTest < ActionDispatch::IntegrationTest
       status: "pending"
     )
 
-    # 他の従業員としてログインして承認
     sign_in @other_employee
     post "/shift_approvals/approve", params: {
       request_id: exchange_request.request_id,
       request_type: "exchange"
     }
-    assert_response :success  # バリデーション失敗時はレンダリング（200）
+    assert_response :success
   end
 
-  # ===== CSRF保護テスト =====
-
-  test "CSRFトークンなしでPOSTリクエストを送信すると422エラーが返される" do
-    # ログイン（CSRFトークンを使用）
+  test "CSRFトークンなしでのPOSTリクエストエラー" do
     get "/auth/login"
     csrf_token = session[:_csrf_token]
     post "/auth/login", params: { employee_id: @employee.employee_id, password: "password123" },
@@ -175,82 +199,42 @@ class SecurityTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_response :success
 
-    # CSRFトークンなしでPOSTリクエストを送信
     post "/dashboard/clock_in", params: {}, headers: { "X-CSRF-Token" => "invalid_token" }
-    assert_response :success  # バリデーション失敗時はレンダリング（200）
-  end
-
-  test "有効なCSRFトークンでPOSTリクエストを送信すると成功する" do
-    # ログイン（CSRFトークンを使用）
-    get "/auth/login"
-    csrf_token = session[:_csrf_token]
-    post "/auth/login", params: { employee_id: @employee.employee_id, password: "password123" },
-                        headers: { "X-CSRF-Token" => csrf_token }
-    follow_redirect!
-    assert_response :success
-
-    # 有効なCSRFトークンを取得
-    get "/dashboard"
-    csrf_token = session[:_csrf_token]
-
-    # 有効なCSRFトークンでPOSTリクエストを送信
-    post "/dashboard/clock_in", params: {}, headers: { "X-CSRF-Token" => csrf_token }
-    assert_response :success  # 実際の動作に合わせて調整
-  end
-
-  test "CSRFトークンなしのGETリクエストは正常に処理される" do
-    # GETリクエストはCSRF保護の対象外
-    get "/auth/login"
     assert_response :success
   end
 
-  # ===== セッションタイムアウトテスト =====
-
-  test "should handle session timeout correctly" do
-    # ログイン
+  test "セッションタイムアウトの適切な処理" do
     sign_in @employee
-
-    # セッションタイムアウトをシミュレート（セッションをクリア）
     session.clear
-
-    # 保護されたページにアクセス
     get "/dashboard"
     assert_response :redirect
   end
 
-  test "should maintain session for valid requests" do
-    # ログイン
+  test "有効なリクエストでのセッション維持" do
     sign_in @employee
-
-    # 正常なリクエスト
     get "/dashboard"
     assert_response :redirect
   end
 
-  # ===== 入力値検証テスト =====
-
-  test "should validate employee_id format" do
-    # 無効な従業員IDでログインを試行
+  test "従業員ID形式の検証" do
     post "/auth/login", params: {
       employee_id: "invalid_id",
       password: "password123"
     }
-    assert_response :success  # バリデーション失敗時はレンダリング（200）
+    assert_response :success
   end
 
-  test "should validate password presence" do
-    # パスワードなしでログインを試行
+  test "パスワード存在の検証" do
     post "/auth/login", params: {
       employee_id: @employee.employee_id,
       password: ""
     }
-    assert_response :success  # バリデーション失敗時はレンダリング（200）
+    assert_response :success
   end
 
-  test "should validate shift date format" do
+  test "シフト日付形式の検証" do
     sign_in @employee
 
-    # 無効な日付形式でシフト作成を試行
     post "/shift_exchanges", params: {
       shift_exchange: {
         shift_date: "invalid-date",
@@ -258,13 +242,12 @@ class SecurityTest < ActionDispatch::IntegrationTest
         end_time: "18:00"
       }
     }
-    assert_response :success  # バリデーション失敗時はレンダリング（200）
+    assert_response :success
   end
 
-  test "should validate time format" do
+  test "時間形式の検証" do
     sign_in @employee
 
-    # 無効な時間形式でシフト作成を試行
     post "/shift_exchanges", params: {
       shift_exchange: {
         shift_date: Date.current.strftime("%Y-%m-%d"),
@@ -272,13 +255,12 @@ class SecurityTest < ActionDispatch::IntegrationTest
         end_time: "18:00"
       }
     }
-    assert_response :success  # バリデーション失敗時はレンダリング（200）
+    assert_response :success
   end
 
-  test "should validate shift time logic" do
+  test "シフト時間ロジックの検証" do
     sign_in @employee
 
-    # 開始時刻が終了時刻より遅いシフトを作成
     post "/shift_exchanges", params: {
       shift_exchange: {
         shift_date: Date.current.strftime("%Y-%m-%d"),
@@ -286,13 +268,10 @@ class SecurityTest < ActionDispatch::IntegrationTest
         end_time: "09:00"
       }
     }
-    assert_response :success  # バリデーション失敗時はレンダリング（200）
+    assert_response :success
   end
 
-  # ===== SQLインジェクション対策テスト =====
-
-  test "should prevent SQL injection in employee_id" do
-    # SQLインジェクション攻撃を試行
+  test "従業員IDでのSQLインジェクション攻撃の防止" do
     malicious_input = "'; DROP TABLE employees; --"
 
     post "/auth/login", params: {
@@ -300,15 +279,13 @@ class SecurityTest < ActionDispatch::IntegrationTest
       password: "password123"
     }
 
-    # データベースが破壊されていないことを確認
     assert Employee.any?, "従業員テーブルが存在するべき"
-    assert_response :success  # バリデーション失敗時はレンダリング（200）
+    assert_response :success
   end
 
-  test "should prevent SQL injection in shift parameters" do
+  test "シフトパラメータでのSQLインジェクション攻撃の防止" do
     sign_in @employee
 
-    # SQLインジェクション攻撃を試行
     malicious_input = "'; DROP TABLE shifts; --"
 
     post "/shift_exchanges", params: {
@@ -319,20 +296,15 @@ class SecurityTest < ActionDispatch::IntegrationTest
       }
     }
 
-    # データベースが破壊されていないことを確認
     assert Shift.any?, "シフトテーブルが存在するべき"
-    assert_response :success  # バリデーション失敗時はレンダリング（200）
+    assert_response :success
   end
 
-  # ===== XSS対策テスト =====
-
-  test "should escape HTML in user input" do
+  test "ユーザー入力でのHTMLエスケープ" do
     sign_in @employee
 
-    # XSS攻撃を試行
     xss_input = "<script>alert('XSS')</script>"
 
-    # シフト作成でXSS攻撃を試行
     post "/shift_exchanges", params: {
       shift_exchange: {
         shift_date: Date.current.strftime("%Y-%m-%d"),
@@ -342,16 +314,11 @@ class SecurityTest < ActionDispatch::IntegrationTest
       }
     }
 
-    # レスポンスの基本テスト
     assert_response :success
-    # XSS攻撃が適切にエスケープされていることを確認
     assert_not_includes response.body, "<script>", "XSS攻撃がエスケープされていません"
   end
 
-  # ===== レート制限テスト =====
-
-  test "should handle rapid login attempts" do
-    # 短時間で複数回ログインを試行
+  test "短時間での複数ログイン試行の処理" do
     5.times do
       post "/auth/login", params: {
         employee_id: "invalid_id",
@@ -359,118 +326,53 @@ class SecurityTest < ActionDispatch::IntegrationTest
       }
     end
 
-    # 最後のリクエストが正常に処理されることを確認
-    assert_response :success  # バリデーション失敗時はレンダリング（200）
+    assert_response :success
   end
 
-  # ===== セキュリティヘッダーテスト =====
-
-  test "should include security headers" do
+  test "セキュリティヘッダーの存在確認" do
     get "/auth/login"
 
-    # セキュリティヘッダーの存在を確認
     assert_response :success
-    # 基本的なセキュリティヘッダーの存在を確認
     assert_not_nil response.headers["X-Content-Type-Options"], "X-Content-Type-Optionsヘッダーが設定されていません"
   end
 
-  # ===== 認証コントローラーテスト =====
-
-  test "should get login page" do
+  test "ログインページの表示" do
     get "/auth/login"
     assert_response :success
     assert_select "title", "Freee Internship"
     assert_select "form[action=?]", "/auth/login"
   end
 
-  test "should login with valid credentials" do
-    # freee APIが利用できないテスト環境では、認証が失敗することを期待
-    post "/auth/login", params: {
-      employee_id: @employee.employee_id,
-      password: "password123"
-    }
-    assert_response :success  # freee API接続失敗時はレンダリング（200）
-  end
-
-  test "should not login with invalid credentials" do
+  test "無効な認証情報でのログイン失敗" do
     post "/auth/login", params: {
       employee_id: @employee.employee_id,
       password: "wrongpassword"
     }
-    assert_response :success  # 失敗時はレンダリング（200）
-  end
-
-  test "should logout successfully" do
-    post "/auth/logout"
-    assert_response :success  # ログアウト時はレンダリング（200）
-  end
-
-  test "should get initial_password page" do
-    get "/auth/initial_password"
     assert_response :success
-    assert_select "h1", "初回パスワード設定"
   end
 
-  test "should set initial password successfully" do
-    post "/auth/initial_password", params: {
-      employee_id: @employee.employee_id,
-      new_password: "newpassword123",
-      confirm_password: "newpassword123"
-    }
-    assert_response :success  # バリデーション失敗時はレンダリング（200）  # 実際の動作に合わせて調整
-  end
-
-  test "should not set initial password with mismatched passwords" do
+  test "パスワード不一致での初回パスワード設定失敗" do
     post "/auth/initial_password", params: {
       employee_id: @employee.employee_id,
       new_password: "newpassword123",
       confirm_password: "differentpassword"
     }
-    assert_response :success  # バリデーション失敗時はレンダリング（200）  # 実際の動作に合わせて調整
+    assert_response :success
   end
 
-  # ===== ダッシュボードコントローラーテスト =====
-
-  test "should get dashboard index" do
-    # ログインしてからダッシュボードにアクセス
+  test "ダッシュボードインデックスの取得" do
     get "/dashboard"
-    assert_response :redirect # 認証が必要なためリダイレクト
+    assert_response :redirect
   end
 
-  # ===== シフト追加コントローラーテスト =====
-
-  test "should get new shift addition request as owner" do
-    get "/shift_additions/new"
-    assert_response :redirect  # 認証が必要なためリダイレクト
-  end
-
-  test "should not get new shift addition request as employee" do
-    get "/shift_additions/new"
-    assert_response :redirect  # 認証が必要なためリダイレクト
-  end
-
-  test "should create shift addition request" do
-    assert_no_difference("ShiftAddition.count") do
-      post "/shift_additions", params: {
-        employee_id: "3316120",
-        shift_date: Date.current.strftime("%Y-%m-%d"),
-        start_time: "09:00",
-        end_time: "18:00"
-      }
-    end
-
-    assert_response :success  # バリデーション失敗時はレンダリング（200） # 実際の動作に合わせて調整
-  end
-
-  test "should not create shift addition request with missing parameters" do
+  test "パラメータ不足でのシフト追加リクエスト作成失敗" do
     assert_no_difference("ShiftAddition.count") do
       post "/shift_additions", params: {
         employee_id: "3316120",
         shift_date: Date.current.strftime("%Y-%m-%d")
-        # start_time と end_time が不足
       }
     end
 
-    assert_response :success  # バリデーション失敗時はレンダリング（200） # 実際の動作に合わせて調整
+    assert_response :success
   end
 end

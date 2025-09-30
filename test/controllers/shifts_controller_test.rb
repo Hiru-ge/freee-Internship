@@ -16,14 +16,9 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
     )
   end
 
-  # 認証が必要なページへのアクセステスト
-  test "should redirect to login when not authenticated" do
-    get shifts_url
-    assert_redirected_to login_url
-  end
+  # ===== 正常系テスト =====
 
-  # シフトページの表示テスト（オーナー）
-  test "should get index as owner" do
+  test "オーナーとしてシフトページの表示" do
     post login_url, params: {
       employee_id: "3313254",
       password: "password123"
@@ -32,11 +27,10 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
     get shifts_url
     assert_response :success
     assert_select "h1", "シフトページ"
-    assert_select "#employee-list-section", count: 1 # オーナーは従業員一覧が表示される
+    assert_select "#employee-list-section", count: 1
   end
 
-  # シフトページの表示テスト（従業員）
-  test "should get index as employee" do
+  test "従業員としてシフトページの表示" do
     post login_url, params: {
       employee_id: "3316120",
       password: "password123"
@@ -45,12 +39,10 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
     get shifts_url
     assert_response :success
     assert_select "h1", "シフトページ"
-    # 従業員モードのクラスが設定されていることを確認
     assert_select ".shift-page-container.employee-mode"
   end
 
-  # シフトデータ取得APIテスト
-  test "should get shift data" do
+  test "シフトデータの取得" do
     post login_url, params: {
       employee_id: "3313254",
       password: "password123"
@@ -65,8 +57,7 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
     assert json_response["month"].is_a?(Integer)
   end
 
-  # 従業員一覧取得APIテスト（オーナーのみ）
-  test "should get employees list as owner" do
+  test "オーナーとして従業員一覧の取得" do
     post login_url, params: {
       employee_id: "3313254",
       password: "password123"
@@ -80,8 +71,14 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
     assert json_response.length.positive?
   end
 
-  # 従業員一覧取得APIテスト（従業員はアクセス不可）
-  test "should not get employees list as employee" do
+  # ===== 異常系テスト =====
+
+  test "未認証時のログインページへのリダイレクト" do
+    get shifts_url
+    assert_redirected_to login_url
+  end
+
+  test "従業員として従業員一覧へのアクセス拒否" do
     post login_url, params: {
       employee_id: "3316120",
       password: "password123"
@@ -91,24 +88,20 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
-  # 週次ナビゲーションテスト
-  test "should navigate to different weeks" do
+  test "週次ナビゲーション" do
     post login_url, params: {
       employee_id: "3313254",
       password: "password123"
     }
 
-    # 前週
     get shifts_data_url, params: { week: 1.week.ago.strftime("%Y-%m-%d") }
     assert_response :success
 
-    # 次週
     get shifts_data_url, params: { week: 1.week.from_now.strftime("%Y-%m-%d") }
     assert_response :success
   end
 
-  # シフト表の表示テスト
-  test "should display shift calendar" do
+  test "シフトカレンダーの表示" do
     post login_url, params: {
       employee_id: "3313254",
       password: "password123"
@@ -119,8 +112,7 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
     assert_select "#shift-calendar-container", count: 1
   end
 
-  # 103万の壁ゲージの表示テスト（オーナー）
-  test "should display wage gauge for owner" do
+  test "オーナーでの賃金ゲージの表示" do
     post login_url, params: {
       employee_id: "3313254",
       password: "password123"
@@ -128,12 +120,11 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
 
     get shifts_url
     assert_response :success
-    assert_select ".wage-gauge", count: 0 # オーナーは個人ゲージは表示されない
-    assert_select ".employee-list", count: 1 # 従業員一覧
+    assert_select ".wage-gauge", count: 0
+    assert_select ".employee-list", count: 1
   end
 
-  # 103万の壁ゲージの表示テスト（従業員）
-  test "should display wage gauge for employee" do
+  test "従業員での賃金ゲージの表示" do
     post login_url, params: {
       employee_id: "3316120",
       password: "password123"
@@ -141,7 +132,7 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
 
     get shifts_url
     assert_response :success
-    assert_select ".wage-gauge", count: 1 # 個人ゲージのみ
-    assert_select ".employee-list", count: 0 # 従業員一覧は表示されない
+    assert_select ".wage-gauge", count: 1
+    assert_select ".employee-list", count: 0
   end
 end

@@ -18,8 +18,9 @@ class LineBotIntegrationTest < ActionDispatch::IntegrationTest
     ENV.delete("LINE_CHANNEL_TOKEN")
   end
 
-  test "should handle complete webhook flow" do
-    # 完全なWebhookフローのテスト
+  # ===== 正常系テスト =====
+
+  test "完全なWebhookフローの処理" do
     payload = {
       events: [
         {

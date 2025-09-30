@@ -21,12 +21,16 @@ class EmployeeOwnerTest < ActiveSupport::TestCase
     end
   end
 
-  test "should return true when role is owner" do
+  # ===== 正常系テスト =====
+
+  test "役割がオーナーの場合にtrueを返す" do
     @employee.update!(role: "owner")
     assert_equal true, @employee.owner?
   end
 
-  test "should return false when role is employee" do
+  # ===== 異常系テスト =====
+
+  test "役割が従業員の場合にfalseを返す" do
     @employee.update!(role: "employee")
     assert_equal false, @employee.owner?
   end

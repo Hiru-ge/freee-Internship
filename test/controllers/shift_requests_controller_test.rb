@@ -17,14 +17,9 @@ class ShiftRequestsControllerTest < ActionDispatch::IntegrationTest
     )
   end
 
-  # 認証が必要なページへのアクセステスト
-  test "should redirect to login when not authenticated" do
-    get new_shift_exchange_url
-    assert_redirected_to login_url
-  end
+  # ===== 正常系テスト =====
 
-  # シフト交代リクエスト画面の表示テスト
-  test "should get new shift exchange request" do
+  test "シフト交代リクエスト画面の表示" do
     post login_url, params: {
       employee_id: "3316120",
       password: "password123"
@@ -42,14 +37,12 @@ class ShiftRequestsControllerTest < ActionDispatch::IntegrationTest
     assert_select "form[action=?]", shift_exchanges_path
   end
 
-  # シフト交代リクエスト送信成功テスト
-  test "should create shift exchange request successfully" do
+  test "シフト交代リクエスト送信成功" do
     post login_url, params: {
       employee_id: "3316120",
       password: "password123"
     }
 
-    # リクエスト送信（実際のレスポンスを確認）
     post shift_exchanges_url, params: {
       applicant_id: "3316120",
       approver_ids: ["3317741"],
@@ -58,12 +51,10 @@ class ShiftRequestsControllerTest < ActionDispatch::IntegrationTest
       end_time: "23:00"
     }
 
-    # リダイレクトまたは成功レスポンスを確認
     assert response.redirect? || response.success?
   end
 
-  # シフト追加リクエスト画面の表示テスト（オーナーのみ）
-  test "should get new shift addition request as owner" do
+  test "オーナーでのシフト追加リクエスト画面表示" do
     post login_url, params: {
       employee_id: "3313254",
       password: "password123"
@@ -75,26 +66,12 @@ class ShiftRequestsControllerTest < ActionDispatch::IntegrationTest
     assert_select "form[action=?]", shift_additions_path
   end
 
-  # シフト追加リクエスト画面の表示テスト（従業員はアクセス不可）
-  test "should not get new shift addition request as employee" do
-    post login_url, params: {
-      employee_id: "3316120",
-      password: "password123"
-    }
-
-    get new_shift_addition_url
-    # リダイレクトまたは403エラーを確認
-    assert response.redirect? || response.forbidden?
-  end
-
-  # シフト追加リクエスト送信成功テスト
-  test "should create shift addition request successfully" do
+  test "シフト追加リクエスト送信成功" do
     post login_url, params: {
       employee_id: "3313254",
       password: "password123"
     }
 
-    # リクエスト送信
     post shift_additions_url, params: {
       target_employee_id: "3316120",
       shift_date: Date.current + 1.day,
@@ -102,18 +79,32 @@ class ShiftRequestsControllerTest < ActionDispatch::IntegrationTest
       end_time: "23:00"
     }
 
-    # リダイレクトまたは成功レスポンスを確認
     assert response.redirect? || response.success?
   end
 
-  # バリデーションテスト（必須項目）
-  test "should validate required fields for shift exchange" do
+  # ===== 異常系テスト =====
+
+  test "未認証時のログインページリダイレクト" do
+    get new_shift_exchange_url
+    assert_redirected_to login_url
+  end
+
+  test "従業員でのシフト追加リクエスト画面アクセス拒否" do
     post login_url, params: {
       employee_id: "3316120",
       password: "password123"
     }
 
-    # バリデーションテスト
+    get new_shift_addition_url
+    assert response.redirect? || response.forbidden?
+  end
+
+  test "シフト交代リクエストの必須項目バリデーション" do
+    post login_url, params: {
+      employee_id: "3316120",
+      password: "password123"
+    }
+
     post shift_exchanges_url, params: {
       applicant_id: "",
       approver_ids: [],
@@ -122,18 +113,15 @@ class ShiftRequestsControllerTest < ActionDispatch::IntegrationTest
       end_time: ""
     }
 
-    # リダイレクトまたはエラーレスポンスを確認
     assert response.redirect? || response.unprocessable_content?
   end
 
-  # バリデーションテスト（必須項目）
-  test "should validate required fields for shift addition" do
+  test "シフト追加リクエストの必須項目バリデーション" do
     post login_url, params: {
       employee_id: "3313254",
       password: "password123"
     }
 
-    # バリデーションテスト
     post shift_additions_url, params: {
       target_employee_id: "",
       shift_date: "",
@@ -141,7 +129,6 @@ class ShiftRequestsControllerTest < ActionDispatch::IntegrationTest
       end_time: ""
     }
 
-    # リダイレクトまたはエラーレスポンスを確認
     assert response.redirect? || response.unprocessable_content?
   end
 end

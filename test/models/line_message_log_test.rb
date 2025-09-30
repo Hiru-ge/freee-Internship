@@ -12,101 +12,13 @@ class LineMessageLogTest < ActiveSupport::TestCase
     )
   end
 
-  test "should be valid with valid attributes" do
+  # ===== 正常系テスト =====
+
+  test "有効な属性でのバリデーション成功" do
     assert @line_message_log.valid?
   end
 
-  test "should require line_user_id" do
-    # line_user_idなしで作成を試行
-    @line_message_log.line_user_id = nil
-    assert_not @line_message_log.valid?, "line_user_idなしでは無効であるべき"
-    assert_includes @line_message_log.errors[:line_user_id], "can't be blank"
-
-    # line_user_idありで作成
-    @line_message_log.line_user_id = "test_user"
-    assert @line_message_log.valid?, "line_user_idありでは有効であるべき"
-
-    # 実際に保存できることを確認
-    assert @line_message_log.save, "有効なデータは保存できるべき"
-    @line_message_log.destroy
-  end
-
-  test "should require message_type" do
-    @line_message_log.message_type = nil
-    assert_not @line_message_log.valid?
-  end
-
-  test "should require direction" do
-    @line_message_log.direction = nil
-    assert_not @line_message_log.valid?
-  end
-
-  test "should validate message_type inclusion" do
-    @line_message_log.message_type = "invalid_type"
-    assert_not @line_message_log.valid?
-  end
-
-  test "should validate direction inclusion" do
-    @line_message_log.direction = "invalid_direction"
-    assert_not @line_message_log.valid?
-  end
-
-  test "should allow nil message_content" do
-    @line_message_log.message_content = nil
-    assert @line_message_log.valid?
-  end
-
-  test "should have inbound scope" do
-    # テスト用のログデータを作成
-    inbound_log = LineMessageLog.create!(
-      line_user_id: "test_user",
-      message_type: "text",
-      direction: "inbound",
-      message_content: "テストメッセージ"
-    )
-    outbound_log = LineMessageLog.create!(
-      line_user_id: "test_user",
-      message_type: "text",
-      direction: "outbound",
-      message_content: "返信メッセージ"
-    )
-
-    # inboundスコープが正しく動作することを確認
-    inbound_logs = LineMessageLog.inbound
-    assert_includes inbound_logs, inbound_log
-    assert_not_includes inbound_logs, outbound_log
-
-    # クリーンアップ
-    inbound_log.destroy
-    outbound_log.destroy
-  end
-
-  test "should have outbound scope" do
-    # テスト用のログデータを作成
-    inbound_log = LineMessageLog.create!(
-      line_user_id: "test_user",
-      message_type: "text",
-      direction: "inbound",
-      message_content: "テストメッセージ"
-    )
-    outbound_log = LineMessageLog.create!(
-      line_user_id: "test_user",
-      message_type: "text",
-      direction: "outbound",
-      message_content: "返信メッセージ"
-    )
-
-    # outboundスコープが正しく動作することを確認
-    outbound_logs = LineMessageLog.outbound
-    assert_includes outbound_logs, outbound_log
-    assert_not_includes outbound_logs, inbound_log
-
-    # クリーンアップ
-    inbound_log.destroy
-    outbound_log.destroy
-  end
-
-  test "should log inbound message" do
+  test "受信メッセージのログ記録" do
     line_user_id = "U1234567890abcdef"
     message_type = "text"
     content = "Test message"
@@ -120,7 +32,7 @@ class LineMessageLogTest < ActiveSupport::TestCase
     assert_not_nil log.processed_at
   end
 
-  test "should log outbound message" do
+  test "送信メッセージのログ記録" do
     line_user_id = "U1234567890abcdef"
     message_type = "text"
     content = "Test reply"
@@ -132,5 +44,89 @@ class LineMessageLogTest < ActiveSupport::TestCase
     assert_equal content, log.message_content
     assert_equal "outbound", log.direction
     assert_not_nil log.processed_at
+  end
+
+  test "受信メッセージスコープの動作" do
+    inbound_log = LineMessageLog.create!(
+      line_user_id: "test_user",
+      message_type: "text",
+      direction: "inbound",
+      message_content: "テストメッセージ"
+    )
+    outbound_log = LineMessageLog.create!(
+      line_user_id: "test_user",
+      message_type: "text",
+      direction: "outbound",
+      message_content: "返信メッセージ"
+    )
+
+    inbound_logs = LineMessageLog.inbound
+    assert_includes inbound_logs, inbound_log
+    assert_not_includes inbound_logs, outbound_log
+
+    inbound_log.destroy
+    outbound_log.destroy
+  end
+
+  test "送信メッセージスコープの動作" do
+    inbound_log = LineMessageLog.create!(
+      line_user_id: "test_user",
+      message_type: "text",
+      direction: "inbound",
+      message_content: "テストメッセージ"
+    )
+    outbound_log = LineMessageLog.create!(
+      line_user_id: "test_user",
+      message_type: "text",
+      direction: "outbound",
+      message_content: "返信メッセージ"
+    )
+
+    outbound_logs = LineMessageLog.outbound
+    assert_includes outbound_logs, outbound_log
+    assert_not_includes outbound_logs, inbound_log
+
+    inbound_log.destroy
+    outbound_log.destroy
+  end
+
+  test "nilメッセージコンテンツの許可" do
+    @line_message_log.message_content = nil
+    assert @line_message_log.valid?
+  end
+
+  test "有効なline_user_idでの保存成功" do
+    @line_message_log.line_user_id = "test_user"
+    assert @line_message_log.valid?
+    assert @line_message_log.save
+    @line_message_log.destroy
+  end
+
+  # ===== 異常系テスト =====
+
+  test "line_user_id必須バリデーション" do
+    @line_message_log.line_user_id = nil
+    assert_not @line_message_log.valid?
+    assert_includes @line_message_log.errors[:line_user_id], "can't be blank"
+  end
+
+  test "message_type必須バリデーション" do
+    @line_message_log.message_type = nil
+    assert_not @line_message_log.valid?
+  end
+
+  test "direction必須バリデーション" do
+    @line_message_log.direction = nil
+    assert_not @line_message_log.valid?
+  end
+
+  test "message_type包含バリデーション" do
+    @line_message_log.message_type = "invalid_type"
+    assert_not @line_message_log.valid?
+  end
+
+  test "direction包含バリデーション" do
+    @line_message_log.direction = "invalid_direction"
+    assert_not @line_message_log.valid?
   end
 end

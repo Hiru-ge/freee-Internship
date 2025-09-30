@@ -9,11 +9,8 @@ class LineBotServiceIntegrationTest < ActiveSupport::TestCase
     @test_owner_id = "test_owner_#{SecureRandom.hex(8)}"
     @test_employee_id = "test_employee_#{SecureRandom.hex(8)}"
 
-    # 既存のテストデータをクリーンアップ
     Employee.where(employee_id: [@test_owner_id, @test_employee_id]).destroy_all
     ConversationState.where(line_user_id: @test_user_id).delete_all
-
-    # テスト用従業員を作成
     @owner = Employee.create!(
       employee_id: @test_owner_id,
       role: "owner",
@@ -28,7 +25,6 @@ class LineBotServiceIntegrationTest < ActiveSupport::TestCase
   end
 
   def teardown
-    # テストデータのクリーンアップ（依存関係を考慮した順序）
     ShiftExchange.where(requester_id: [@test_owner_id, @test_employee_id]).destroy_all
     ShiftAddition.where(requester_id: [@test_owner_id, @test_employee_id]).destroy_all
     ShiftDeletion.where(requester_id: [@test_owner_id, @test_employee_id]).destroy_all
@@ -37,35 +33,29 @@ class LineBotServiceIntegrationTest < ActiveSupport::TestCase
     Employee.where(employee_id: [@test_owner_id, @test_employee_id]).destroy_all
   end
 
-  # ===== 統合テスト: 複数サービス連携 =====
+  # ===== 正常系テスト =====
 
-  test "should handle authentication flow in integration" do
-    # 1. 認証コマンド
+  test "認証フローの統合テスト" do
     event1 = mock_line_event("認証", source_type: "user", user_id: @test_user_id)
 
     response1 = @line_bot_service.handle_message(event1)
     assert_not_nil response1
-    # 認証済みユーザーの場合のレスポンスを確認
     assert response1.is_a?(String) || response1.is_a?(Hash)
 
-    # 2. 従業員名入力（存在しない従業員）
     event2 = mock_line_event("存在しない従業員", source_type: "user", user_id: @test_user_id)
 
     response2 = @line_bot_service.handle_message(event2)
     assert_not_nil response2
     assert_includes response2, "コマンドは認識できませんでした"
 
-    # 3. 従業員名入力（存在する従業員）
-    event3 = mock_line_event("テスト 太郎", source_type: "user", user_id: @test_user_id) # freee APIから取得される従業員名
+    event3 = mock_line_event("テスト 太郎", source_type: "user", user_id: @test_user_id)
 
     response3 = @line_bot_service.handle_message(event3)
     assert_not_nil response3
-    # 認証コード送信のメッセージが返されることを確認
     assert_includes response3, "コマンドは認識できませんでした"
   end
 
-  test "should handle shift check command in integration" do
-    # テスト用シフトを作成
+  test "シフト確認コマンドの統合テスト" do
     today = Date.current
     shift = Shift.create!(
       employee_id: @test_owner_id,
@@ -79,14 +69,12 @@ class LineBotServiceIntegrationTest < ActiveSupport::TestCase
     response = @line_bot_service.handle_message(event)
 
     assert_not_nil response
-    # シフト確認のレスポンスを確認
     assert response.is_a?(String) || response.is_a?(Hash)
 
     shift.destroy
   end
 
-  test "should handle all shifts check command in integration" do
-    # テスト用シフトを作成
+  test "全員シフト確認コマンドの統合テスト" do
     today = Date.current
     shift1 = Shift.create!(
       employee_id: @test_owner_id,
@@ -106,15 +94,13 @@ class LineBotServiceIntegrationTest < ActiveSupport::TestCase
 
     response = @line_bot_service.handle_message(event)
 
-    # 全員シフト確認のレスポンスを確認
     assert response.is_a?(String) || response.is_a?(Hash)
 
     shift1.destroy
     shift2.destroy
   end
 
-  test "should handle shift exchange request flow in integration" do
-    # テスト用シフトを作成
+  test "シフト交代依頼フローの統合テスト" do
     tomorrow = Date.current + 1
     shift = Shift.create!(
       employee_id: @test_owner_id,
@@ -123,23 +109,19 @@ class LineBotServiceIntegrationTest < ActiveSupport::TestCase
       end_time: Time.zone.parse("17:00")
     )
 
-    # 1. 交代依頼コマンド
     event1 = mock_line_event(source_type: "user", user_id: @test_user_id)
     event1["message"]["text"] = "交代依頼"
 
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "シフト交代依頼"
 
-    # 2. 日付入力
     event2 = mock_line_event(source_type: "user", user_id: @test_user_id)
     event2["message"]["text"] = tomorrow.strftime("%m/%d")
 
     response2 = @line_bot_service.handle_message(event2)
-    # Flex Messageが返されることを確認
     assert response2.is_a?(Hash)
     assert_equal "flex", response2[:type]
 
-    # 3. シフト選択（Postbackイベント）
     postback_event = mock_line_event(source_type: "user", user_id: @test_user_id)
     postback_event["type"] = "postback"
     postback_event["postback"] = { "data" => "shift_#{shift.id}" }
@@ -147,7 +129,6 @@ class LineBotServiceIntegrationTest < ActiveSupport::TestCase
     response3 = @line_bot_service.handle_message(postback_event)
     assert_includes response3, "交代先の従業員を選択してください"
 
-    # 4. 従業員名入力
     event4 = mock_line_event(source_type: "user", user_id: @test_user_id)
     event4["message"]["text"] = "テスト 太郎"
 
@@ -164,7 +145,7 @@ class LineBotServiceIntegrationTest < ActiveSupport::TestCase
     shift.destroy
   end
 
-  test "should handle shift addition request flow in integration" do
+  test "シフト追加依頼フローの統合テスト" do
     # 1. 追加依頼コマンド
     event1 = mock_line_event(source_type: "user", user_id: @test_user_id)
     event1["message"]["text"] = "追加依頼"
@@ -207,7 +188,7 @@ class LineBotServiceIntegrationTest < ActiveSupport::TestCase
     assert response5.is_a?(String) || response5.is_a?(Hash)
   end
 
-  test "should handle request check command in integration" do
+  test "依頼確認コマンドの統合テスト" do
     # テスト用シフトと依頼を作成
     tomorrow = Date.current + 1
     shift = Shift.create!(
@@ -249,7 +230,7 @@ class LineBotServiceIntegrationTest < ActiveSupport::TestCase
     shift.destroy
   end
 
-  test "should handle command interruption during conversation in integration" do
+  test "会話中のコマンド割り込みの統合テスト" do
     # 1. 交代依頼を開始
     event1 = mock_line_event(source_type: "user", user_id: @test_user_id)
     event1["message"]["text"] = "交代依頼"
@@ -274,7 +255,7 @@ class LineBotServiceIntegrationTest < ActiveSupport::TestCase
     assert_nil state
   end
 
-  test "should handle unauthenticated user in integration" do
+  test "未認証ユーザーの統合テスト" do
     # 認証されていないユーザーを作成
     unauthenticated_user_id = "unauthenticated_user_#{SecureRandom.hex(8)}"
 
@@ -287,7 +268,7 @@ class LineBotServiceIntegrationTest < ActiveSupport::TestCase
     assert_includes response, "認証が必要です"
   end
 
-  test "should handle permission check for shift addition in integration" do
+  test "シフト追加権限チェックの統合テスト" do
     # 従業員権限のユーザーを作成
     employee_user_id = "employee_user_#{SecureRandom.hex(8)}"
     employee = Employee.create!(
@@ -307,7 +288,7 @@ class LineBotServiceIntegrationTest < ActiveSupport::TestCase
     employee.destroy
   end
 
-  test "should handle invalid date format in integration" do
+  test "無効な日付形式の統合テスト" do
     # 1. 交代依頼を開始
     event1 = mock_line_event(source_type: "user", user_id: @test_user_id)
     event1["message"]["text"] = "交代依頼"
@@ -322,7 +303,7 @@ class LineBotServiceIntegrationTest < ActiveSupport::TestCase
     assert_includes response2, "日付の形式が正しくありません"
   end
 
-  test "should handle invalid time format in integration" do
+  test "無効な時間形式の統合テスト" do
     # 1. 追加依頼を開始
     event1 = mock_line_event(source_type: "user", user_id: @test_user_id)
     event1["message"]["text"] = "追加依頼"
@@ -344,173 +325,148 @@ class LineBotServiceIntegrationTest < ActiveSupport::TestCase
     assert_includes response3, "正しい日付形式で入力してください"
   end
 
-  # ===== ワークフローテスト: エンドツーエンドの完全なフロー =====
+  # ===== 異常系テスト =====
 
-  test "should handle complete shift addition workflow" do
+  test "完全なシフト追加ワークフローのテスト" do
     # 1. 追加依頼コマンド
     event1 = mock_line_event("追加依頼")
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "シフト追加"
   end
 
-  test "should handle complete shift exchange workflow" do
+  test "完全なシフト交代ワークフローのテスト" do
     # 1. 交代依頼コマンド
     event1 = mock_line_event("交代依頼")
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "シフト交代依頼"
   end
 
-  test "should handle complete shift deletion workflow" do
+  test "完全なシフト削除ワークフローのテスト" do
     # 1. 欠勤申請コマンド
     event1 = mock_line_event("欠勤申請")
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "欠勤申請"
   end
 
-  test "should handle complete wage check workflow" do
-    # 1. 給与確認コマンド
+  test "完全な給与確認ワークフローのテスト" do
     event1 = mock_line_event("給与確認")
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "コマンドは認識できませんでした"
   end
 
-  test "should handle complete attendance check workflow" do
-    # 1. 勤怠確認コマンド
+  test "完全な勤怠確認ワークフローのテスト" do
     event1 = mock_line_event("勤怠確認")
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "コマンドは認識できませんでした"
   end
 
-  test "should handle complete clock in workflow" do
-    # 1. 出勤打刻コマンド
+  test "完全な出勤打刻ワークフローのテスト" do
     event1 = mock_line_event("出勤打刻")
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "コマンドは認識できませんでした"
   end
 
-  test "should handle complete clock out workflow" do
-    # 1. 退勤打刻コマンド
+  test "完全な退勤打刻ワークフローのテスト" do
     event1 = mock_line_event("退勤打刻")
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "コマンドは認識できませんでした"
   end
 
-  test "should handle complete attendance summary workflow" do
-    # 1. 勤怠サマリーコマンド
+  test "完全な勤怠サマリーワークフローのテスト" do
     event1 = mock_line_event("勤怠サマリー")
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "コマンドは認識できませんでした"
   end
 
-  test "should handle complete shift summary workflow" do
-    # 1. シフトサマリーコマンド
+  test "完全なシフトサマリーワークフローのテスト" do
     event1 = mock_line_event("シフトサマリー")
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "コマンドは認識できませんでした"
   end
 
-  test "should handle complete help workflow" do
-    # 1. ヘルプコマンド
+  test "完全なヘルプワークフローのテスト" do
     event1 = mock_line_event("ヘルプ")
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "利用可能なコマンド"
   end
 
-  test "should handle complete authentication workflow" do
-    # 1. 認証コマンド
+  test "完全な認証ワークフローのテスト" do
     event1 = mock_line_event("認証")
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "既に認証済みです"
   end
 
-  test "should handle complete logout workflow" do
-    # 1. ログアウトコマンド
+  test "完全なログアウトワークフローのテスト" do
     event1 = mock_line_event("ログアウト")
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "コマンドは認識できませんでした"
   end
 
-  test "should handle complete password change workflow" do
-    # 1. パスワード変更コマンド
+  test "完全なパスワード変更ワークフローのテスト" do
     event1 = mock_line_event("パスワード変更")
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "コマンドは認識できませんでした"
   end
 
-  test "should handle complete profile update workflow" do
-    # 1. プロフィール更新コマンド
+  test "完全なプロフィール更新ワークフローのテスト" do
     event1 = mock_line_event("プロフィール更新")
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "コマンドは認識できませんでした"
   end
 
-  test "should handle complete notification settings workflow" do
-    # 1. 通知設定コマンド
+  test "完全な通知設定ワークフローのテスト" do
     event1 = mock_line_event("通知設定")
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "コマンドは認識できませんでした"
   end
 
-  test "should handle complete system status workflow" do
-    # 1. システム状態コマンド
+  test "完全なシステム状態ワークフローのテスト" do
     event1 = mock_line_event("システム状態")
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "コマンドは認識できませんでした"
   end
 
-  test "should handle complete error handling workflow" do
-    # 1. 無効なコマンド
+  test "完全なエラーハンドリングワークフローのテスト" do
     event1 = mock_line_event("無効なコマンド")
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "コマンドは認識できませんでした"
   end
 
-  test "should handle complete conversation state management workflow" do
-    # 1. 会話状態の開始
+  test "完全な会話状態管理ワークフローのテスト" do
     event1 = mock_line_event("交代依頼")
     @line_bot_service.handle_message(event1)
 
-    # 2. 会話状態の確認
     state = ConversationState.find_active_state(@test_user_id)
     assert_not_nil state, "会話状態が作成されているべき"
 
-    # 3. 会話状態のクリア
     event2 = mock_line_event("ヘルプ")
     @line_bot_service.handle_message(event2)
 
-    # 4. 会話状態の確認（クリア後）
     state = ConversationState.find_active_state(@test_user_id)
     assert_nil state, "会話状態がクリアされているべき"
   end
 
-  test "should handle complete multi-step conversation workflow" do
-    # 1. 交代依頼を開始
+  test "完全なマルチステップ会話ワークフローのテスト" do
     event1 = mock_line_event("交代依頼")
     response1 = @line_bot_service.handle_message(event1)
     assert_includes response1, "シフト交代依頼"
 
-    # 2. 日付入力
     tomorrow = Date.current + 1
     event2 = mock_line_event(tomorrow.strftime("%m/%d"))
     response2 = @line_bot_service.handle_message(event2)
-    # Flex Messageまたはテキストメッセージが返されることを確認
     assert response2.is_a?(Hash) || response2.is_a?(String), "レスポンスが返されるべき"
 
-    # 3. 会話状態の確認
     state = ConversationState.find_active_state(@test_user_id)
     assert_not_nil state, "会話状態が維持されているべき"
 
-    # 4. 会話の中断
     event3 = mock_line_event("ヘルプ")
     response3 = @line_bot_service.handle_message(event3)
     if response3
       assert_includes response3, "利用可能なコマンド"
     else
-      # レスポンスがnilの場合も正常な動作として扱う
       assert_nil response3, "レスポンスがnilでも正常"
     end
 
-    # 5. 会話状態の確認（中断後）
     state = ConversationState.find_active_state(@test_user_id)
     assert_nil state, "会話状態がクリアされているべき"
   end

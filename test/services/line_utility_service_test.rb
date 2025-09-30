@@ -10,14 +10,14 @@ class LineUtilityServiceTest < ActiveSupport::TestCase
     @employee.update!(line_id: @line_user_id)
   end
 
-  test "LineUtilityServiceが正常に初期化される" do
-    # 初期化後の状態を検証
+  # ===== 正常系テスト =====
+
+  test "LineUtilityServiceの正常な初期化" do
     assert_not_nil @service
     assert_respond_to @service, :extract_user_id
     assert_respond_to @service, :extract_group_id
     assert_respond_to @service, :group_message?
 
-    # 基本的な機能が動作することを確認
     test_event = { "source" => { "userId" => "test_user" } }
     user_id = @service.extract_user_id(test_event)
     assert_equal "test_user", user_id
@@ -57,23 +57,11 @@ class LineUtilityServiceTest < ActiveSupport::TestCase
     assert result
   end
 
-  test "従業員のリンク状態チェック（未リンク）" do
-    result = @service.employee_already_linked?("unlinked_user")
-
-    assert_not result
-  end
-
   test "LINE IDから従業員を検索" do
     result = @service.find_employee_by_line_id(@line_user_id)
 
     assert_not_nil result
     assert_equal @employee.id, result.id
-  end
-
-  test "LINE IDから従業員を検索（見つからない）" do
-    result = @service.find_employee_by_line_id("nonexistent_user")
-
-    assert_nil result
   end
 
   test "認証状態の取得" do
@@ -84,6 +72,20 @@ class LineUtilityServiceTest < ActiveSupport::TestCase
     assert_equal @employee.employee_id, result[:employee_id]
     assert_equal @employee.display_name, result[:display_name]
     assert_equal @employee.role, result[:role]
+  end
+
+  # ===== 異常系テスト =====
+
+  test "従業員のリンク状態チェック（未リンク）" do
+    result = @service.employee_already_linked?("unlinked_user")
+
+    assert_not result
+  end
+
+  test "LINE IDから従業員を検索（見つからない）" do
+    result = @service.find_employee_by_line_id("nonexistent_user")
+
+    assert_nil result
   end
 
   test "認証状態の取得（未認証）" do
@@ -97,16 +99,7 @@ class LineUtilityServiceTest < ActiveSupport::TestCase
     result = @service.handle_auth_command(event)
 
     assert_not_nil result
-    # 既に認証済みの場合は「既に認証済みです」が返される
     assert result.include?("認証を開始します") || result.include?("既に認証済みです")
-  end
-
-  test "認証コマンドの処理（グループチャット）" do
-    event = mock_group_event(@line_user_id, "認証", "group_123")
-    result = @service.handle_auth_command(event)
-
-    assert_not_nil result
-    assert result.include?("個人チャットでのみ利用できます")
   end
 
   test "認証コマンドの処理（既に認証済み）" do
@@ -115,6 +108,14 @@ class LineUtilityServiceTest < ActiveSupport::TestCase
 
     assert_not_nil result
     assert result.include?("既に認証済みです")
+  end
+
+  test "認証コマンドの処理（グループチャット）" do
+    event = mock_group_event(@line_user_id, "認証", "group_123")
+    result = @service.handle_auth_command(event)
+
+    assert_not_nil result
+    assert result.include?("個人チャットでのみ利用できます")
   end
 
   test "従業員名入力の処理" do
