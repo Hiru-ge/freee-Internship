@@ -4,7 +4,7 @@
 #
 
 app = 'freee-internship'
-primary_region = 'hkg'
+primary_region = 'sin'
 console_command = '/rails/bin/rails console'
 
 [build]
