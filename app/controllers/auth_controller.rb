@@ -6,10 +6,10 @@ class AuthController < ApplicationController
 
   skip_before_action :require_login,
                      only: %i[login initial_password verify_initial_code setup_initial_password forgot_password verify_password_reset
-                              reset_password send_verification_code verify_code]
+                              reset_password send_verification_code verify_code access_control home authenticate_email verify_access_code]
   skip_before_action :set_header_variables,
                      only: %i[login initial_password verify_initial_code setup_initial_password forgot_password verify_password_reset
-                              reset_password send_verification_code verify_code]
+                              reset_password send_verification_code verify_code access_control home authenticate_email verify_access_code]
   before_action :set_employee, only: [:password_change]
   before_action :load_employees, only: %i[login initial_password forgot_password]
 
@@ -259,6 +259,92 @@ class AuthController < ApplicationController
     redirect_to login_path, notice: "ログアウトしました"
   end
 
+  # アクセス制御関連の機能
+  def access_control
+    # 既にメールアドレス認証済みの場合はホームページにリダイレクト
+    if session[:email_authenticated]
+      redirect_to home_path
+      return
+    end
+
+    # メールアドレス認証ページを表示
+    render :access_control
+  end
+
+  def home
+    # メールアドレス認証済みでログイン済みの場合はダッシュボードにリダイレクト
+    if session[:authenticated] && session[:employee_id]
+      redirect_to dashboard_path
+    elsif session[:email_authenticated]
+      # メールアドレス認証済みだがログインしていない場合はログインページにリダイレクト
+      redirect_to login_path
+    else
+      # メールアドレス認証もされていない場合はトップページにリダイレクト
+      redirect_to root_path
+    end
+  end
+
+  def authenticate_email
+    return unless request.post?
+
+    email = params[:email]
+
+    # 入力値検証
+    if email.blank?
+      handle_validation_error("email", "メールアドレスを入力してください")
+      render :access_control
+      return
+    end
+
+    # メールアドレス認証
+    result = AuthService.send_access_control_verification_code(email)
+
+    if result[:success]
+      session[:pending_email] = email
+      handle_success(result[:message])
+      redirect_to verify_access_code_path
+    else
+      handle_validation_error("email", result[:message])
+      render :access_control
+    end
+  end
+
+  def verify_access_code
+    # メールアドレス認証が開始されていない場合はトップページにリダイレクト
+    unless session[:pending_email]
+      redirect_to root_path
+      return
+    end
+
+    return unless request.post?
+
+    code = params[:code]
+
+    # 入力値検証
+    if code.blank?
+      handle_validation_error("code", "認証コードを入力してください")
+      render :verify_access_code
+      return
+    end
+
+    # 認証コード検証
+    result = AuthService.verify_access_control_code(session[:pending_email], code)
+
+    if result[:success]
+      # メールアドレス認証成功
+      session[:email_authenticated] = true
+      session[:authenticated_email] = session[:pending_email]
+      session[:email_auth_expires_at] = AppConstants::EMAIL_AUTH_TIMEOUT_HOURS.hours.from_now
+      session.delete(:pending_email)
+
+      handle_success(result[:message])
+      redirect_to home_path
+    else
+      handle_validation_error("code", result[:message])
+      render :verify_access_code
+    end
+  end
+
   private
 
   def contains_sql_injection?(input)
@@ -281,12 +367,7 @@ class AuthController < ApplicationController
   def load_employees
     # freee APIから従業員一覧を取得（必須）
     begin
-      freee_service = FreeeApiService.new(
-        Rails.application.config.freee_api["access_token"],
-        Rails.application.config.freee_api["company_id"]
-      )
-
-      freee_employees = freee_service.get_all_employees
+      freee_employees = freee_api_service.get_all_employees
 
       if freee_employees.any?
         @employees = freee_employees.map do |employee|
@@ -306,4 +387,5 @@ class AuthController < ApplicationController
     Rails.logger.warn "freeeAPIから従業員データを取得できませんでした。従業員選択肢は表示されません。"
     @employees = []
   end
+
 end

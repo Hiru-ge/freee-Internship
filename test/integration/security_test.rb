@@ -65,7 +65,7 @@ class SecurityTest < ActionDispatch::IntegrationTest
     get "/dashboard"
     csrf_token = session[:_csrf_token]
 
-    post "/dashboard/clock_in", params: {}, headers: { "X-CSRF-Token" => csrf_token }
+    post "/attendance/clock_in", params: {}, headers: { "X-CSRF-Token" => csrf_token }
     assert_response :success
   end
 
@@ -145,13 +145,13 @@ class SecurityTest < ActionDispatch::IntegrationTest
 
   test "従業員での従業員一覧APIアクセス拒否" do
     sign_in @employee
-    get "/shifts/employees"
+    get "/wages/employees"
     assert_response :redirect
   end
 
   test "オーナーでの従業員一覧APIアクセス許可" do
     sign_in @owner
-    get "/shifts/employees"
+    get "/wages/employees"
     assert_response :redirect
   end
 
@@ -199,7 +199,7 @@ class SecurityTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_response :success
 
-    post "/dashboard/clock_in", params: {}, headers: { "X-CSRF-Token" => "invalid_token" }
+    post "/attendance/clock_in", params: {}, headers: { "X-CSRF-Token" => "invalid_token" }
     assert_response :success
   end
 

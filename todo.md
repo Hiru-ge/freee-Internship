@@ -143,7 +143,7 @@ KISS原則を厳守し、過剰に複雑な実装にしてしまう「逆リフ�
 2. 共通機能ディレクトリ（concerns/）
 3. 勤怠打刻（AttendanceController）
 4. 勤怠リマインダー（ClockReminderController）
-5. シフト表示（ShiftsController）
+5. シフト表示（ShiftDisplayController）
 6. シフト交代（ShiftExchangesController）
 7. シフト追加（ShiftAdditionsController）
 8. シフト削除（ShiftDeletionsController）
@@ -155,21 +155,28 @@ KISS原則を厳守し、過剰に複雑な実装にしてしまう「逆リフ�
 
 **タスク**:
 - [x] ApplicationControllerの分割（認証・セッション・エラーハンドリングをConcernに分離）
-- [ ] 各Concernの責任範囲明確化
-- [ ] サービス間依存関係の可視化
-- [ ] DashboardControllerの分割（勤怠打刻機能をAttendanceControllerに分離）
-- [ ] ShiftsControllerの整理（給与・従業員機能の分離）
-- [ ] コントローラー命名の統一（透明性向上）
-- [ ] 重複コードの統合（FreeeApiServiceインスタンス化の共通化）
-- [ ] マジックナンバー・文字列の外部化（セッションタイムアウト、認証コード長等）
-- [ ] 従業員名取得ロジックの統合
-- [ ] 認証チェックロジックの統合
+- [x] 各Concernの責任範囲明確化
+- [x] サービス間依存関係の可視化
+- [x] DashboardControllerの分割（勤怠打刻機能をAttendanceControllerに分離）
+- [x] ShiftDisplayControllerの整理（給与・従業員機能の分離）
+- [x] コントローラー命名の統一（透明性向上）
+- [x] 重複コードの統合（FreeeApiServiceインスタンス化の共通化）
+- [x] マジックナンバー・文字列の外部化（セッションタイムアウト、認証コード長等）
+- [x] InputValidationの共通化（7つのコントローラーで使用）
+- [~] ErrorHandlerの共通化（3つのコントローラーで使用、完全共通化はPhase 16-2で実施）
+- [x] 最終的なコントローラー構成への統合・分離（EmployeesController削除、DashboardController削除）
+- [x] 不要なコントローラーの削除（home_controller.rb、api/shift_requests_controller.rb）
+- [x] AuthControllerとAccessControlControllerの統合
+- [x] ShiftsControllerをShiftDisplayControllerにリネーム
+- [x] テスト通過率100%の達成（認証フローの修正）
+- [x] ドキュメント整備（現状を正しく反映した内容に修正）
 
 #### Phase 16-2: コード品質改善（優先度: 🔴 高）
 - [ ] 長いメソッドの分割（各コントローラーのメソッド分割）
-- [ ] バリデーションロジックの統合
-- [ ] セキュリティチェックの標準化
-- [ ] エラーメッセージの統一
+- [ ] バリデーションロジックの統合（各コントローラーでの重複処理の統合）
+- [ ] セキュリティチェックの標準化（権限チェックロジックの統一）
+- [ ] エラーメッセージの統一（エラーレスポンス形式の標準化）
+- [ ] ErrorHandlerの完全共通化（全コントローラーでの使用）
 - [ ] 可読性向上に寄与する検証フローの整理
 
 #### Phase 16-3: 保守性向上（優先度: 🔴 高）

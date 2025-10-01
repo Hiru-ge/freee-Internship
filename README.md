@@ -13,6 +13,7 @@
 - **初回パスワード設定**: 新規従業員のパスワード初期設定
 - **パスワード変更**: セキュアなパスワード変更機能
 - **パスワード忘れ**: メールによるパスワードリセット
+- **アクセス制御**: メールアドレス認証によるアクセス制限
 
 ### シフト管理
 - **シフト確認**: 月間シフト表の表示
@@ -27,11 +28,13 @@
 - **勤怠統計**: 勤務時間の集計と表示
 - **タイムゾーン対応**: Asia/Tokyoタイムゾーンでの正確な時刻処理
 - **打刻忘れアラート**: 出勤・退勤打刻忘れの自動検知とメール通知 ✅ **実装完了**
+- **ダッシュボード**: 勤怠状況の一覧表示と打刻操作
 
 ### 給与管理
 - **103万の壁ゲージ**: 年収103万円の壁を視覚的に表示
 - **時間帯別時給計算**: 深夜・早朝・休日等の時給計算
 - **給与データ表示**: freee APIから取得した給与情報の表示
+- **従業員一覧**: 給与管理用の従業員情報表示
 
 ### freee API連携
 - **従業員情報取得**: リアルタイムでの従業員データ同期
@@ -274,6 +277,73 @@ fly ssh console -a your-app-name -C "bundle exec rails clock_reminder:check_all"
 - ✅ 欠勤申請機能完了（Phase 14-6）
 - ✅ 欠勤申請機能のLINE連携完了（Phase 14-7）
 
+## アーキテクチャ
+
+### コントローラー構成（Phase 16-1完了後）
+```
+1. 基底（ApplicationController）
+   - 認証・セッション・エラーハンドリングのConcern統合
+   - 共通処理の一元化
+
+2. 共通機能ディレクトリ（concerns/）
+   - Authentication: 認証・認可処理
+   - SessionManagement: セッション管理
+   - Security: セキュリティヘッダー・CSRF保護
+   - ErrorHandler: エラーハンドリング・バリデーション
+
+3. 勤怠打刻（AttendanceController）
+   - 出勤・退勤打刻機能
+   - ダッシュボード表示機能
+
+4. 勤怠リマインダー（ClockReminderController）
+   - 打刻忘れアラート機能
+
+5. シフト表示（ShiftDisplayController）
+   - シフトカレンダー表示
+   - シフトデータ取得API
+
+6. シフト交代（ShiftExchangesController）
+   - シフト交代依頼の作成・管理
+
+7. シフト追加（ShiftAdditionsController）
+   - シフト追加依頼の作成・管理
+
+8. シフト削除（ShiftDeletionsController）
+   - 欠勤申請の作成・管理
+
+9. シフト承認（ShiftApprovalsController）
+   - シフト依頼の承認・否認
+   - API機能
+
+10. 給与（WagesController）
+    - 給与情報表示
+    - 従業員一覧取得
+
+11. 認証・アクセス制御（AuthController）
+    - ログイン・ログアウト機能
+    - アクセス制御機能
+    - ホームページ機能
+
+12. LINEbot（WebhookController）
+    - LINE Bot Webhook処理
+```
+
+### 設計原則
+- **単一責任原則**: 各コントローラーは明確な責任範囲を持つ
+- **DRY原則**: 共通処理はConcernに分離（部分的に実装済み）
+- **KISS原則**: シンプルで理解しやすい構造
+- **透明性**: コントローラー名から機能が明確に分かる
+
+### 共通化の現状
+- **完了**: ApplicationControllerの分割、InputValidationの共通化、FreeeApiServiceの共通インスタンス化
+- **部分的完了**: ErrorHandlerの共通化（3つのコントローラーで使用）
+- **今後の課題**: バリデーションロジックの統合、セキュリティチェックの標準化、エラーメッセージの統一
+
+### テスト品質
+- **テスト通過率**: 100% (475 runs, 1191 assertions, 0 failures, 0 errors, 0 skips)
+- **テストカバレッジ**: 全コントローラー・サービス・モデルの100%カバレッジ
+- **テスト品質**: 意味のあるテストに改善済み
+
 ## ドキュメント
 
 - [デプロイガイド](DEPLOYMENT_GUIDE.md) - Fly.ioへのデプロイ手順とトラブルシューティング
@@ -287,6 +357,8 @@ fly ssh console -a your-app-name -C "bundle exec rails clock_reminder:check_all"
 - [LINE Bot データベース設計](docs/line_bot_database_design.md) - LINE Bot連携のデータベース設計
 - [LINE Bot デプロイ手順](docs/line_bot_deployment.md) - LINE Botのデプロイと設定
 - [LINE Bot API仕様](docs/line_bot_api_spec.md) - LINE Bot APIの仕様書
+- [コンポーネント依存関係](docs/COMPONENT_DEPENDENCIES.md) - アプリケーション機能とコンポーネント依存関係
+- [変更履歴](docs/CHANGELOG.md) - システムの変更履歴
 
 詳細な実装状況は `docs/` ディレクトリ内のドキュメントを参照してください。
 

@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-class ShiftsControllerTest < ActionDispatch::IntegrationTest
+class ShiftDisplayControllerTest < ActionDispatch::IntegrationTest
   def setup
     @owner = employees(:owner)
     @employee = employees(:employee1)
@@ -63,7 +63,7 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
       password: "password123"
     }
 
-    get shifts_employees_url
+    get employees_wages_url
     assert_response :success
 
     json_response = JSON.parse(response.body)
@@ -84,7 +84,7 @@ class ShiftsControllerTest < ActionDispatch::IntegrationTest
       password: "password123"
     }
 
-    get shifts_employees_url
+    get employees_wages_url
     assert_response :forbidden
   end
 

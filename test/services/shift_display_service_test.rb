@@ -387,7 +387,7 @@ class ShiftDisplayServiceTest < ActiveSupport::TestCase
       query_count += 1
     end
 
-    controller = ShiftsController.new
+    controller = ShiftDisplayController.new
     controller.instance_variable_set(:@employee_ids, employee_ids)
 
     shifts_in_db = Shift.for_month(year, month)

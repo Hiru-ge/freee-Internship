@@ -25,6 +25,11 @@ module FreeeInternship
     #
     # 日本時間に設定
     config.time_zone = "Asia/Tokyo"
+
+    # 定数ファイルの読み込み
+    config.before_initialize do
+      require_relative "constants"
+    end
     # config.eager_load_paths << Rails.root.join("extras")
   end
 end

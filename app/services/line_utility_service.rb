@@ -254,7 +254,7 @@ class LineUtilityService
     ConversationState.create!(
       line_user_id: line_user_id,
       state_data: state.to_json,
-      expires_at: 24.hours.from_now
+      expires_at: AppConstants::CONVERSATION_STATE_TIMEOUT_HOURS.hours.from_now
     )
     true
   rescue StandardError => e

@@ -108,7 +108,7 @@
     window.employeeListLoading = true;
 
     // 従業員一覧の取得
-    fetch('<%= shifts_employees_path %>')
+    fetch('<%= employees_wages_path %>')
       .then(response => response.json())
       .then(employees => {
         var tbody = document.getElementById('employee-list-body');

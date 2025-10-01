@@ -49,4 +49,31 @@ class WagesController < ApplicationController
 
     render json: wages
   end
+
+  # API: 従業員一覧の取得（オーナーのみ）
+  def employees
+    unless owner?
+      render json: { error: "権限がありません" }, status: :forbidden
+      return
+    end
+
+    begin
+      # freee APIから従業員一覧を取得（共通インスタンス使用）
+      employees = freee_api_service.get_employees
+
+      # 従業員データを整形
+      formatted_employees = employees.map do |employee|
+        {
+          id: employee[:id],
+          employee_id: employee[:id], # 給与データとの整合性のため
+          display_name: employee[:display_name]
+        }
+      end
+
+      render json: formatted_employees
+    rescue StandardError => e
+      Rails.logger.error "従業員一覧取得エラー: #{e.message}"
+      render json: { error: "従業員一覧の取得に失敗しました" }, status: 500
+    end
+  end
 end

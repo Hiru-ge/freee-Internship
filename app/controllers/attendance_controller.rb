@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
-class DashboardController < ApplicationController
+class AttendanceController < ApplicationController
   include InputValidation
 
+  # ダッシュボード表示
   def index
     @employee = current_employee
     @employee_id = current_employee_id

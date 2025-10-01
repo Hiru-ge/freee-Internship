@@ -2,10 +2,10 @@
 
 Rails.application.routes.draw do
   # アクセス制限関連ルート
-  root "access_control#index"
-  post "access_control/authenticate_email", as: :authenticate_email
-  get "access_control/verify_code", as: :verify_code_get
-  post "access_control/verify_code", as: :verify_code
+  root "auth#access_control"
+  post "auth/authenticate_email", as: :authenticate_email
+  get "auth/verify_access_code", as: :verify_access_code_get
+  post "auth/verify_access_code", as: :verify_access_code
   get "wages/index"
   get "wages/show"
   # 認証関連ルート
@@ -31,17 +31,16 @@ Rails.application.routes.draw do
   post "auth/send_verification_code", to: "auth#send_verification_code", as: :send_verification_code
   post "auth/verify_code", to: "auth#verify_code", as: :verify_auth_code
 
-  # ダッシュボード
-  get "dashboard", to: "dashboard#index", as: :dashboard
-  post "dashboard/clock_in", to: "dashboard#clock_in", as: :clock_in
-  post "dashboard/clock_out", to: "dashboard#clock_out", as: :clock_out
-  get "dashboard/clock_status", to: "dashboard#clock_status", as: :clock_status
-  get "dashboard/attendance_history", to: "dashboard#attendance_history", as: :attendance_history
+  # 勤怠打刻（ダッシュボード機能も含む）
+  get "dashboard", to: "attendance#index", as: :dashboard
+  post "attendance/clock_in", to: "attendance#clock_in", as: :clock_in
+  post "attendance/clock_out", to: "attendance#clock_out", as: :clock_out
+  get "attendance/clock_status", to: "attendance#clock_status", as: :clock_status
+  get "attendance/attendance_history", to: "attendance#attendance_history", as: :attendance_history
 
-  # シフト管理
-  get "shifts", to: "shifts#index"
-  get "shifts/data", to: "shifts#data", as: :shifts_data
-  get "shifts/employees", to: "shifts#employees", as: :shifts_employees
+  # シフト表示
+  get "shifts", to: "shift_display#index"
+  get "shifts/data", to: "shift_display#data", as: :shifts_data
 
   # シフト交代
   get "shift_exchanges/new", to: "shift_exchanges#new", as: :new_shift_exchange
@@ -59,25 +58,19 @@ Rails.application.routes.draw do
   get "shift_approvals", to: "shift_approvals#index", as: :shift_approvals
   post "shift_approvals/approve", to: "shift_approvals#approve", as: :approve_shift_approval
   post "shift_approvals/reject", to: "shift_approvals#reject", as: :reject_shift_approval
+  get "shift_approvals/pending_requests_for_user", to: "shift_approvals#pending_requests_for_user"
+  get "shift_approvals/pending_exchange_requests", to: "shift_approvals#pending_exchange_requests"
+  get "shift_approvals/pending_addition_requests", to: "shift_approvals#pending_addition_requests"
 
   # 給与管理
   resources :wages, only: [:index] do
     collection do
       get :wage_info
       get :all_wages
+      get :employees
     end
   end
 
-  # API エンドポイント（GAS互換）
-  namespace :api do
-    resources :shift_requests, only: [] do
-      collection do
-        get :pending_requests_for_user
-        get :pending_exchange_requests
-        get :pending_addition_requests
-      end
-    end
-  end
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
@@ -96,5 +89,5 @@ Rails.application.routes.draw do
   # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
 
   # 既存のホームページ（アクセス制限後）
-  get "home", to: "home#index", as: :home
+  get "home", to: "auth#home", as: :home
 end

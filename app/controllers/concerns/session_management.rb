@@ -3,8 +3,8 @@
 module SessionManagement
   extend ActiveSupport::Concern
 
-  # セッションタイムアウト設定（24時間）
-  SESSION_TIMEOUT_HOURS = 24
+  # セッションタイムアウト設定
+  SESSION_TIMEOUT_HOURS = AppConstants::SESSION_TIMEOUT_HOURS
 
   private
 
@@ -32,11 +32,7 @@ module SessionManagement
   end
 
   def get_employee_name
-    freee_service = FreeeApiService.new(
-      ENV.fetch("FREEE_ACCESS_TOKEN", nil),
-      ENV.fetch("FREEE_COMPANY_ID", nil)
-    )
-    employee_info = freee_service.get_employee_info(current_employee_id)
+    employee_info = freee_api_service.get_employee_info(current_employee_id)
     employee_info["display_name"] || "Unknown"
   rescue StandardError => e
     Rails.logger.error "Failed to get employee name: #{e.message}"

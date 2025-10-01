@@ -74,7 +74,7 @@ WebhookController → LineBotService → LineUtilityService → AuthService → 
 
 #### Webからのシフト確認
 ```
-ShiftsController → ShiftDisplayService → Shift(DB) + Employee(DB)
+ShiftDisplayController → ShiftDisplayService → Shift(DB) + Employee(DB)
 ```
 
 #### LINE Botからのシフト確認
@@ -105,7 +105,7 @@ WagesController → WageService → Shift(DB) + FreeeApiService
 │ ShiftExchangesController → ShiftExchangeService                │
 │ ShiftAdditionsController → ShiftAdditionService                │
 │ ShiftDeletionsController → ShiftDeletionService                │
-│ ShiftsController → ShiftDisplayService                         │
+│ ShiftDisplayController → ShiftDisplayService                   │
 │ WagesController → WageService                                  │
 │ AuthController → AuthService                                   │
 └─────────────────────────────────────────────────────────────────┘
@@ -198,12 +198,83 @@ Web・LINE Bot両方から同じビジネスロジックを利用できる設計
 ### 4. 拡張性
 新機能追加時は新しいServiceを作成し、既存のファサードに追加するだけで対応可能
 
-## 今後の改善点
+## コントローラー構成（Phase 16-1完了後）
+
+### 最終的なコントローラー構成
+```
+1. 基底（ApplicationController）
+   - 認証・セッション・エラーハンドリングのConcern統合
+   - 共通処理の一元化
+
+2. 共通機能ディレクトリ（concerns/）
+   - Authentication: 認証・認可処理
+   - SessionManagement: セッション管理
+   - Security: セキュリティヘッダー・CSRF保護
+   - ErrorHandler: エラーハンドリング・バリデーション
+
+3. 勤怠打刻（AttendanceController）
+   - 出勤・退勤打刻機能
+   - ダッシュボード表示機能（旧DashboardControllerから統合）
+
+4. 勤怠リマインダー（ClockReminderController）
+   - 打刻忘れアラート機能
+
+5. シフト表示（ShiftDisplayController）
+   - シフトカレンダー表示（旧ShiftsControllerからリネーム）
+   - シフトデータ取得API
+
+6. シフト交代（ShiftExchangesController）
+   - シフト交代依頼の作成・管理
+
+7. シフト追加（ShiftAdditionsController）
+   - シフト追加依頼の作成・管理
+
+8. シフト削除（ShiftDeletionsController）
+   - 欠勤申請の作成・管理
+
+9. シフト承認（ShiftApprovalsController）
+   - シフト依頼の承認・否認
+   - API機能（旧Api::ShiftRequestsControllerから統合）
+
+10. 給与（WagesController）
+    - 給与情報表示
+    - 従業員一覧取得（旧EmployeesControllerから統合）
+
+11. 認証・アクセス制御（AuthController）
+    - ログイン・ログアウト機能
+    - アクセス制御機能（旧AccessControlControllerから統合）
+    - ホームページ機能（旧HomeControllerから統合）
+
+12. LINEbot（WebhookController）
+    - LINE Bot Webhook処理
+```
+
+### Phase 16-1で完了した改善
+
+**統合・分離（完了）**:
+1. **コントローラー統合・分離** ✅
+2. **責任範囲の明確化** ✅
+3. **不要なコントローラーの削除** ✅
+
+**共通化（部分的完了）**:
+1. **FreeeApiServiceインスタンス化の共通化** ✅（Security Concernで実装）
+2. **マジックナンバー・文字列の外部化** ✅
+3. **InputValidationの共通化** ✅（7つのコントローラーで使用）
+4. **各Concernの責任範囲明確化** ✅
+
+**共通化の余地（Phase 16-2以降で実施予定）**:
+1. **ErrorHandlerの完全共通化** ⚠️（現在3つのコントローラーのみで使用）
+2. **バリデーションロジックの統合** ⚠️（各コントローラーで重複処理あり）
+3. **セキュリティチェックの標準化** ⚠️（権限チェックロジックの統一が必要）
+4. **エラーメッセージの統一** ⚠️（エラーレスポンス形式の標準化が必要）
+
+### 今後の改善点
 
 ### Phase 16-2での改善予定
-1. **FreeeApiServiceインスタンス化の共通化**
-2. **マジックナンバー・文字列の外部化**
-3. **従業員名取得ロジックの統合**
-4. **バリデーションロジックの統合**
+1. **長いメソッドの分割**
+2. **バリデーションロジックの統合**
+3. **セキュリティチェックの標準化**
+4. **エラーメッセージの統一**
+5. **可読性向上に寄与する検証フローの整理**
 
 この構造により、Web・LINE Bot両方のインターフェースから同じビジネスロジックを利用できる設計になっています。
