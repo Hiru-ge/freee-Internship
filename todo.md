@@ -184,48 +184,103 @@ KISS原則を厳守し、過剰に複雑な実装にしてしまう「逆リフ�
 #### Phase 16-3: 保守性向上（優先度: 🔴 高）
 - [x] 長いメソッドの特定と改善案の分析
 - [x] 可読性向上のためのリファクタリング（既存構造維持）
-- [ ] 長いファイルの分割（InputValidation、AuthController、Authentication Concern）
-  - [ ] InputValidation の分割（基本バリデーション + Security.rb内セキュリティバリデーション）
-  - [ ] AuthController の分割（基本認証・アクセス制御 + PasswordController）
-  - [ ] Authentication Concern の分割（基本認証・認可 + SessionManagement）
+- [x] 長いファイルの分割（InputValidation、AuthController、Authentication Concern）
+  - [x] InputValidation の分割（基本バリデーション + Security.rb内セキュリティバリデーション） - 分割不要と判断
+  - [x] AuthController の分割（基本認証・アクセス制御 + PasswordController） - 分割不要と判断
+  - [x] Authentication Concern の分割（基本認証・認可 + SessionManagement） - 分割不要と判断
 - [x] バリデーションロジックの統合（各コントローラーでの重複処理の統合） - Phase 16-2で完了
 - [x] セキュリティチェックの標準化（権限チェックロジックの統一） - Phase 16-2で完了
 - [x] エラーメッセージの統一（エラーレスポンス形式の標準化） - Phase 16-2で完了
 - [x] ErrorHandlerの完全共通化（全コントローラーでの使用） - Phase 16-2で完了
 
-**分割案の詳細**:
+**完了内容**:
+- 全Concernとコントローラーファイルの可読性向上（過剰なコメントの削除、自然な定義順の整理）
+- メソッドの分割、重複コードの共通化、一貫性のあるスタイルの適用
+- ファイル分割の必要性再評価（KISS原則に基づく判断により分割不要と結論）
+- 現在の構造が最適（各ファイルが適切な責任範囲と長さを維持）
 
-1. **InputValidation の分割**:
-   - InputValidation (基本バリデーション): 日付・時間形式、文字数制限、必須項目チェック
-   - Security.rb (セキュリティバリデーション): SQLインジェクション、XSS、不正文字チェック
+#### Phase 16-4: サービス層リファクタリング（優先度: 🔴 高）
+**目標**: サービスファイルの可読性向上と責任範囲の明確化
 
-2. **AuthController の分割**:
-   - AuthController (基本認証・アクセス制御): login/logout、access_control、authenticate_email、verify_access_code
-   - PasswordController (パスワード関係): initial_password、verify_initial_code、setup_initial_password、forgot_password、verify_password_reset、reset_password、password_change
+**対象ファイル（15個）**:
+- **長いファイル**: `line_shift_management_service.rb` (967行), `line_message_service.rb` (751行), `notification_service.rb` (634行)
+- **中程度**: `line_utility_service.rb` (571行), `line_validation_service.rb` (467行), `auth_service.rb` (396行)
+- **その他**: 9個のサービスファイル
 
-3. **Authentication Concern の分割**:
-   - Authentication (基本認証・認可): require_login、current_employee、owner?、各種権限チェック
-   - SessionManagement (セッション管理): session_expired?、clear_session、set_header_variables、get_employee_name
+**統合・分割計画**:
+1. **LINE Bot関連サービスの再構成** → Web側と統一感のある構成 (5ファイル → 5ファイル)
+   - `LineBotService` (基礎機能・バリデーション・状態管理) ← `line_bot_service.rb` + `line_utility_service.rb` + `line_validation_service.rb`
+   - `LineShiftExchangeService` (シフト交代) ← `line_shift_management_service.rb` の交代部分
+   - `LineShiftAdditionService` (シフト追加) ← `line_shift_management_service.rb` の追加部分
+   - `LineShiftDeletionService` (シフト削除) ← `line_shift_management_service.rb` の削除部分
+   - `LineShiftDisplayService` (シフト表示) ← `line_shift_management_service.rb` の表示部分 + `line_message_service.rb`
 
-#### Phase 16-4: 保守性向上（優先度: 🔴 高）
+2. **通知サービスの簡素化** → `EmailNotificationService` (1ファイル)
+   - `notification_service.rb` (634行) → メール通知のみに簡素化
+   - LINE通知関連の不要なコードを削除
+
+3. **AuthServiceの統合維持** → 現状維持
+   - コントローラーとの粒度を合わせて1ファイルで管理
+
+**タスク**:
+- [ ] LINE Bot関連サービスの再構成（Web側と統一感のある構成）
+  - [ ] `LineBotService` の作成（基礎機能・バリデーション・状態管理）
+  - [ ] `LineShiftExchangeService` の作成（シフト交代）
+  - [ ] `LineShiftAdditionService` の作成（シフト追加）
+  - [ ] `LineShiftDeletionService` の作成（シフト削除）
+  - [ ] `LineShiftDisplayService` の作成（シフト表示）
+- [ ] 通知サービスの簡素化（LINE通知関連の削除、メール通知のみに）
+- [ ] 全サービスファイルの可読性向上（過剰なコメントの削除、自然な定義順の整理）
+- [ ] メソッドの分割と共通化（重複コードの統合）
+- [ ] 一貫性のあるスタイルの適用（命名規則、インデント、空行の統一）
+
+#### Phase 16-5: モデル・ヘルパー・Mailerリファクタリング（優先度: 🟡 中）
+**目標**: モデル、ヘルパー、Mailerファイルの可読性向上
+
+**対象ファイル（24個）**:
+- **モデル**: 12個（`password_validator.rb` 92行, `employee.rb` 71行等）
+- **ヘルパー**: 8個（全て4行の短いファイル）
+- **Mailer**: 4個（`shift_mailer.rb` 121行, `auth_mailer.rb` 48行等）
+
+**タスク**:
+- [ ] モデルファイルの可読性向上（バリデーション、アソシエーションの整理）
+- [ ] ヘルパーファイルの統合検討（重複機能の統合）
+- [ ] Mailerファイルの可読性向上（テンプレート処理の整理）
+- [ ] 一貫性のあるスタイルの適用
+
+#### Phase 16-6: 静的ファイル整理（優先度: 🟡 中）
+**目標**: JavaScript、CSSファイルの整理と最適化
+
+**対象ファイル（4個）**:
+- **CSS**: `application.css` (1,835行)
+- **JavaScript**: `loading_handler.js` (273行), `message_handler.js` (207行)
+- **Service Worker**: `service-worker.js` (26行)
+
+**タスク**:
+- [ ] CSSファイルの整理（重複スタイルの統合、構造化）
+- [ ] JavaScriptファイルの可読性向上（関数の分割、コメント整理）
+- [ ] 静的ファイルの最適化（不要なコードの削除）
+- [ ] 一貫性のあるスタイルの適用
+
+#### Phase 16-7: 依存関係整理（優先度: 🟡 中）
 - [ ] 依存関係の整理と可視化
 - [ ] 循環依存の解消
 - [ ] インターフェースの定義
 - [ ] 設定管理の統一（設定ファイル統合、環境別設定整理）
 
-#### Phase 16-5: テスト品質向上（優先度: 🟡 中）
+#### Phase 16-8: テスト品質向上（優先度: 🟢 低）
 - [ ] テストの重複削除
 - [ ] テストヘルパーの共通化
 - [ ] テストデータの統一
 - [ ] エッジケースのテスト追加
 - [ ] 複雑なロジックのテスト強化
 
-#### Phase 16-6: セッション管理改善（優先度: 🟡 中）
+#### Phase 16-9: セッション管理改善（優先度: 🟢 低）
 - [ ] セッション設定の外部化
 - [ ] セッション情報の暗号化強化
 - [ ] セッションタイムアウトの動的設定
 
-#### Phase 16-7: パフォーマンス最適化（優先度: 🟢 低）
+#### Phase 16-10: パフォーマンス最適化（優先度: 🟢 低）
 - [ ] N+1クエリ問題の完全解決
 - [ ] API呼び出しの最適化
 - [ ] キャッシュ戦略の強化
@@ -252,11 +307,13 @@ KISS原則を厳守し、過剰に複雑な実装にしてしまう「逆リフ�
 - **品質**: アプリケーション全体の粗探しと改善完了
 - **ドキュメント**: 利用ドキュメントと企画書の整備完了
 - **テスト**: 責任分離違反修正、ディレクトリ構造整理完了
-- **Phase 16**: アプリケーション本体リファクタリング計画策定完了
+- **Phase 16**: アプリケーション本体リファクタリング進行中（Phase 16-3完了）
 
 ### 最新完了
 - **Phase 15**: テスト・品質改善完了（サービス統合、テストファイル整理、責任分離違反修正）
-- **Phase 16**: リファクタリング計画策定完了（可読性向上・コード理解促進重視）
+- **Phase 16-1**: コントローラーファイル統合・分離と適切な共通化完了
+- **Phase 16-2**: コード品質改善とConcern最適化完了
+- **Phase 16-3**: 保守性向上（可読性向上とファイル構造最適化）完了
 
 ### 緊急修正完了
 - **Line::Bot::Clientエラー修正**: line-bot-api gemのバージョンダウングレード（2.2.0 → 1.20.0）
