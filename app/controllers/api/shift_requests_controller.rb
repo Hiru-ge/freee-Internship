@@ -3,9 +3,7 @@
 module Api
   class ShiftRequestsController < ApplicationController
     include InputValidation
-    include AuthorizationCheck
 
-    before_action :require_login
     skip_before_action :verify_authenticity_token, if: :json_request?
 
     # 指定した従業員宛の全リクエストを取得（GAS互換）

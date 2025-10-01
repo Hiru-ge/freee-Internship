@@ -36,6 +36,10 @@ class LineBotService
     @utility_service ||= LineUtilityService.new
   end
 
+  def request_service
+    @request_service ||= LineRequestService.new
+  end
+
   def handle_message(event)
     # Postbackイベントの処理
     return handle_postback_event(event) if event["type"] == "postback"
@@ -66,7 +70,7 @@ class LineBotService
     when :shift_deletion
       shift_management_service.handle_shift_deletion_command(event)
     when :request_check
-      handle_request_check_command(event)
+      request_service.handle_request_check_command(event)
     else
       # コマンド以外のメッセージの処理
       handle_non_command_message(event)
@@ -104,37 +108,6 @@ class LineBotService
     "不明なPostbackイベントです。"
   end
 
-  # 依頼確認コマンドの処理
-  def handle_request_check_command(event)
-    line_user_id = utility_service.extract_user_id(event)
-
-    # 認証チェック
-    return "認証が必要です。「認証」と入力して認証を行ってください。" unless utility_service.employee_already_linked?(line_user_id)
-
-    employee = utility_service.find_employee_by_line_id(line_user_id)
-    return "従業員情報が見つかりません。" unless employee
-
-    # 承認待ちのシフト交代リクエストを取得
-    pending_exchanges = ShiftExchange.where(
-      approver_id: employee.employee_id,
-      status: "pending"
-    ).includes(:shift)
-
-    # 承認待ちのシフト追加リクエストを取得
-    pending_additions = ShiftAddition.where(
-      target_employee_id: employee.employee_id,
-      status: "pending"
-    )
-
-    # 承認待ちのシフト削除リクエストを取得（シフトの担当者が承認者）
-    pending_deletions = ShiftDeletion.joins(:shift).where(
-      shifts: { employee_id: employee.employee_id },
-      status: "pending"
-    ).includes(:shift)
-
-    # Flex Messageを生成して返す
-    message_service.generate_pending_requests_flex_message(pending_exchanges, pending_additions, pending_deletions)
-  end
 
   # テスト用メソッド: 会話状態管理を含むメッセージ処理
   def handle_message_with_state(line_user_id, message_text)

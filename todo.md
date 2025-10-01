@@ -134,7 +134,7 @@
 KISS原則を厳守し、過剰に複雑な実装にしてしまう「逆リファクタリング」とならないように注意
 
 #### Phase 16-1: アーキテクチャ改善（優先度: 🔴 高）
-- [ ] ApplicationControllerの分割（認証・セッション・エラーハンドリングをConcernに分離）
+- [x] ApplicationControllerの分割（認証・セッション・エラーハンドリングをConcernに分離）
 - [ ] サービス層の責任分離（LineBotServiceのファサードパターン適用）
 - [ ] 各Concernの責任範囲明確化
 - [ ] サービス間依存関係の可視化

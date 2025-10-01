@@ -2,10 +2,8 @@
 
 class ShiftAdditionsController < ApplicationController
   include InputValidation
-  include AuthorizationCheck
   include RequestIdGenerator
 
-  before_action :require_login
 
   # シフト追加リクエスト画面の表示（オーナーのみ）
   def new

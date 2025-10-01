@@ -2,11 +2,9 @@
 
 class ShiftExchangesController < ApplicationController
   include InputValidation
-  include AuthorizationCheck
   include ErrorHandler
   include RequestIdGenerator
 
-  before_action :require_login
 
   # シフト交代リクエスト画面の表示
   def new

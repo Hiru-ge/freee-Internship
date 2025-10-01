@@ -2,7 +2,6 @@
 
 class DashboardController < ApplicationController
   include InputValidation
-  include AuthorizationCheck
 
   def index
     @employee = current_employee

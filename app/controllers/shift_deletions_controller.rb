@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class ShiftDeletionsController < ApplicationController
-  before_action :require_login
 
   def new
     @shifts = Shift.where(employee_id: current_employee_id)

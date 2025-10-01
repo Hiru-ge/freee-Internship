@@ -2,9 +2,7 @@
 
 class ShiftApprovalsController < ApplicationController
   include InputValidation
-  include AuthorizationCheck
 
-  before_action :require_login
 
   # リクエスト一覧表示
   def index

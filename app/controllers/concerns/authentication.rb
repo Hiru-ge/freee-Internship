@@ -1,7 +1,65 @@
 # frozen_string_literal: true
 
-module AuthorizationCheck
+module Authentication
   extend ActiveSupport::Concern
+
+  included do
+    before_action :require_email_authentication
+    before_action :require_login
+  end
+
+  # ===== 認証機能 =====
+
+  private
+
+  def require_email_authentication
+    # メールアドレス認証が必要なページかチェック
+    return if skip_email_authentication?
+
+    # メールアドレス認証済みかチェック
+    return if session[:email_authenticated] && !email_auth_expired?
+
+    redirect_to root_path, alert: "メールアドレス認証が必要です"
+    nil
+  end
+
+  def skip_email_authentication?
+    # アクセス制限関連のページはスキップ
+    controller_name == "access_control" ||
+      # テスト環境ではスキップ
+      Rails.env.test?
+  end
+
+  def email_auth_expired?
+    return true unless session[:email_auth_expires_at]
+
+    Time.current > Time.parse(session[:email_auth_expires_at].to_s)
+  end
+
+  def require_login
+    return if session[:authenticated] && session[:employee_id] && !session_expired?
+
+    if session_expired?
+      clear_session
+      redirect_to login_path, alert: "セッションがタイムアウトしました。再度ログインしてください。"
+    else
+      redirect_to login_path, alert: "ログインが必要です"
+    end
+  end
+
+  def current_employee
+    @current_employee ||= Employee.find_by(employee_id: session[:employee_id])
+  end
+
+  def current_employee_id
+    session[:employee_id]
+  end
+
+  def owner?
+    current_employee&.owner?
+  end
+
+  # ===== 認可機能 =====
 
   # 再利用可能な権限チェック関数
 
@@ -213,8 +271,6 @@ module AuthorizationCheck
     end
     true
   end
-
-  private
 
   def check_approval_permission
     # 承認権限の詳細チェック

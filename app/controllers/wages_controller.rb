@@ -2,9 +2,7 @@
 
 class WagesController < ApplicationController
   include InputValidation
-  include AuthorizationCheck
 
-  before_action :require_login
 
   # 給与一覧（オーナーのみ）
   def index
