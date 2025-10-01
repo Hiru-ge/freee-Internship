@@ -271,7 +271,8 @@
   text-decoration: none;
   cursor: pointer;
   transition: all 0.3s ease;
-  min-width: 160px;
+  width: 90%;
+  max-width: 90%;
   justify-content: center;
   background: linear-gradient(135deg, #ffd700, #ffed4e);
   color: #000000;
