@@ -88,6 +88,10 @@ rails test test/services/auth_service_test.rb -n test_ログイン処理
 
 ### 技術者向け
 - [技術仕様書](TECHNICAL_SPECIFICATIONS.md) - システムの技術詳細
+- [アーキテクチャ設計書](ARCHITECTURE.md) - システムのアーキテクチャ設計
+- [コンポーネント依存関係](COMPONENT_DEPENDENCIES.md) - 機能とコンポーネントの依存関係
+- [サービス間依存関係マップ](DEPENDENCY_MAP.md) - サービス間の依存関係
+- [テスト概要](TESTING_OVERVIEW.md) - テスト戦略と実装状況
 - [引き渡しチェックリスト](HANDOVER_CHECKLIST.md) - 引き渡し時の確認項目
 - [デプロイガイド](DEPLOYMENT_GUIDE.md) - デプロイ手順
 - [ローカル環境と本番環境の制限事項](LOCAL_VS_PRODUCTION_LIMITATIONS.md) - 環境別の制限事項
