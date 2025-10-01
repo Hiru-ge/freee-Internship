@@ -292,9 +292,9 @@ CREATE TABLE shift_additions (
 - `POST /shift_additions` - シフト追加依頼作成
 
 #### 勤怠管理
-- `POST /dashboard/clock_in` - 出勤打刻
-- `POST /dashboard/clock_out` - 退勤打刻
-- `GET /dashboard/clock_status` - 打刻状況取得
+- `POST /attendance/clock_in` - 出勤打刻
+- `POST /attendance/clock_out` - 退勤打刻
+- `GET /attendance/clock_status` - 打刻状況取得
 
 #### LINE Bot
 - `POST /webhook/callback` - LINE Bot Webhook

@@ -15,15 +15,9 @@ class ShiftApprovalsController < ApplicationController
     @shift_additions = ShiftAddition.for_employee(@employee_id).pending
     @shift_deletions = ShiftDeletion.pending.includes(:shift)
 
-    # freee APIから従業員情報を取得
-    begin
-      freee_service = freee_api_service
-      @employees = freee_service.get_employees
-      @employee_names = @employees.index_by { |emp| emp[:id] }
-    rescue StandardError => e
-      Rails.logger.error "従業員一覧取得エラー: #{e.message}"
-      @employee_names = {}
-    end
+    # 従業員情報を取得（共通化されたメソッドを使用）
+    load_employees_for_view
+    @employee_names = fetch_employee_names
   end
 
   # シフト交代リクエストの承認
@@ -34,47 +28,13 @@ class ShiftApprovalsController < ApplicationController
     # 権限チェック
     return unless check_shift_approval_authorization(request_id, request_type)
 
-    if request_type == "exchange"
-      # 共通サービスを使用してシフト交代リクエストを承認
-      shift_exchange_service = ShiftExchangeService.new
-      result = shift_exchange_service.approve_exchange_request(request_id, current_employee_id)
-
-      if result[:success]
-        flash[:success] = result[:message]
-      else
-        flash[:error] = result[:message]
-      end
-
-    elsif request_type == "addition"
-      # 共通サービスを使用してシフト追加リクエストを承認
-      shift_addition_service = ShiftAdditionService.new
-      result = shift_addition_service.approve_addition_request(request_id, current_employee_id)
-
-      if result[:success]
-        flash[:success] = result[:message]
-      else
-        flash[:error] = result[:message]
-      end
-
-    elsif request_type == "deletion"
-      # 共通サービスを使用して欠勤申請を承認
-      shift_deletion_service = ShiftDeletionService.new
-      result = shift_deletion_service.approve_deletion_request(request_id, current_employee_id)
-
-      if result[:success]
-        flash[:success] = result[:message]
-      else
-        flash[:error] = result[:message]
-      end
-    else
-      flash[:error] = "無効なリクエストタイプです"
-    end
-
-    redirect_to shift_approvals_path
-  rescue StandardError => e
-    Rails.logger.error "リクエスト承認エラー: #{e.message}"
-    flash[:error] = "承認処理に失敗しました"
-    redirect_to shift_approvals_path
+    # 共通化されたメソッドを使用してリクエストを処理
+    handle_shift_request(
+      request_type: request_type,
+      request_id: request_id,
+      action: "approve",
+      redirect_path: shift_approvals_path
+    )
   end
 
   # リクエストの拒否
@@ -85,47 +45,13 @@ class ShiftApprovalsController < ApplicationController
     # 権限チェック
     return unless check_shift_approval_authorization(request_id, request_type)
 
-    if request_type == "exchange"
-      # 共通サービスを使用してシフト交代リクエストを拒否
-      shift_exchange_service = ShiftExchangeService.new
-      result = shift_exchange_service.reject_exchange_request(request_id, current_employee_id)
-
-      if result[:success]
-        flash[:success] = result[:message]
-      else
-        flash[:error] = result[:message]
-      end
-
-    elsif request_type == "addition"
-      # 共通サービスを使用してシフト追加リクエストを拒否
-      shift_addition_service = ShiftAdditionService.new
-      result = shift_addition_service.reject_addition_request(request_id, current_employee_id)
-
-      if result[:success]
-        flash[:success] = result[:message]
-      else
-        flash[:error] = result[:message]
-      end
-
-    elsif request_type == "deletion"
-      # 共通サービスを使用して欠勤申請を拒否
-      shift_deletion_service = ShiftDeletionService.new
-      result = shift_deletion_service.reject_deletion_request(request_id, current_employee_id)
-
-      if result[:success]
-        flash[:success] = result[:message]
-      else
-        flash[:error] = result[:message]
-      end
-    else
-      flash[:error] = "無効なリクエストタイプです"
-    end
-
-    redirect_to shift_approvals_path
-  rescue StandardError => e
-    Rails.logger.error "リクエスト拒否エラー: #{e.message}"
-    flash[:error] = "拒否処理に失敗しました"
-    redirect_to shift_approvals_path
+    # 共通化されたメソッドを使用してリクエストを処理
+    handle_shift_request(
+      request_type: request_type,
+      request_id: request_id,
+      action: "reject",
+      redirect_path: shift_approvals_path
+    )
   end
 
   # API: 指定した従業員宛の全リクエストを取得（GAS互換）

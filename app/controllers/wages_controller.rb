@@ -52,14 +52,15 @@ class WagesController < ApplicationController
 
   # API: 従業員一覧の取得（オーナーのみ）
   def employees
+    # 権限チェック（共通化されたメソッドを使用）
     unless owner?
       render json: { error: "権限がありません" }, status: :forbidden
       return
     end
 
     begin
-      # freee APIから従業員一覧を取得（共通インスタンス使用）
-      employees = freee_api_service.get_employees
+      # 従業員情報を取得（共通化されたメソッドを使用）
+      employees = fetch_employees
 
       # 従業員データを整形
       formatted_employees = employees.map do |employee|

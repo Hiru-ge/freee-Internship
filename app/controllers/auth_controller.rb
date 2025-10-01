@@ -11,7 +11,7 @@ class AuthController < ApplicationController
                      only: %i[login initial_password verify_initial_code setup_initial_password forgot_password verify_password_reset
                               reset_password send_verification_code verify_code access_control home authenticate_email verify_access_code]
   before_action :set_employee, only: [:password_change]
-  before_action :load_employees, only: %i[login initial_password forgot_password]
+  before_action :load_employees_for_view, only: %i[login initial_password forgot_password]
 
   def login
     return unless request.post?
@@ -347,45 +347,9 @@ class AuthController < ApplicationController
 
   private
 
-  def contains_sql_injection?(input)
-    return false if input.blank?
-
-    # SQLインジェクション攻撃のパターンを検出
-    sql_patterns = [
-      %r{('|(\\')|(;)|(--)|(/\*)|(\*/)|(\|)|(\*)|(%)|(\+)|(=)|(<)|(>)|(\[)|(\])|(\{)|(\})|(\()|(\))|(\^)|(\$)|(\?)|(!)|(~)|(`)|(@)|(\#)|(&)|(\\)|(\|)|(:)|(;)|(")|(')|(\x00)|(\x1a)|(\x0d)|(\x0a)|(\x09)|(\x08)|(\x07)|(\x1b)|(\x0c)|(\x0b)|(\x0e)|(\x0f)|(\x10)|(\x11)|(\x12)|(\x13)|(\x14)|(\x15)|(\x16)|(\x17)|(\x18)|(\x19)|(\x1c)|(\x1d)|(\x1e)|(\x1f))}i,
-      /(union|select|insert|update|delete|drop|create|alter|exec|execute|script|javascript|vbscript|onload|onerror|onclick|onmouseover|onfocus|onblur|onchange|onsubmit|onreset|onselect|onkeydown|onkeyup|onkeypress|onmousedown|onmouseup|onmousemove|onmouseout|onmouseover|onmouseenter|onmouseleave|ondblclick|oncontextmenu|onwheel|ontouchstart|ontouchend|ontouchmove|ontouchcancel|ongesturestart|ongesturechange|ongestureend|onabort|onafterprint|onbeforeprint|onbeforeunload|onerror|onhashchange|onload|onmessage|onoffline|ononline|onpagehide|onpageshow|onpopstate|onresize|onstorage|onunload)/i
-    ]
-
-    sql_patterns.any? { |pattern| input.match?(pattern) }
-  end
-
   def set_employee
     @employee = Employee.find_by(employee_id: session[:employee_id])
     redirect_to login_path unless @employee
-  end
-
-  def load_employees
-    # freee APIから従業員一覧を取得（必須）
-    begin
-      freee_employees = freee_api_service.get_all_employees
-
-      if freee_employees.any?
-        @employees = freee_employees.map do |employee|
-          {
-            employee_id: employee["id"].to_s,
-            display_name: employee["display_name"]
-          }
-        end
-        return
-      end
-    rescue StandardError => e
-      Rails.logger.error "freee API連携エラー: #{e.message}"
-    end
-
-    # freeeAPIから取得できない場合は空の配列を返す
-    # テストデータやハードコーディングされた従業員データは使用しない
-    Rails.logger.warn "freeeAPIから従業員データを取得できませんでした。従業員選択肢は表示されません。"
-    @employees = []
   end
 
 end

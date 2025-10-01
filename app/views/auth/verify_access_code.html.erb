@@ -2,33 +2,33 @@
   <div class="login-container">
     <h1>勤怠管理システム</h1>
     <h2>認証コード入力</h2>
-    
+
     <div class="form-description">
       <strong>認証コードを送信しました</strong><br>
       <%= session[:pending_email] %> に送信された6桁の認証コードを入力してください。
     </div>
-    
-    <%= form_with url: verify_code_path, method: :post, local: true, id: "verify-code-form" do |form| %>
+
+    <%= form_with url: verify_access_code_path, method: :post, local: true, id: "verify-code-form" do |form| %>
       <div class="form-group code-input-group">
         <%= form.label :code, "認証コード:", class: "code-label" %>
-        <%= form.text_field :code, 
-              placeholder: "123456", 
+        <%= form.text_field :code,
+              placeholder: "123456",
               required: true,
               maxlength: 6,
               pattern: "[0-9]{6}",
               value: params[:code],
               id: "code-input" %>
       </div>
-      
+
       <div class="form-actions">
         <%= form.submit "認証", class: "button" %>
       </div>
     <% end %>
-    
+
     <div class="login-links">
       <%= link_to "戻る", root_path, class: "link" %>
     </div>
-    
+
     <div class="form-help">
       <strong>注意事項:</strong>
       <ul>
@@ -45,24 +45,24 @@
   document.addEventListener('DOMContentLoaded', function() {
     setupVerifyCodeFormHandler();
   });
-  
+
   // フォームハンドラーの設定
   function setupVerifyCodeFormHandler() {
     document.getElementById('verify-code-form').addEventListener('submit', function(e) {
       var code = document.getElementById('code-input').value;
-      
+
       if (!code) {
         e.preventDefault();
         showMessage('認証コードを入力してください', 'error');
         return;
       }
-      
+
       if (!/^\d{6}$/.test(code)) {
         e.preventDefault();
         showMessage('6桁の数字を入力してください', 'error');
         return;
       }
-      
+
       // ローディング表示
       if (window.loadingHandler) {
         window.loadingHandler.show('認証中...');
@@ -74,7 +74,7 @@
       }
     });
   }
-  
+
   // メッセージ表示（統一されたシステムを使用）
   function showMessage(message, type) {
     if (window.messageHandler) {
@@ -85,11 +85,11 @@
       if (existingMessage) {
         existingMessage.remove();
       }
-      
+
       var messageDiv = document.createElement('div');
       messageDiv.className = 'message ' + type;
       messageDiv.textContent = message;
-      
+
       var form = document.getElementById('verify-code-form');
       form.parentNode.insertBefore(messageDiv, form.nextSibling);
     }

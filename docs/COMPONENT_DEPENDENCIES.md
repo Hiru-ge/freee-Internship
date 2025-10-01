@@ -198,7 +198,7 @@ Web・LINE Bot両方から同じビジネスロジックを利用できる設計
 ### 4. 拡張性
 新機能追加時は新しいServiceを作成し、既存のファサードに追加するだけで対応可能
 
-## コントローラー構成（Phase 16-1完了後）
+## コントローラー構成（Phase 16-2完了後）
 
 ### 最終的なコントローラー構成
 ```
@@ -207,10 +207,12 @@ Web・LINE Bot両方から同じビジネスロジックを利用できる設計
    - 共通処理の一元化
 
 2. 共通機能ディレクトリ（concerns/）
-   - Authentication: 認証・認可処理
-   - SessionManagement: セッション管理
-   - Security: セキュリティヘッダー・CSRF保護
-   - ErrorHandler: エラーハンドリング・バリデーション
+   - Authentication: 認証・認可・セッション管理（330行）
+   - Security: セキュリティヘッダー設定（30行）
+   - FreeeApiHelper: API連携・ユーティリティ（54行）
+   - ErrorHandler: エラーハンドリング・バリデーション（218行）
+   - InputValidation: 入力値検証（450行）
+   - ServiceResponseHandler: サービスレスポンス処理（91行）
 
 3. 勤怠打刻（AttendanceController）
    - 出勤・退勤打刻機能
@@ -262,15 +264,29 @@ Web・LINE Bot両方から同じビジネスロジックを利用できる設計
 3. **InputValidationの共通化** ✅（7つのコントローラーで使用）
 4. **各Concernの責任範囲明確化** ✅
 
-**共通化の余地（Phase 16-2以降で実施予定）**:
-1. **ErrorHandlerの完全共通化** ⚠️（現在3つのコントローラーのみで使用）
-2. **バリデーションロジックの統合** ⚠️（各コントローラーで重複処理あり）
-3. **セキュリティチェックの標準化** ⚠️（権限チェックロジックの統一が必要）
-4. **エラーメッセージの統一** ⚠️（エラーレスポンス形式の標準化が必要）
+### Phase 16-2で完了した改善
+
+**共通化（完了）**:
+1. **共通化Concernの作成** ✅（Authorization、FreeeApiHelper、ServiceResponseHandler）
+2. **コントローラーへの共通化適用** ✅（ShiftApprovals、ShiftExchanges、ShiftAdditions、ShiftDeletions、Wages）
+3. **Concernの粒度見直しと統合・再配置** ✅（9個から6個に最適化）
+4. **Concern内メソッドの適切な配置** ✅（責任範囲に基づく配置）
+
+**Concern最適化（完了）**:
+1. **Security Concern** ✅（セキュリティヘッダー設定のみに特化）
+2. **Authentication Concern** ✅（認証・認可・セッション管理を一元化）
+3. **FreeeApiHelper Concern** ✅（API連携・ユーティリティ機能を統合）
+4. **ErrorHandler Concern** ✅（エラーハンドリング・バリデーション）
+5. **InputValidation Concern** ✅（入力値検証機能）
+6. **ServiceResponseHandler Concern** ✅（サービスレスポンス処理）
+
+**古い参照の修正（完了）**:
+1. **古いコントローラー参照の修正** ✅（ビューファイル、ドキュメント）
+2. **ドキュメント更新** ✅（技術仕様書での古いAPIエンドポイント修正）
 
 ### 今後の改善点
 
-### Phase 16-2での改善予定
+### Phase 16-3での改善予定
 1. **長いメソッドの分割**
 2. **バリデーションロジックの統合**
 3. **セキュリティチェックの標準化**

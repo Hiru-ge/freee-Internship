@@ -47,6 +47,38 @@ module Authentication
     end
   end
 
+  # セッション管理機能
+  def session_expired?
+    return false unless session[:created_at]
+
+    session_created_at = Time.at(session[:created_at])
+    session_created_at < AppConstants::SESSION_TIMEOUT_HOURS.hours.ago
+  end
+
+  def clear_session
+    session[:authenticated] = nil
+    session[:employee_id] = nil
+    session[:created_at] = nil
+  end
+
+  def set_header_variables
+    if session[:authenticated] && session[:employee_id]
+      @employee_name = get_employee_name
+      @is_owner = owner?
+    else
+      @employee_name = nil
+      @is_owner = false
+    end
+  end
+
+  def get_employee_name
+    employee_info = freee_api_service.get_employee_info(current_employee_id)
+    employee_info["display_name"] || "Unknown"
+  rescue StandardError => e
+    Rails.logger.error "Failed to get employee name: #{e.message}"
+    "Unknown"
+  end
+
   def current_employee
     @current_employee ||= Employee.find_by(employee_id: session[:employee_id])
   end
@@ -61,92 +93,91 @@ module Authentication
 
   # ===== 認可機能 =====
 
-  # 再利用可能な権限チェック関数
-
-  def check_owner_permission(redirect_path = dashboard_path)
+  # オーナー権限のチェック（リダイレクトあり）
+  def check_owner_permission(redirect_path = dashboard_path, error_message = "このページにアクセスする権限がありません")
     unless owner?
-      flash[:error] = "このページにアクセスする権限がありません"
+      flash[:error] = error_message
       redirect_to redirect_path
       return false
     end
     true
   end
 
-  def check_shift_addition_authorization(redirect_path = dashboard_path)
-    check_owner_permission(redirect_path)
+  # オーナー権限のチェック（リダイレクトなし、boolean返却）
+  def require_owner!
+    raise AuthorizationError, "オーナー権限が必要です" unless owner?
   end
 
-  def check_shift_approval_authorization(request_id, request_type, redirect_path = shift_approvals_path)
+  # シフト追加リクエストの権限チェック
+  def check_shift_addition_authorization
+    unless owner?
+      flash[:error] = "シフト追加リクエストはオーナーのみが作成できます"
+      redirect_to dashboard_path
+      return false
+    end
+    true
+  end
+
+  # シフト承認リクエストの権限チェック
+  def check_shift_approval_authorization(request_id, request_type)
     case request_type
     when "exchange"
-      check_shift_exchange_approval_ownership(request_id, redirect_path)
+      shift_exchange = ShiftExchange.find_by(request_id: request_id)
+      unless shift_exchange
+        flash[:error] = "リクエストが見つかりません"
+        redirect_to shift_approvals_path
+        return false
+      end
+
+      # 承認者として指定されているかチェック
+      unless shift_exchange.approver_id == current_employee_id
+        flash[:error] = "このリクエストを承認する権限がありません"
+        redirect_to shift_approvals_path
+        return false
+      end
+
     when "addition"
-      check_shift_addition_approval_ownership(request_id, redirect_path)
+      shift_addition = ShiftAddition.find_by(request_id: request_id)
+      unless shift_addition
+        flash[:error] = "リクエストが見つかりません"
+        redirect_to shift_approvals_path
+        return false
+      end
+
+      # 対象従業員として指定されているかチェック
+      unless shift_addition.target_employee_id == current_employee_id
+        flash[:error] = "このリクエストを承認する権限がありません"
+        redirect_to shift_approvals_path
+        return false
+      end
+
     when "deletion"
-      check_shift_deletion_approval_ownership(request_id, redirect_path)
+      shift_deletion = ShiftDeletion.find_by(request_id: request_id)
+      unless shift_deletion
+        flash[:error] = "リクエストが見つかりません"
+        redirect_to shift_approvals_path
+        return false
+      end
+
+      # オーナーのみが承認可能
+      unless owner?
+        flash[:error] = "このリクエストを承認する権限がありません"
+        redirect_to shift_approvals_path
+        return false
+      end
+
     else
       flash[:error] = "無効なリクエストタイプです"
-      redirect_to redirect_path
-      false
-    end
-  end
-
-  def check_shift_exchange_approval_ownership(request_id, redirect_path = shift_approvals_path)
-    shift_exchange = ShiftExchange.find_by(request_id: request_id)
-
-    unless shift_exchange
-      flash[:error] = "リクエストが見つかりません"
-      redirect_to redirect_path
-      return false
-    end
-
-    # 承認者は交代先のシフトの担当者である必要がある
-    unless shift_exchange.approver_id == current_employee_id
-      flash[:error] = "このリクエストを承認する権限がありません"
-      redirect_to redirect_path
+      redirect_to shift_approvals_path
       return false
     end
 
     true
   end
 
-  def check_shift_addition_approval_ownership(request_id, redirect_path = shift_approvals_path)
-    shift_addition = ShiftAddition.find_by(request_id: request_id)
+  # カスタム認可エラー
+  class AuthorizationError < StandardError; end
 
-    unless shift_addition
-      flash[:error] = "リクエストが見つかりません"
-      redirect_to redirect_path
-      return false
-    end
-
-    # 承認者は対象従業員である必要がある
-    unless shift_addition.target_employee_id == current_employee_id
-      flash[:error] = "このリクエストを承認する権限がありません"
-      redirect_to redirect_path
-      return false
-    end
-
-    true
-  end
-
-  def check_shift_deletion_approval_ownership(request_id, redirect_path = shift_approvals_path)
-    shift_deletion = ShiftDeletion.find_by(request_id: request_id)
-
-    unless shift_deletion
-      flash[:error] = "リクエストが見つかりません"
-      redirect_to redirect_path
-      return false
-    end
-
-    # オーナーのみが欠勤申請を承認可能
-    unless owner?
-      flash[:error] = "このリクエストを承認する権限がありません"
-      redirect_to redirect_path
-      return false
-    end
-
-    true
-  end
 
   def check_shift_ownership(shift_id, redirect_path = shifts_path)
     shift = Shift.find_by(id: shift_id)

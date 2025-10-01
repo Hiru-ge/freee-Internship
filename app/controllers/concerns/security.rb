@@ -11,6 +11,7 @@ module Security
     "Content-Security-Policy" => "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'"
   }.freeze
 
+
   included do
     before_action :set_security_headers
   end
@@ -24,12 +25,5 @@ module Security
     end
   end
 
-  # FreeeApiServiceの共通インスタンス化（DRY原則適用）
-  def freee_api_service
-    @freee_api_service ||= FreeeApiService.new(
-      ENV.fetch("FREEE_ACCESS_TOKEN", nil),
-      ENV.fetch("FREEE_COMPANY_ID", nil)
-    )
-  end
 
 end

@@ -163,7 +163,7 @@ KISS原則を厳守し、過剰に複雑な実装にしてしまう「逆リフ�
 - [x] 重複コードの統合（FreeeApiServiceインスタンス化の共通化）
 - [x] マジックナンバー・文字列の外部化（セッションタイムアウト、認証コード長等）
 - [x] InputValidationの共通化（7つのコントローラーで使用）
-- [~] ErrorHandlerの共通化（3つのコントローラーで使用、完全共通化はPhase 16-2で実施）
+- [x] ErrorHandlerの共通化（3つのコントローラーで使用、完全共通化はPhase 16-2で実施）
 - [x] 最終的なコントローラー構成への統合・分離（EmployeesController削除、DashboardController削除）
 - [x] 不要なコントローラーの削除（home_controller.rb、api/shift_requests_controller.rb）
 - [x] AuthControllerとAccessControlControllerの統合
@@ -172,32 +172,60 @@ KISS原則を厳守し、過剰に複雑な実装にしてしまう「逆リフ�
 - [x] ドキュメント整備（現状を正しく反映した内容に修正）
 
 #### Phase 16-2: コード品質改善（優先度: 🔴 高）
-- [ ] 長いメソッドの分割（各コントローラーのメソッド分割）
-- [ ] バリデーションロジックの統合（各コントローラーでの重複処理の統合）
-- [ ] セキュリティチェックの標準化（権限チェックロジックの統一）
-- [ ] エラーメッセージの統一（エラーレスポンス形式の標準化）
-- [ ] ErrorHandlerの完全共通化（全コントローラーでの使用）
-- [ ] 可読性向上に寄与する検証フローの整理
+- [x] 共通化すべき箇所の特定と分析
+- [x] 共通化Concernの作成（Authorization、FreeeApiHelper、ServiceResponseHandler）
+- [x] コントローラーへの共通化適用（ShiftApprovals、ShiftExchanges、ShiftAdditions、ShiftDeletions、Wages）
+- [x] テスト通過率100%の達成
+- [x] Concernの粒度見直しと統合・再配置
+- [x] 古いコントローラー参照の修正とドキュメント更新
+- [x] Concern内メソッドの適切な配置場所への再配置
+- [x] ドキュメント整備（Concern再配置とメソッド配置の反映）
 
 #### Phase 16-3: 保守性向上（優先度: 🔴 高）
+- [x] 長いメソッドの特定と改善案の分析
+- [ ] 可読性向上のためのリファクタリング（既存構造維持）
+- [ ] 長いファイルの分割（InputValidation、AuthController、Authentication Concern）
+  - [ ] InputValidation の分割（基本バリデーション + Security.rb内セキュリティバリデーション）
+  - [ ] AuthController の分割（基本認証・アクセス制御 + PasswordController）
+  - [ ] Authentication Concern の分割（基本認証・認可 + SessionManagement）
+- [x] バリデーションロジックの統合（各コントローラーでの重複処理の統合） - Phase 16-2で完了
+- [x] セキュリティチェックの標準化（権限チェックロジックの統一） - Phase 16-2で完了
+- [x] エラーメッセージの統一（エラーレスポンス形式の標準化） - Phase 16-2で完了
+- [x] ErrorHandlerの完全共通化（全コントローラーでの使用） - Phase 16-2で完了
+
+**分割案の詳細**:
+
+1. **InputValidation の分割**:
+   - InputValidation (基本バリデーション): 日付・時間形式、文字数制限、必須項目チェック
+   - Security.rb (セキュリティバリデーション): SQLインジェクション、XSS、不正文字チェック
+
+2. **AuthController の分割**:
+   - AuthController (基本認証・アクセス制御): login/logout、access_control、authenticate_email、verify_access_code
+   - PasswordController (パスワード関係): initial_password、verify_initial_code、setup_initial_password、forgot_password、verify_password_reset、reset_password、password_change
+
+3. **Authentication Concern の分割**:
+   - Authentication (基本認証・認可): require_login、current_employee、owner?、各種権限チェック
+   - SessionManagement (セッション管理): session_expired?、clear_session、set_header_variables、get_employee_name
+
+#### Phase 16-4: 保守性向上（優先度: 🔴 高）
 - [ ] 依存関係の整理と可視化
 - [ ] 循環依存の解消
 - [ ] インターフェースの定義
 - [ ] 設定管理の統一（設定ファイル統合、環境別設定整理）
 
-#### Phase 16-4: テスト品質向上（優先度: 🟡 中）
+#### Phase 16-5: テスト品質向上（優先度: 🟡 中）
 - [ ] テストの重複削除
 - [ ] テストヘルパーの共通化
 - [ ] テストデータの統一
 - [ ] エッジケースのテスト追加
 - [ ] 複雑なロジックのテスト強化
 
-#### Phase 16-5: セッション管理改善（優先度: 🟡 中）
+#### Phase 16-6: セッション管理改善（優先度: 🟡 中）
 - [ ] セッション設定の外部化
 - [ ] セッション情報の暗号化強化
 - [ ] セッションタイムアウトの動的設定
 
-#### Phase 16-6: パフォーマンス最適化（優先度: 🟢 低）
+#### Phase 16-7: パフォーマンス最適化（優先度: 🟢 低）
 - [ ] N+1クエリ問題の完全解決
 - [ ] API呼び出しの最適化
 - [ ] キャッシュ戦略の強化

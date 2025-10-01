@@ -20,11 +20,16 @@ class ShiftDeletionsController < ApplicationController
       shift_deletion_params[:reason]
     )
 
+    # 共通化されたレスポンスハンドラーを使用（失敗時はrender）
     if result[:success]
-      flash[:success] = result[:message]
-      redirect_to shifts_path
+      handle_service_response(
+        result,
+        success_path: shifts_path,
+        failure_path: nil,
+        success_flash_key: :success
+      )
     else
-      flash[:error] = result[:message]
+      flash.now[:error] = result[:message]
       @shifts = Shift.where(employee_id: current_employee_id)
                      .where('shift_date >= ?', Date.current)
                      .order(:shift_date, :start_time)

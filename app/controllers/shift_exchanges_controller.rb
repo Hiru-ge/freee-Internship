@@ -3,7 +3,6 @@
 class ShiftExchangesController < ApplicationController
   include InputValidation
   include ErrorHandler
-  include RequestIdGenerator
 
 
   # シフト交代リクエスト画面の表示
@@ -13,13 +12,9 @@ class ShiftExchangesController < ApplicationController
     @start_time = params[:start] || "09:00"
     @end_time = params[:end] || "18:00"
 
-    begin
-      @employees = freee_api_service.get_employees
-      @applicant_id = @employee_id
-    rescue StandardError => e
-      handle_api_error(e, "従業員一覧取得")
-      @employees = []
-    end
+    # 従業員情報を取得（共通化されたメソッドを使用）
+    load_employees_for_view
+    @applicant_id = @employee_id
   end
 
   # シフト交代リクエストの作成
@@ -37,13 +32,14 @@ class ShiftExchangesController < ApplicationController
     shift_exchange_service = ShiftExchangeService.new
     result = shift_exchange_service.create_exchange_request(request_params)
 
-    if result[:success]
-      flash[:notice] = result[:message]
-      redirect_to shifts_path
-    else
-      flash[:error] = result[:message]
-      redirect_to new_shift_exchange_path
-    end
+    # 共通化されたレスポンスハンドラーを使用
+    handle_service_response(
+      result,
+      success_path: shifts_path,
+      failure_path: new_shift_exchange_path,
+      success_flash_key: :notice,
+      error_flash_key: :error
+    )
   rescue StandardError => e
     handle_api_error(e, "シフト交代リクエスト作成", new_shift_exchange_path)
   end

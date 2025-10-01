@@ -3,8 +3,9 @@
 class ApplicationController < ActionController::Base
   include ErrorHandler
   include Authentication
-  include SessionManagement
   include Security
+  include FreeeApiHelper
+  include ServiceResponseHandler
 
   # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
   allow_browser versions: :modern

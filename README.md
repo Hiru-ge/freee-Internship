@@ -279,17 +279,19 @@ fly ssh console -a your-app-name -C "bundle exec rails clock_reminder:check_all"
 
 ## アーキテクチャ
 
-### コントローラー構成（Phase 16-1完了後）
+### コントローラー構成（Phase 16-2完了後）
 ```
 1. 基底（ApplicationController）
    - 認証・セッション・エラーハンドリングのConcern統合
    - 共通処理の一元化
 
 2. 共通機能ディレクトリ（concerns/）
-   - Authentication: 認証・認可処理
-   - SessionManagement: セッション管理
-   - Security: セキュリティヘッダー・CSRF保護
-   - ErrorHandler: エラーハンドリング・バリデーション
+   - Authentication: 認証・認可・セッション管理（330行）
+   - Security: セキュリティヘッダー設定（30行）
+   - FreeeApiHelper: API連携・ユーティリティ（54行）
+   - ErrorHandler: エラーハンドリング・バリデーション（218行）
+   - InputValidation: 入力値検証（450行）
+   - ServiceResponseHandler: サービスレスポンス処理（91行）
 
 3. 勤怠打刻（AttendanceController）
    - 出勤・退勤打刻機能
@@ -336,8 +338,10 @@ fly ssh console -a your-app-name -C "bundle exec rails clock_reminder:check_all"
 
 ### 共通化の現状
 - **完了**: ApplicationControllerの分割、InputValidationの共通化、FreeeApiServiceの共通インスタンス化
-- **部分的完了**: ErrorHandlerの共通化（3つのコントローラーで使用）
-- **今後の課題**: バリデーションロジックの統合、セキュリティチェックの標準化、エラーメッセージの統一
+- **完了**: Concernの粒度見直しと統合・再配置（9個から6個に最適化）
+- **完了**: Concern内メソッドの適切な配置（責任範囲に基づく配置）
+- **完了**: 共通化Concernの作成と適用（Authorization、FreeeApiHelper、ServiceResponseHandler）
+- **今後の課題**: 長いメソッドの分割、バリデーションロジックの統合、セキュリティチェックの標準化
 
 ### テスト品質
 - **テスト通過率**: 100% (475 runs, 1191 assertions, 0 failures, 0 errors, 0 skips)
