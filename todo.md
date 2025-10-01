@@ -207,3 +207,5 @@ KISS原則を厳守し、過剰に複雑な実装にしてしまう「逆リフ�
 - **Line::Bot::Clientエラー修正**: line-bot-api gemのバージョンダウングレード（2.2.0 → 1.20.0）
 - **シフト交代リクエスト機能復旧**: リファクタリング後のサービス統合で発生した問題を解決
 - **シフト追加リクエスト機能復旧**: ShiftOverlapService → ShiftDisplayServiceへの修正
+- **サービス統合による潜在的問題修正**: ClockReminderService → ClockServiceへの修正（rakeタスク）
+- **不要テストファイル削除**: LineShiftDeletionServiceのテストファイル削除（統合済み）
