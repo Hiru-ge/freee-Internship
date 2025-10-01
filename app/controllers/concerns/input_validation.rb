@@ -3,18 +3,11 @@
 module InputValidation
   extend ActiveSupport::Concern
 
-  # 文字数制限の定数
   MAX_EMPLOYEE_ID_LENGTH = 50
   MAX_PASSWORD_LENGTH = 128
   MAX_STRING_LENGTH = 255
-
-  # 日付形式の正規表現
   DATE_REGEX = /\A\d{4}-\d{2}-\d{2}\z/
-
-  # 時間形式の正規表現
   TIME_REGEX = /\A([01]?[0-9]|2[0-3]):[0-5][0-9]\z/
-
-  # 再利用可能なバリデーション関数
 
   def validate_date_format(date_string, redirect_path)
     return true if date_string.blank?
@@ -60,17 +53,11 @@ module InputValidation
     true
   end
 
-  # シフト関連の共通バリデーション
   def validate_shift_params(params, redirect_path)
     required_fields = %i[shift_date start_time end_time]
 
-    # 必須項目チェック
     return false unless validate_required_params(params, required_fields, redirect_path)
-
-    # 日付形式チェック
     return false unless validate_date_format(params[:shift_date], redirect_path)
-
-    # 時間形式チェック
     return false unless validate_time_format(params[:start_time], redirect_path)
     return false unless validate_time_format(params[:end_time], redirect_path)
 

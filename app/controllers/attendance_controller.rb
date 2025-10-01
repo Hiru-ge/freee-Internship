@@ -3,7 +3,6 @@
 class AttendanceController < ApplicationController
   include InputValidation
 
-  # ダッシュボード表示
   def index
     @employee = current_employee
     @employee_id = current_employee_id
@@ -11,37 +10,21 @@ class AttendanceController < ApplicationController
     @clock_status = @clock_service.get_clock_status
   end
 
-  # 出勤打刻
   def clock_in
-    clock_service = ClockService.new(current_employee_id)
-    result = clock_service.clock_in
-
-    respond_to do |format|
-      format.json { render json: result }
-    end
+    result = perform_clock_action(:clock_in)
+    render json: result
   end
 
-  # 退勤打刻
   def clock_out
-    clock_service = ClockService.new(current_employee_id)
-    result = clock_service.clock_out
-
-    respond_to do |format|
-      format.json { render json: result }
-    end
+    result = perform_clock_action(:clock_out)
+    render json: result
   end
 
-  # 打刻状態の取得
   def clock_status
-    clock_service = ClockService.new(current_employee_id)
-    status = clock_service.get_clock_status
-
-    respond_to do |format|
-      format.json { render json: status }
-    end
+    status = get_clock_status
+    render json: status
   end
 
-  # 勤怠履歴の取得
   def attendance_history
     year = params[:year]&.to_i || Date.current.year
     month = params[:month]&.to_i || Date.current.month
@@ -49,8 +32,18 @@ class AttendanceController < ApplicationController
     clock_service = ClockService.new(current_employee_id)
     attendance_data = clock_service.get_attendance_for_month(year, month)
 
-    respond_to do |format|
-      format.json { render json: attendance_data }
-    end
+    render json: attendance_data
+  end
+
+  private
+
+  def perform_clock_action(action)
+    clock_service = ClockService.new(current_employee_id)
+    clock_service.send(action)
+  end
+
+  def get_clock_status
+    clock_service = ClockService.new(current_employee_id)
+    clock_service.get_clock_status
   end
 end

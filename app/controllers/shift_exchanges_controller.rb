@@ -4,35 +4,25 @@ class ShiftExchangesController < ApplicationController
   include InputValidation
   include ErrorHandler
 
-
-  # シフト交代リクエスト画面の表示
   def new
     @employee_id = current_employee_id
     @date = params[:date] || Date.current.strftime("%Y-%m-%d")
     @start_time = params[:start] || "09:00"
     @end_time = params[:end] || "18:00"
 
-    # 従業員情報を取得（共通化されたメソッドを使用）
     load_employees_for_view
     @applicant_id = @employee_id
   end
 
-  # シフト交代リクエストの作成
   def create
     request_params = extract_request_params
 
-    # シフト関連の共通バリデーション
     return unless validate_shift_params(request_params, new_shift_exchange_path)
 
-    # ビジネスロジックのバリデーション
     validation_result = validate_exchange_request(request_params)
     return if validation_result[:redirect]
 
-    # 共通サービスを使用してシフト交代リクエストを作成
-    shift_exchange_service = ShiftExchangeService.new
-    result = shift_exchange_service.create_exchange_request(request_params)
-
-    # 共通化されたレスポンスハンドラーを使用
+    result = create_shift_exchange_request(request_params)
     handle_service_response(
       result,
       success_path: shifts_path,
@@ -46,7 +36,6 @@ class ShiftExchangesController < ApplicationController
 
   private
 
-  # リクエストパラメータの抽出
   def extract_request_params
     {
       applicant_id: params[:applicant_id],
@@ -57,7 +46,6 @@ class ShiftExchangesController < ApplicationController
     }
   end
 
-  # シフト交代リクエストの検証
   def validate_exchange_request(params)
     if params[:applicant_id].blank? || params[:shift_date].blank? ||
        params[:start_time].blank? || params[:end_time].blank?
@@ -73,5 +61,10 @@ class ShiftExchangesController < ApplicationController
     end
 
     { redirect: false }
+  end
+
+  def create_shift_exchange_request(request_params)
+    shift_exchange_service = ShiftExchangeService.new
+    shift_exchange_service.create_exchange_request(request_params)
   end
 end

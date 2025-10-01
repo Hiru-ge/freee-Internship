@@ -19,11 +19,9 @@ class AuthController < ApplicationController
     employee_id = params[:employee_id]
     password = params[:password]
 
-    # 入力値検証
     return unless validate_employee_id_format(employee_id, auth_login_path)
     return unless validate_password_length(password, auth_login_path)
 
-    # SQLインジェクション対策
     if contains_sql_injection?(employee_id) || contains_sql_injection?(password)
       handle_validation_error("input", "無効な文字が含まれています")
       render :login

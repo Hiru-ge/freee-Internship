@@ -8,15 +8,10 @@ module Authentication
     before_action :require_login
   end
 
-  # ===== 認証機能 =====
-
   private
 
   def require_email_authentication
-    # メールアドレス認証が必要なページかチェック
     return if skip_email_authentication?
-
-    # メールアドレス認証済みかチェック
     return if session[:email_authenticated] && !email_auth_expired?
 
     redirect_to root_path, alert: "メールアドレス認証が必要です"
@@ -24,10 +19,7 @@ module Authentication
   end
 
   def skip_email_authentication?
-    # アクセス制限関連のページはスキップ
-    controller_name == "access_control" ||
-      # テスト環境ではスキップ
-      Rails.env.test?
+    controller_name == "access_control" || Rails.env.test?
   end
 
   def email_auth_expired?
@@ -91,9 +83,6 @@ module Authentication
     current_employee&.owner?
   end
 
-  # ===== 認可機能 =====
-
-  # オーナー権限のチェック（リダイレクトあり）
   def check_owner_permission(redirect_path = dashboard_path, error_message = "このページにアクセスする権限がありません")
     unless owner?
       flash[:error] = error_message
@@ -103,12 +92,10 @@ module Authentication
     true
   end
 
-  # オーナー権限のチェック（リダイレクトなし、boolean返却）
   def require_owner!
     raise AuthorizationError, "オーナー権限が必要です" unless owner?
   end
 
-  # シフト追加リクエストの権限チェック
   def check_shift_addition_authorization
     unless owner?
       flash[:error] = "シフト追加リクエストはオーナーのみが作成できます"
@@ -118,7 +105,6 @@ module Authentication
     true
   end
 
-  # シフト承認リクエストの権限チェック
   def check_shift_approval_authorization(request_id, request_type)
     case request_type
     when "exchange"

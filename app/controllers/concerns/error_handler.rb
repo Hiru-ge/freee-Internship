@@ -3,7 +3,6 @@
 module ErrorHandler
   extend ActiveSupport::Concern
 
-  # エラーメッセージの定数定義
   ERROR_MESSAGES = {
     validation: {
       required: "必須項目を入力してください",
@@ -28,7 +27,6 @@ module ErrorHandler
     }
   }.freeze
 
-  # バリデーションエラーのハンドリング
   def handle_validation_error(field_name, message, redirect_path = nil)
     error_message = message.presence || ERROR_MESSAGES[:validation][:required]
 
@@ -40,12 +38,9 @@ module ErrorHandler
     error_message
   end
 
-  # APIエラーのハンドリング
   def handle_api_error(error, context = "", redirect_path = nil)
-    # エラーの種類に応じてメッセージを決定
     error_message = determine_api_error_message(error)
 
-    # ログ記録（機密情報は除外）
     log_error("#{context} API error: #{sanitize_error_message(error.message)}")
 
     set_flash_error(error_message)
@@ -55,7 +50,6 @@ module ErrorHandler
     error_message
   end
 
-  # 認証エラーのハンドリング
   def handle_authorization_error(message, redirect_path = nil)
     error_message = message.presence || ERROR_MESSAGES[:authorization][:permission_denied]
 
@@ -67,7 +61,6 @@ module ErrorHandler
     error_message
   end
 
-  # 未知のエラーのハンドリング
   def handle_unknown_error(redirect_path = nil)
     error_message = ERROR_MESSAGES[:general][:unknown]
 
@@ -79,28 +72,24 @@ module ErrorHandler
     error_message
   end
 
-  # 成功メッセージの設定
   def handle_success(message)
     set_flash_success(message)
     log_info("Success: #{message}")
     message
   end
 
-  # 警告メッセージの設定
   def handle_warning(message)
     set_flash_warning(message)
     log_warning("Warning: #{message}")
     message
   end
 
-  # 情報メッセージの設定
   def handle_info(message)
     set_flash_info(message)
     log_info("Info: #{message}")
     message
   end
 
-  # 統一されたエラーハンドリング（rescue_from用）
   def handle_standard_error(error)
     case error
     when ActiveRecord::RecordNotFound
@@ -118,7 +107,6 @@ module ErrorHandler
 
   private
 
-  # フラッシュメッセージの設定（統一）
   def set_flash_error(message)
     flash[:error] = message
   end
@@ -135,7 +123,6 @@ module ErrorHandler
     flash[:info] = message
   end
 
-  # APIエラーメッセージの決定
   def determine_api_error_message(error)
     case error
     when Timeout::Error
@@ -143,7 +130,6 @@ module ErrorHandler
     when SocketError, Errno::ECONNREFUSED
       ERROR_MESSAGES[:api][:connection_failed]
     else
-      # エラーメッセージに基づいて判定
       if error.message.include?("timeout") || error.message.include?("Timeout")
         ERROR_MESSAGES[:api][:timeout]
       elsif error.message.include?("500") || error.message.include?("502") || error.message.include?("503")
@@ -154,26 +140,20 @@ module ErrorHandler
     end
   end
 
-  # エラーメッセージのサニタイズ（機密情報の除去）
   def sanitize_error_message(message)
     return "" if message.blank?
 
-    # 機密情報のパターンを除去
     sanitized = message.dup
 
-    # パスワード関連の情報を除去
     sanitized.gsub!(/password[=:]\s*\S+/i, "password=***")
     sanitized.gsub!(/token[=:]\s*\S+/i, "token=***")
     sanitized.gsub!(/key[=:]\s*\S+/i, "key=***")
     sanitized.gsub!(/secret[=:]\s*\S+/i, "secret=***")
-
-    # ファイルパスの詳細を除去
     sanitized.gsub!(%r{/[^\s]*/}, "/***/")
 
     sanitized
   end
 
-  # ログ記録（統一）
   def log_error(message)
     Rails.logger.error("[ErrorHandler] #{message}")
   end
@@ -186,13 +166,11 @@ module ErrorHandler
     Rails.logger.info("[ErrorHandler] #{message}")
   end
 
-  # エラーハンドリングの設定（コントローラーで使用）
   def self.included(base)
     base.extend(ClassMethods)
   end
 
   module ClassMethods
-    # コントローラークラスで使用するエラーハンドリング設定
     def setup_error_handling
       rescue_from StandardError, with: :handle_standard_error
       rescue_from ActiveRecord::RecordNotFound, with: :handle_record_not_found

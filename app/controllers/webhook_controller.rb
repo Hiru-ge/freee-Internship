@@ -16,27 +16,14 @@ class WebhookController < ApplicationController
 
     Rails.logger.info "LINE Bot webhook received: body=#{body[0..100]}..., signature=#{signature}"
 
-    unless client.validate_signature(body, signature)
-      Rails.logger.warn "LINE Bot signature validation failed"
-      head :bad_request
-      return
-    end
+    return head(:bad_request) unless validate_signature(body, signature)
 
-    Rails.logger.info "LINE Bot signature validation passed"
-    events = client.parse_events_from(body)
-
-    Rails.logger.info "LINE Bot events parsed: #{events.count} events"
-
-    events.each do |event|
-      Rails.logger.info "Processing event: #{event.class}"
-      process_event(event)
-    end
+    events = parse_events(body)
+    process_events(events)
 
     head :ok
   rescue StandardError => e
-    Rails.logger.error "LINE Bot webhook error: #{e.message}"
-    Rails.logger.error "LINE Bot webhook error backtrace: #{e.backtrace.join('\n')}"
-    head :internal_server_error
+    handle_webhook_error(e)
   end
 
   private
@@ -304,5 +291,34 @@ class WebhookController < ApplicationController
     rescue StandardError => reply_error
       Rails.logger.error "Failed to send error message: #{reply_error.message}"
     end
+  end
+
+  def validate_signature(body, signature)
+    unless client.validate_signature(body, signature)
+      Rails.logger.warn "LINE Bot signature validation failed"
+      return false
+    end
+
+    Rails.logger.info "LINE Bot signature validation passed"
+    true
+  end
+
+  def parse_events(body)
+    events = client.parse_events_from(body)
+    Rails.logger.info "LINE Bot events parsed: #{events.count} events"
+    events
+  end
+
+  def process_events(events)
+    events.each do |event|
+      Rails.logger.info "Processing event: #{event.class}"
+      process_event(event)
+    end
+  end
+
+  def handle_webhook_error(error)
+    Rails.logger.error "LINE Bot webhook error: #{error.message}"
+    Rails.logger.error "LINE Bot webhook error backtrace: #{error.backtrace.join('\n')}"
+    head :internal_server_error
   end
 end
