@@ -26,7 +26,7 @@ class ErrorHandlingTest < ActionController::TestCase
 
   test "有効な認証情報でのログイン成功" do
     post :login, params: { employee_id: "3316120", password: "password123" }
-    assert response.redirect? || response.success?
+    assert response.redirect? || response.status == 200
   end
 
   # ===== 異常系テスト =====
@@ -89,7 +89,7 @@ class ErrorHandlingTest < ActionController::TestCase
 
   test "成功メッセージの一貫した処理" do
     post :login, params: { employee_id: "3316120", password: "password123" }
-    assert response.redirect? || response.success?
+    assert response.redirect? || response.status == 200
   end
 
   test "データベース接続エラーの適切な処理" do

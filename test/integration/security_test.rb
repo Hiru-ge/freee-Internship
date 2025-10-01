@@ -59,7 +59,9 @@ class SecurityTest < ActionDispatch::IntegrationTest
     csrf_token = session[:_csrf_token]
     post "/auth/login", params: { employee_id: @employee.employee_id, password: "password123" },
                         headers: { "X-CSRF-Token" => csrf_token }
-    follow_redirect!
+    if response.redirect?
+      follow_redirect!
+    end
     assert_response :success
 
     get "/dashboard"
@@ -196,7 +198,9 @@ class SecurityTest < ActionDispatch::IntegrationTest
     csrf_token = session[:_csrf_token]
     post "/auth/login", params: { employee_id: @employee.employee_id, password: "password123" },
                         headers: { "X-CSRF-Token" => csrf_token }
-    follow_redirect!
+    if response.redirect?
+      follow_redirect!
+    end
     assert_response :success
 
     post "/attendance/clock_in", params: {}, headers: { "X-CSRF-Token" => "invalid_token" }

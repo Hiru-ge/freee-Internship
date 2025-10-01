@@ -23,6 +23,47 @@
 - **影響**: コードの可読性大幅向上、保守性向上、テスト通過率100%維持
 - **注意**: ファイル分割の必要性を再評価し、現在の構造が最適と判断
 
+### Phase 16-4: サービス層リファクタリング
+- **実装内容**: LINE Bot関連サービスの再構成、通知サービスの簡素化、重複メソッド統合
+- **実装手法**: TDDリファクタリングに基づく段階的なサービス統合・分割とテストファイル復元
+- **目標**: サービスファイルの責任範囲明確化、重複コード削除、テストカバレッジ維持
+- **影響**: サービス層の構造改善、重複メソッド削除、テスト通過率100%達成
+- **注意**: 可読性向上は残存タスクとして残存、現在は統合・分割のみ完了
+
+#### Phase 16-4 実装完了内容
+
+**サービス統合・分割（完了）**:
+- **LINE Bot関連サービスの再構成**: Web側と統一感のある構成に変更
+  - `LineBotService`: 基礎機能・バリデーション・状態管理を統合
+  - `LineShiftExchangeService`: シフト交代機能を分離
+  - `LineShiftAdditionService`: シフト追加機能を分離
+  - `LineShiftDeletionService`: シフト削除機能を分離
+  - `LineShiftDisplayService`: シフト表示機能を分離
+- **通知サービスの簡素化**: `EmailNotificationService`としてメール通知のみに簡素化
+- **重複メソッドの統合**: LineBotService内の4組の重複メソッドを統合
+  - `validate_shift_date` + `validate_and_format_date` → `validate_and_format_date`
+  - `validate_shift_time` + `validate_and_format_time` → `validate_and_format_time`
+  - `validate_verification_code` + `validate_verification_code_string` → `validate_verification_code_string`
+  - `handle_message_with_state` + `handle_message_with_state_legacy` → `handle_message_with_state`
+
+**テストファイル復元・統合（完了）**:
+- **削除されたテストファイルの復元**: Gitから削除されたテストファイルを復元
+- **適切なサービスへの分散・統合**: 新しいサービス構造に合わせてテストを分散・統合
+  - `line_shift_management_service_test.rb` → 各LINEサービスに分散
+  - `line_utility_service_test.rb` → `line_bot_service_test.rb`に統合
+  - `line_message_service_test.rb` → 各LINEサービスに分散
+  - `notification_service_test.rb` → `email_notification_service_test.rb`に統合
+
+**テスト品質向上（完了）**:
+- **テスト通過率100%達成**: 436テスト中436テスト通過
+- **エラー0個**: すべてのテストが正常に実行
+- **失敗0個**: すべてのテストが期待通りに動作
+
+**残存タスク**:
+- 全サービスファイルの可読性向上（過剰なコメントの削除、自然な定義順の整理）
+- メソッドの分割と共通化（重複コードの統合）
+- 一貫性のあるスタイルの適用（命名規則、インデント、空行の統一）
+
 #### Phase 16-1 実装完了内容
 
 **統合・分離（完了）**:

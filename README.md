@@ -276,6 +276,11 @@ fly ssh console -a your-app-name -C "bundle exec rails clock_reminder:check_all"
 - ✅ アクセス制限機能完了（Phase 14-5）
 - ✅ 欠勤申請機能完了（Phase 14-6）
 - ✅ 欠勤申請機能のLINE連携完了（Phase 14-7）
+- ✅ アプリケーション本体リファクタリング完了（Phase 16-1〜16-4）
+  - ✅ コントローラーファイル統合・分離と適切な共通化（Phase 16-1）
+  - ✅ コード品質改善とConcern最適化（Phase 16-2）
+  - ✅ 保守性向上（可読性向上とファイル構造最適化）（Phase 16-3）
+  - ✅ サービス層リファクタリング（LINE Bot関連サービス再構成、重複メソッド統合）（Phase 16-4）
 
 ## アーキテクチャ
 
@@ -346,9 +351,10 @@ fly ssh console -a your-app-name -C "bundle exec rails clock_reminder:check_all"
 - **今後の課題**: 依存関係の整理、循環依存の解消、インターフェースの定義、設定管理の統一
 
 ### テスト品質
-- **テスト通過率**: 100% (475 runs, 1191 assertions, 0 failures, 0 errors, 0 skips)
+- **テスト通過率**: 100% (436 runs, 1057 assertions, 0 failures, 0 errors, 0 skips)
 - **テストカバレッジ**: 全コントローラー・サービス・モデルの100%カバレッジ
 - **テスト品質**: 意味のあるテストに改善済み
+- **Phase 16-4完了**: サービス層リファクタリング完了（LINE Bot関連サービス再構成、重複メソッド統合、テストファイル復元・統合）
 
 ## ドキュメント
 

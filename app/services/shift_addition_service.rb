@@ -28,7 +28,7 @@ class ShiftAdditionService
       next if existing_request
 
       addition_request = ShiftAddition.create!(
-        request_id: LineUtilityService.new.generate_request_id("ADDITION"),
+        request_id: LineBotService.new.generate_request_id("ADDITION"),
         requester_id: params[:requester_id],
         target_employee_id: target_employee_id,
         shift_date: Date.parse(params[:shift_date]),
@@ -175,7 +175,7 @@ class ShiftAdditionService
   def send_addition_notifications(requests, params)
     return if Rails.env.test? || requests.empty?
 
-    notification_service = NotificationService.new
+    notification_service = EmailNotificationService.new
     notification_service.send_shift_addition_request_notification(requests, params)
   end
 
@@ -183,7 +183,7 @@ class ShiftAdditionService
   def send_approval_notification(addition_request)
     return if Rails.env.test?
 
-    notification_service = NotificationService.new
+    notification_service = EmailNotificationService.new
     notification_service.send_shift_addition_approval_notification(addition_request)
   end
 
@@ -191,7 +191,7 @@ class ShiftAdditionService
   def send_rejection_notification(addition_request)
     return if Rails.env.test?
 
-    notification_service = NotificationService.new
+    notification_service = EmailNotificationService.new
     notification_service.send_shift_addition_rejection_notification(addition_request)
   end
 

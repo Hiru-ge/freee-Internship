@@ -40,7 +40,7 @@ class ShiftExchangeService
     created_requests = []
     overlap_result[:available_ids].each do |approver_id|
       exchange_request = ShiftExchange.create!(
-        request_id: LineUtilityService.new.generate_request_id("EXCHANGE"),
+        request_id: LineBotService.new.generate_request_id("EXCHANGE"),
         requester_id: params[:applicant_id],
         approver_id: approver_id,
         shift_id: shift.id,
@@ -231,7 +231,7 @@ class ShiftExchangeService
   def send_exchange_notifications(requests, params)
     return if Rails.env.test? || requests.empty?
 
-    notification_service = NotificationService.new
+    notification_service = EmailNotificationService.new
     notification_service.send_shift_exchange_request_notification(requests, params)
   end
 
@@ -242,7 +242,7 @@ class ShiftExchangeService
     # shiftが削除されている場合は通知をスキップ
     return unless exchange_request.shift
 
-    notification_service = NotificationService.new
+    notification_service = EmailNotificationService.new
     notification_service.send_shift_exchange_approval_notification(exchange_request)
   end
 
@@ -253,7 +253,7 @@ class ShiftExchangeService
     # shiftが削除されている場合は通知をスキップ
     return unless exchange_request.shift
 
-    notification_service = NotificationService.new
+    notification_service = EmailNotificationService.new
     notification_service.send_shift_exchange_rejection_notification(exchange_request)
   end
 

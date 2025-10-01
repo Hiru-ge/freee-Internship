@@ -2,9 +2,9 @@
 
 require "test_helper"
 
-class NotificationServiceTest < ActiveSupport::TestCase
+class EmailNotificationServiceTest < ActiveSupport::TestCase
   def setup
-    @service = NotificationService.new
+    @service = EmailNotificationService.new
     @line_user_id = "test_line_user_id"
     @employee_id = "test_employee_id"
   end
@@ -170,129 +170,8 @@ class NotificationServiceTest < ActiveSupport::TestCase
     employee.destroy
   end
 
-  # ===== LINE通知テスト =====
-
-  test "認証コード送信通知" do
-    # テスト環境では実際の送信は行わないが、メソッドの動作をテスト
-    result = @service.send_verification_code_notification(@line_user_id, "テスト従業員")
-    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
-    assert_nil result
-    # エラーが発生しないことを確認
-    assert_nothing_raised { @service.send_verification_code_notification(@line_user_id, "テスト従業員") }
-  end
-
-  test "認証完了通知" do
-    # テスト環境では実際の送信は行わないが、メソッドの動作をテスト
-    result = @service.send_authentication_success_notification(@line_user_id, "テスト従業員")
-    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
-    assert_nil result
-    # エラーが発生しないことを確認
-    assert_nothing_raised { @service.send_authentication_success_notification(@line_user_id, "テスト従業員") }
-  end
-
-  test "エラー通知" do
-    # テスト環境では実際の送信は行わないが、メソッドの動作をテスト
-    result = @service.send_error_notification(@line_user_id, "テストエラー")
-    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
-    assert_nil result
-    # エラーが発生しないことを確認
-    assert_nothing_raised { @service.send_error_notification(@line_user_id, "テストエラー") }
-  end
-
-  test "成功通知" do
-    # テスト環境では実際の送信は行わないが、メソッドの動作をテスト
-    result = @service.send_success_notification(@line_user_id, "テスト成功")
-    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
-    assert_nil result
-    # エラーが発生しないことを確認
-    assert_nothing_raised { @service.send_success_notification(@line_user_id, "テスト成功") }
-  end
-
-  test "警告通知" do
-    # テスト環境では実際の送信は行わないが、メソッドの動作をテスト
-    result = @service.send_warning_notification(@line_user_id, "テスト警告")
-    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
-    assert_nil result
-    # エラーが発生しないことを確認
-    assert_nothing_raised { @service.send_warning_notification(@line_user_id, "テスト警告") }
-  end
-
-  test "情報通知" do
-    # テスト環境では実際の送信は行わないが、メソッドの動作をテスト
-    result = @service.send_info_notification(@line_user_id, "テスト情報")
-    # テスト環境ではnilが返されるが、メソッドが正常に実行されることを確認
-    assert_nil result
-    # エラーが発生しないことを確認
-    assert_nothing_raised { @service.send_info_notification(@line_user_id, "テスト情報") }
-  end
-
   # ===== メール通知テスト =====
 
-  test "従業員情報取得" do
-    # 存在しない従業員IDで検索
-    result = @service.get_employee_with_email("nonexistent_employee")
-    assert_nil result, "存在しない従業員IDはnilを返すべき"
-
-    # 有効な従業員IDで検索（テスト用データを作成）
-    employee = Employee.create!(employee_id: "test_employee", role: "employee")
-    result = @service.get_employee_with_email(employee.employee_id)
-    # テスト環境ではnilが返される可能性が高いが、エラーが発生しないことを確認
-    assert_nil result, "テスト環境では従業員情報は取得されない"
-
-    # クリーンアップ
-    employee.destroy
-  end
-
-  test "シフト交代依頼メール送信" do
-    # テスト環境では送信されない
-    result = @service.send_shift_exchange_request_email(
-      @employee_id,
-      [@employee_id],
-      Date.current,
-      Time.current,
-      Time.current + 1.hour
-    )
-    assert_not result
-  end
-
-  test "シフト追加依頼メール送信" do
-    # テスト環境では送信されない
-    result = @service.send_shift_addition_request_email(
-      @employee_id,
-      Date.current,
-      Time.current,
-      Time.current + 1.hour
-    )
-    assert_not result
-  end
-
-  # ===== ユーティリティ機能テスト =====
-
-  test "メール通知のみの送信" do
-    # テスト環境では送信されない
-    result = @service.send_email_only(:shift_exchange_request, @employee_id, [@employee_id], Date.current, Time.current, Time.current + 1.hour)
-    assert_not result
-  end
-
-  test "LINE通知のみの送信" do
-    # テスト環境では送信されない
-    result = @service.send_line_only(:shift_exchange_request, @employee_id, [@employee_id], Date.current, Time.current, Time.current + 1.hour)
-    assert_nil result
-  end
-
-  test "グループ通知" do
-    # テスト環境では送信されない
-    result = @service.send_group_notification("test_group_id", "テストメッセージ")
-    assert_nil result
-  end
-
-  test "一括通知" do
-    # テスト環境では送信されない
-    line_user_ids = [@line_user_id, "another_line_user_id"]
-    result = @service.send_bulk_notification(line_user_ids, "テストメッセージ")
-    # 一括通知は配列を返す
-    assert_equal line_user_ids, result
-  end
 
   private
 
