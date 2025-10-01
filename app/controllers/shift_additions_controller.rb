@@ -39,8 +39,8 @@ class ShiftAdditionsController < ApplicationController
       return unless validate_shift_params(params, new_shift_addition_path)
 
       # 重複チェック
-      overlap_service = ShiftOverlapService.new
-      overlapping_employee = overlap_service.check_addition_overlap(
+      display_service = ShiftDisplayService.new
+      overlapping_employee = display_service.check_addition_overlap(
         params[:employee_id],
         Date.parse(params[:shift_date]),
         Time.zone.parse(params[:start_time]),
