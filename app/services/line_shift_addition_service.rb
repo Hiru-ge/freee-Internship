@@ -1,26 +1,16 @@
-# frozen_string_literal: true
-
 class LineShiftAdditionService
   def initialize
     @line_bot_service = LineBotService.new
   end
-
-  # シフト追加コマンドの処理
   def handle_shift_addition_command(event)
     line_user_id = @line_bot_service.extract_user_id(event)
-
-    # 認証チェック
     unless @line_bot_service.employee_already_linked?(line_user_id)
       return "認証が必要です。個人チャットで「認証」と入力して認証を行ってください。" if @line_bot_service.group_message?(event)
 
       return "認証が必要です。「認証」と入力して認証を行ってください。"
     end
-
-    # オーナー権限チェック
     employee = Employee.find_by(line_id: line_user_id)
     return "シフト追加はオーナーのみが利用可能です。" unless employee&.role == "owner"
-
-    # シフト追加フロー開始
     @line_bot_service.set_conversation_state(line_user_id, {
                              "state" => "waiting_for_shift_addition_date",
                              "step" => 1,
@@ -33,16 +23,12 @@ class LineShiftAdditionService
       "例：#{tomorrow}\n" \
       "⚠️ 過去の日付は指定できません"
   end
-
-  # シフト追加日付入力の処理
   def handle_shift_addition_date_input(line_user_id, message_text)
-    # 日付形式の検証（月・日形式）
+
     date_validation_result = @line_bot_service.validate_month_day_format(message_text)
     return date_validation_result[:error] if date_validation_result[:error]
 
     date = date_validation_result[:date]
-
-    # シフト追加時間入力の状態に移行
     @line_bot_service.set_conversation_state(line_user_id, {
                              "state" => "waiting_for_shift_addition_time",
                              "step" => 2,
@@ -54,21 +40,15 @@ class LineShiftAdditionService
       "シフトの時間を入力してください。\n" \
       "例: 9:00-17:00"
   end
-
-  # シフト追加時間入力の処理
   def handle_shift_addition_time_input(line_user_id, message_text, state)
-    # 時間形式の検証
+
     time_validation_result = @line_bot_service.validate_and_format_time(message_text)
     return time_validation_result[:error] if time_validation_result[:error]
 
     start_time = time_validation_result[:start_time]
     end_time = time_validation_result[:end_time]
-
-    # 日付を取得
     date = Date.parse(state["selected_date"]) if state["selected_date"].is_a?(String)
     date = state["selected_date"] if state["selected_date"].is_a?(Date)
-
-    # シフト追加対象従業員選択の状態に移行
     @line_bot_service.set_conversation_state(line_user_id, {
                              "state" => "waiting_for_shift_addition_employee",
                              "step" => 3,
@@ -77,8 +57,6 @@ class LineShiftAdditionService
                              "end_time" => end_time,
                              "created_at" => Time.current
                            })
-
-    # 依頼可能な従業員を取得
     available_employees = get_available_employees_for_shift_addition(date, start_time, end_time)
 
     if available_employees.empty?
@@ -99,10 +77,8 @@ class LineShiftAdditionService
         "例: 1,2 または 田中太郎, 佐藤花子"
     end
   end
-
-  # シフト追加対象従業員入力の処理
   def handle_shift_addition_employee_input(line_user_id, message_text, state)
-    # 文字列として保存された日付・時間を適切な型に変換
+
     date = Date.parse(state["selected_date"]) if state["selected_date"].is_a?(String)
     date = state["selected_date"] if state["selected_date"].is_a?(Date)
 
@@ -111,19 +87,13 @@ class LineShiftAdditionService
 
     end_time = Time.parse(state["end_time"]) if state["end_time"].is_a?(String)
     end_time = state["end_time"] if state["end_time"].is_a?(Time)
-
-    # 依頼可能な従業員を取得
     available_employees = get_available_employees_for_shift_addition(date, start_time, end_time)
-
-    # 複数の従業員名を処理（カンマ区切り）
     employee_selections = message_text.split(",").map(&:strip)
-
-    # 従業員検索
     selected_employees = []
     invalid_selections = []
 
     employee_selections.each do |selection|
-      # 番号選択の場合は直接処理
+  
       if selection.match?(/^\d+$/)
         selection_index = selection.to_i - 1
         if selection_index >= 0 && selection_index < available_employees.length
@@ -132,10 +102,8 @@ class LineShiftAdditionService
           invalid_selections << selection
         end
       else
-        # 従業員名で検索（依頼可能な従業員の中から）
+    
         all_matches = @line_bot_service.find_employees_by_name(selection)
-
-        # 依頼可能な従業員の中から絞り込み
         employees = all_matches.select do |emp|
           emp_id = emp[:id] || emp["id"]
           available_employees.any? { |available| (available[:id] || available["id"]) == emp_id }
@@ -146,7 +114,7 @@ class LineShiftAdditionService
         elsif employees.one?
           selected_employees << employees.first
         else
-          # 複数の従業員が見つかった場合は、最初の1つを選択
+      
           selected_employees << employees.first
         end
       end
@@ -160,12 +128,8 @@ class LineShiftAdditionService
     end
 
     return "有効な従業員が見つかりませんでした。" if selected_employees.empty?
-
-    # 既に依頼可能な従業員のみを選択しているので、重複チェックは不要
     available_employees = selected_employees
     overlapping_employees = []
-
-    # 確認の状態に移行
     @line_bot_service.set_conversation_state(line_user_id, {
                              "state" => "waiting_for_shift_addition_confirmation",
                              "step" => 4,
@@ -176,8 +140,6 @@ class LineShiftAdditionService
                              "overlapping_employees" => overlapping_employees,
                              "created_at" => Time.current
                            })
-
-    # 確認メッセージを生成
     message = "📋 シフト追加の確認\n\n"
     message += "日付: #{date.strftime('%m/%d')}\n"
     message += "時間: #{start_time.strftime('%H:%M')}-#{end_time.strftime('%H:%M')}\n"
@@ -193,8 +155,6 @@ class LineShiftAdditionService
 
     message
   end
-
-  # シフト追加確認入力の処理
   def handle_shift_addition_confirmation_input(line_user_id, message_text, state)
     case message_text
     when "はい"
@@ -206,13 +166,9 @@ class LineShiftAdditionService
       "「はい」または「いいえ」で回答してください。"
     end
   end
-
-  # シフト追加依頼の作成
   def create_shift_addition_request(line_user_id, state)
     employee = Employee.find_by(line_id: line_user_id)
     return "従業員情報が見つかりません。" unless employee
-
-    # 文字列として保存された日付・時間を適切な型に変換
     date = Date.parse(state["selected_date"]) if state["selected_date"].is_a?(String)
     date = state["selected_date"] if state["selected_date"].is_a?(Date)
 
@@ -224,8 +180,6 @@ class LineShiftAdditionService
 
     available_employees = state["available_employees"]
     state["overlapping_employees"]
-
-    # 共通サービスを使用してシフト追加リクエストを作成
     request_params = {
       requester_id: employee.employee_id,
       shift_date: date.strftime("%Y-%m-%d"),
@@ -236,12 +190,10 @@ class LineShiftAdditionService
 
     shift_addition_service = ShiftAdditionService.new
     result = shift_addition_service.create_addition_request(request_params)
-
-    # 会話状態をクリア
     @line_bot_service.clear_conversation_state(line_user_id)
 
     if result[:success]
-      # 結果メッセージを生成
+  
       message = "✅ シフト追加依頼を送信しました！\n\n"
 
       if result[:created_requests]&.any?
@@ -264,19 +216,13 @@ class LineShiftAdditionService
     Rails.logger.error "シフト追加依頼作成エラー: #{e.message}"
     "❌ シフト追加依頼の作成に失敗しました。"
   end
-
-  # シフト追加承認・否認のPostback処理
   def handle_shift_addition_approval_postback(line_user_id, postback_data, action)
     request_id = extract_request_id_from_postback(postback_data, "addition")
     addition_request = ShiftAddition.find_by(request_id: request_id)
 
     return "シフト追加リクエストが見つかりません。" unless addition_request
-
-    # 従業員情報を取得
     employee = @line_bot_service.find_employee_by_line_id(line_user_id)
     return "従業員情報が見つかりません。" unless employee
-
-    # 共通サービスを使用して承認・拒否処理を実行
     shift_addition_service = ShiftAdditionService.new
 
     if action == "approve"
@@ -297,10 +243,8 @@ class LineShiftAdditionService
   end
 
   private
-
-  # 依頼可能な従業員を取得（シフト追加用）
   def get_available_employees_for_shift_addition(date, start_time, end_time)
-    # 指定された日付・時間帯にシフトがない従業員を取得
+
     freee_service = FreeeApiService.new(
       ENV.fetch("FREEE_ACCESS_TOKEN", nil),
       ENV.fetch("FREEE_COMPANY_ID", nil)
@@ -311,8 +255,6 @@ class LineShiftAdditionService
 
     all_employees.each do |employee|
       employee_id = employee[:id] || employee["id"]
-
-      # 指定された日付・時間帯にシフトがないかチェック
       existing_shift = Shift.where(
         employee_id: employee_id,
         shift_date: date
@@ -325,12 +267,10 @@ class LineShiftAdditionService
 
     available_employees
   end
-
-  # PostbackからリクエストIDを抽出
   def extract_request_id_from_postback(postback_data, type)
     case type
     when "addition"
-      # approve_addition_12345 または reject_addition_12345 の形式
+  
       postback_data.split("_").last
     else
       postback_data

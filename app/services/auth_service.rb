@@ -1,41 +1,29 @@
-# frozen_string_literal: true
-
-# 統合認証管理サービス
-# 認証管理とアクセス制御を一元管理
 class AuthService
   include BCrypt
 
-  # パスワードをハッシュ化
   def self.hash_password(password)
     BCrypt::Password.create(password)
   end
 
-  # パスワードを検証
   def self.verify_password(password, hashed_password)
     BCrypt::Password.new(hashed_password) == password
   end
 
-  # ログイン処理
   def self.login(employee_id, password)
-    # freeeAPIから従業員情報を取得
     freee_service = FreeeApiService.new(
       Rails.application.config.freee_api["access_token"],
       Rails.application.config.freee_api["company_id"]
     )
 
-    # 従業員が存在するかチェック
     employee_info = freee_service.get_employee_info(employee_id)
     return { success: false, message: "従業員IDが見つかりません" } unless employee_info
-
-    # データベースから従業員レコードを取得（パスワード認証用）
     employee = Employee.find_by(employee_id: employee_id)
 
     if employee.nil?
-      # 従業員レコードが存在しない場合は作成
       employee = Employee.create!(
         employee_id: employee_id,
         role: determine_role_from_freee(employee_info),
-        password_hash: nil, # 初回ログイン時はパスワード未設定
+        password_hash: nil,
         password_updated_at: nil,
         last_login_at: nil
       )
@@ -47,7 +35,6 @@ class AuthService
 
     return { success: false, message: "パスワードが正しくありません" } unless verify_password(password, employee.password_hash)
 
-    # ログイン成功 - 最終ログイン日時を更新
     employee.update_last_login!
 
     { success: true, message: "ログインしました", employee: employee }
@@ -55,8 +42,6 @@ class AuthService
     Rails.logger.error "ログインエラー: #{e.message}"
     { success: false, message: "ログイン中にエラーが発生しました" }
   end
-
-  # パスワード変更
   def self.change_password(employee_id, current_password, new_password)
     employee = Employee.find_by(employee_id: employee_id)
 
@@ -65,8 +50,6 @@ class AuthService
     unless verify_password(current_password, employee.password_hash)
       return { success: false, message: "現在のパスワードが正しくありません" }
     end
-
-    # 新しいパスワードをハッシュ化して保存
     new_hashed_password = hash_password(new_password)
     employee.update_password!(new_hashed_password)
 
@@ -75,14 +58,10 @@ class AuthService
     Rails.logger.error "パスワード変更エラー: #{e.message}"
     { success: false, message: "パスワードの変更中にエラーが発生しました" }
   end
-
-  # 初回パスワード設定
   def self.set_initial_password(employee_id, password)
     employee = Employee.find_by(employee_id: employee_id)
 
     return { success: false, message: "従業員IDが見つかりません" } if employee.nil?
-
-    # パスワードをハッシュ化して保存
     hashed_password = hash_password(password)
     employee.update_password!(hashed_password)
 
@@ -91,35 +70,23 @@ class AuthService
     Rails.logger.error "初回パスワード設定エラー: #{e.message}"
     { success: false, message: "パスワードの設定中にエラーが発生しました" }
   end
-
-  # 認証コード送信（初回パスワード設定用）
   def self.send_verification_code(employee_id)
-    # 従業員情報を取得（freee APIから動的取得予定）
-    # 現在は仮の実装
     employee_info = get_employee_info_from_freee(employee_id)
 
     return { success: false, message: "従業員のメールアドレスが見つかりません" } if employee_info.nil? || employee_info[:email].blank?
-
-    # 6桁の認証コードを生成
     verification_code = VerificationCode.generate_code
-
-    # 既存の認証コードを削除
     VerificationCode.where(employee_id: employee_id).delete_all
-
-    # 新しい認証コードを保存
     VerificationCode.create!(
       employee_id: employee_id,
       code: verification_code,
       expires_at: 10.minutes.from_now
     )
-
-    # メール送信
     begin
       AuthMailer.verification_code(employee_info[:email], employee_info[:name], verification_code).deliver_now
       Rails.logger.info "初回パスワード設定用メール送信成功: #{employee_info[:email]}"
     rescue StandardError => e
       Rails.logger.error "メール送信エラー: #{e.message}"
-      # メール送信に失敗しても認証コードは生成済みなので、成功として扱う
+
     end
 
     { success: true, message: "認証コードを送信しました。メールの送信には数分かかる場合があります。" }
@@ -127,8 +94,6 @@ class AuthService
     Rails.logger.error "認証コード送信エラー: #{e.message}"
     { success: false, message: "認証コードの送信に失敗しました" }
   end
-
-  # 認証コード検証
   def self.verify_code(employee_id, input_code)
     verification_code = VerificationCode.find_valid_code(employee_id, input_code)
 
@@ -139,18 +104,12 @@ class AuthService
     Rails.logger.error "認証コード検証エラー: #{e.message}"
     { success: false, message: "認証に失敗しました" }
   end
-
-  # 認証付き初回パスワード設定
   def self.set_initial_password_with_verification(employee_id, password, verification_code)
-    # 認証コードを検証
+
     verification_result = verify_code(employee_id, verification_code)
     return verification_result unless verification_result[:success]
-
-    # パスワードを設定
     password_result = set_initial_password(employee_id, password)
     return password_result unless password_result[:success]
-
-    # 認証コードを削除
     VerificationCode.where(employee_id: employee_id).delete_all
 
     { success: true, message: "パスワードが正常に設定されました" }
@@ -158,38 +117,26 @@ class AuthService
     Rails.logger.error "認証付き初回パスワード設定エラー: #{e.message}"
     { success: false, message: "パスワードの設定中にエラーが発生しました" }
   end
-
-  # パスワードリセット用認証コード送信
   def self.send_password_reset_code(employee_id)
-    # 従業員が存在するかチェック
+
     employee = Employee.find_by(employee_id: employee_id)
     return { success: false, message: "指定された従業員IDが見つかりません" } if employee.nil?
-
-    # 従業員情報を取得（freee APIから動的取得予定）
     employee_info = get_employee_info_from_freee(employee_id)
 
     return { success: false, message: "従業員のメールアドレスが見つかりません" } if employee_info.nil? || employee_info[:email].blank?
-
-    # 6桁の認証コードを生成
     verification_code = VerificationCode.generate_code
-
-    # 既存の認証コードを削除
     VerificationCode.where(employee_id: employee_id).delete_all
-
-    # 新しい認証コードを保存
     VerificationCode.create!(
       employee_id: employee_id,
       code: verification_code,
       expires_at: 10.minutes.from_now
     )
-
-    # メール送信
     begin
       AuthMailer.password_reset_code(employee_info[:email], employee_info[:name], verification_code).deliver_now
       Rails.logger.info "パスワードリセット用メール送信成功: #{employee_info[:email]}"
     rescue StandardError => e
       Rails.logger.error "メール送信エラー: #{e.message}"
-      # メール送信に失敗しても認証コードは生成済みなので、成功として扱う
+
     end
 
     { success: true, message: "認証コードを送信しました。メールの送信には数分かかる場合があります。メールをご確認ください。" }
@@ -197,8 +144,6 @@ class AuthService
     Rails.logger.error "パスワードリセット用認証コード送信エラー: #{e.message}"
     { success: false, message: "認証コードの送信に失敗しました" }
   end
-
-  # パスワードリセット用認証コード検証
   def self.verify_password_reset_code(employee_id, code)
     verification_code = VerificationCode.find_valid_code(employee_id, code)
 
@@ -211,26 +156,18 @@ class AuthService
     Rails.logger.error "パスワードリセット用認証コード検証エラー: #{e.message}"
     { success: false, message: "認証に失敗しました" }
   end
-
-  # 認証コード付きパスワード再設定
   def self.reset_password_with_verification(employee_id, new_password, verification_code)
-    # 認証コードの検証
+
     verification = VerificationCode.find_valid_code(employee_id, verification_code)
 
     return { success: false, message: "認証コードが正しくありません" } if verification.nil?
 
     return { success: false, message: "認証コードの有効期限が切れています" } if verification.expired?
-
-    # パスワードの検証（共通モジュールを使用）
     validation_result = PasswordValidator.validate_password(new_password)
     return { success: false, message: validation_result[:errors].join(", ") } unless validation_result[:valid]
-
-    # パスワードをハッシュ化して保存
     password_hash = BCrypt::Password.create(new_password)
     employee = Employee.find_by(employee_id: employee_id)
     employee.update_password!(password_hash)
-
-    # 認証コードを削除
     verification.mark_as_used!
 
     { success: true, message: "パスワードが正常に再設定されました" }
@@ -238,14 +175,10 @@ class AuthService
     Rails.logger.error "認証コード付きパスワード再設定エラー: #{e.message}"
     { success: false, message: "パスワードの再設定に失敗しました" }
   end
-
-  # オーナー権限チェック
   def self.is_owner?(employee_id)
-    # 環境変数からオーナーIDを取得
+
     owner_id = ENV["OWNER_EMPLOYEE_ID"]
     return false unless owner_id&.strip&.present?
-
-    # freeeAPIから従業員情報を取得して権限を判定
     freee_service = FreeeApiService.new(
       Rails.application.config.freee_api["access_token"],
       Rails.application.config.freee_api["company_id"]
@@ -259,19 +192,15 @@ class AuthService
     Rails.logger.error "オーナー権限チェックエラー: #{e.message}"
     false
   end
-
-  # freeeAPIの従業員情報から役割を判定
   def self.determine_role_from_freee(employee_info)
-    # 環境変数からオーナーIDを取得
+
     owner_id = ENV["OWNER_EMPLOYEE_ID"]
     return "employee" unless owner_id&.strip&.present?
 
     employee_info["id"].to_s == owner_id.strip ? "owner" : "employee"
   end
-
-  # freee APIから従業員情報を取得
   def self.get_employee_info_from_freee(employee_id)
-    # まずfreee APIから取得を試行
+
     freee_service = FreeeApiService.new(
       Rails.application.config.freee_api["access_token"],
       Rails.application.config.freee_api["company_id"]
@@ -285,7 +214,7 @@ class AuthService
         email: employee_info["email"]
       }
     else
-      # freee APIから取得できない場合は、全従業員リストから検索
+
       all_employees = freee_service.get_all_employees
       target_employee = all_employees.find { |emp| emp["id"].to_s == employee_id.to_s }
 
@@ -295,7 +224,7 @@ class AuthService
           email: target_employee["email"]
         }
       else
-        # それでも見つからない場合は仮のデータを返す
+
         {
           name: "従業員#{employee_id}",
           email: "employee#{employee_id}@example.com"
@@ -304,53 +233,35 @@ class AuthService
     end
   rescue StandardError => e
     Rails.logger.error "freee API連携エラー: #{e.message}"
-    # エラー時は仮のデータを返す
+
     {
       name: "従業員#{employee_id}",
       email: "employee#{employee_id}@example.com"
     }
   end
-
-  # ===== アクセス制御機能 =====
-
-  # メールアドレスが許可されているかチェック
   def self.allowed_email?(email)
     return false if email.blank?
     return false unless valid_email_format?(email)
-
-    # 特定のメールアドレスをチェック
     return true if specific_allowed_emails.include?(email.downcase)
-
-    # @freee.co.jpドメインをチェック
     return true if email.downcase.end_with?("@freee.co.jp")
 
     false
   end
-
-  # 認証コードを生成・送信（アクセス制御用）
   def self.send_access_control_verification_code(email)
     return { success: false, message: "このメールアドレスはアクセスが許可されていません" } unless allowed_email?(email)
-
-    # テスト環境では@freee.co.jpドメインへのメール送信を禁止
     if Rails.env.test? && email.downcase.end_with?("@freee.co.jp")
       return { success: false, message: "テスト環境では@freee.co.jpドメインへのメール送信は禁止されています" }
     end
 
     begin
-      # 既存の認証コードを削除
+
       EmailVerificationCode.where(email: email).delete_all
-
-      # 新しい認証コードを生成
       code = EmailVerificationCode.generate_code
-
-      # 認証コードを保存
       EmailVerificationCode.create!(
         email: email,
         code: code,
         expires_at: 10.minutes.from_now
       )
-
-      # メール送信
       AuthMailer.access_control_verification_code(email, code).deliver_now
 
       { success: true, message: "認証コードを送信しました。メールの送信には数分かかる場合があります。", code: code }
@@ -359,37 +270,25 @@ class AuthService
       { success: false, message: "認証コードの送信に失敗しました" }
     end
   end
-
-  # 認証コードを検証（アクセス制御用）
   def self.verify_access_control_code(email, code)
     return { success: false, message: "メールアドレスまたは認証コードが指定されていません" } if email.blank? || code.blank?
-
-    # 認証コードを検索
     verification_code = EmailVerificationCode.valid.for_email(email).find_by(code: code)
 
     if verification_code
-      # 認証成功 - 認証コードを削除
+
       verification_code.destroy
       return { success: true, message: "認証が完了しました" }
     end
-
-    # 期限切れのコードがあるかチェック
     expired_code = EmailVerificationCode.for_email(email).find_by(code: code)
     return { success: false, message: "認証コードの有効期限が切れています" } if expired_code
-
-    # 認証コードが見つからない
     { success: false, message: "認証コードが正しくありません" }
   end
-
-  # 特定の許可メールアドレス一覧を取得
   def self.specific_allowed_emails
     @specific_allowed_emails ||= begin
       emails = ENV["ALLOWED_EMAIL_ADDRESSES"] || ""
       emails.split(",").map(&:strip).map(&:downcase).reject(&:blank?)
     end
   end
-
-  # メールアドレスの形式をチェック
   def self.valid_email_format?(email)
     email.match?(URI::MailTo::EMAIL_REGEXP)
   end
