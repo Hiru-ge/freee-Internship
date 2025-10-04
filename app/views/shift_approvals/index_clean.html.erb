@@ -23,10 +23,10 @@
                     <strong>申請者:</strong> <%= @employee_names[exchange.requester_id]&.dig(:display_name) || exchange.requester_id %><br>
                     <strong>依頼日時:</strong> <%= exchange.shift&.shift_date&.strftime('%m/%d') %> <%= exchange.shift&.start_time&.strftime('%H:%M') %> - <%= exchange.shift&.end_time&.strftime('%H:%M') %>
                   </div>
-
+                  
                   <div class="approval-buttons">
-                    <button class="approval-button approve" data-request-type="exchange" data-request-id="<%= exchange.request_id %>" data-employee-id="<%= current_employee_id %>">承認</button>
-                    <button class="approval-button reject" data-request-type="exchange" data-request-id="<%= exchange.request_id %>" data-employee-id="<%= current_employee_id %>">否認</button>
+                    <button class="approval-button approve" onclick="handleApprove('exchange', '<%= exchange.request_id %>', '<%= current_employee_id %>')">承認</button>
+                    <button class="approval-button reject" onclick="handleDeny('exchange', '<%= exchange.request_id %>', '<%= current_employee_id %>')">否認</button>
                   </div>
                 </div>
               </div>
@@ -42,10 +42,10 @@
                     <strong>申請者:</strong> <%= @employee_names[addition.requester_id]&.dig(:display_name) || addition.requester_id %><br>
                     <strong>依頼日時:</strong> <%= addition.shift_date.strftime('%m/%d') %> <%= addition.start_time.strftime('%H:%M') %> - <%= addition.end_time.strftime('%H:%M') %>
                   </div>
-
+                  
                   <div class="approval-buttons">
-                    <button class="approval-button approve" data-request-type="addition" data-request-id="<%= addition.request_id %>" data-employee-id="<%= current_employee_id %>">承認</button>
-                    <button class="approval-button reject" data-request-type="addition" data-request-id="<%= addition.request_id %>" data-employee-id="<%= current_employee_id %>">否認</button>
+                    <button class="approval-button approve" onclick="handleApprove('addition', '<%= addition.request_id %>', '<%= current_employee_id %>')">承認</button>
+                    <button class="approval-button reject" onclick="handleDeny('addition', '<%= addition.request_id %>', '<%= current_employee_id %>')">否認</button>
                   </div>
                 </div>
               </div>
@@ -60,5 +60,84 @@
       </div>
     </div>
 
+    <script>
+      function handleApprove(requestType, requestId, employeeId) {
+        if (window.loadingHandler) {
+          window.loadingHandler.show('承認処理中...');
+        }
+        
+        fetch('<%= shift_approvals_path %>/approve', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+          },
+          body: `request_id=${requestId}&request_type=${requestType}&employee_id=${employeeId}`
+        })
+        .then(response => {
+          if (response.ok) {
+            if (window.messageHandler) {
+              window.messageHandler.show('リクエストを承認しました', 'success');
+            }
+            // 承認されたリクエストを非表示にする
+            const requestElement = document.getElementById(`req-${requestId}`);
+            if (requestElement) {
+              requestElement.style.display = 'none';
+            }
+          } else {
+            throw new Error('承認に失敗しました');
+          }
+        })
+        .catch(error => {
+          if (window.messageHandler) {
+            window.messageHandler.show('エラーが発生しました: ' + error.message, 'error');
+          }
+        })
+        .finally(() => {
+          if (window.loadingHandler) {
+            window.loadingHandler.hide();
+          }
+        });
+      }
+
+      function handleDeny(requestType, requestId, employeeId) {
+        if (window.loadingHandler) {
+          window.loadingHandler.show('否認処理中...');
+        }
+        
+        fetch('<%= shift_approvals_path %>/reject', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+          },
+          body: `request_id=${requestId}&request_type=${requestType}&employee_id=${employeeId}`
+        })
+        .then(response => {
+          if (response.ok) {
+            if (window.messageHandler) {
+              window.messageHandler.show('リクエストを否認しました', 'success');
+            }
+            // 否認されたリクエストを非表示にする
+            const requestElement = document.getElementById(`req-${requestId}`);
+            if (requestElement) {
+              requestElement.style.display = 'none';
+            }
+          } else {
+            throw new Error('否認に失敗しました');
+          }
+        })
+        .catch(error => {
+          if (window.messageHandler) {
+            window.messageHandler.show('エラーが発生しました: ' + error.message, 'error');
+          }
+        })
+        .finally(() => {
+          if (window.loadingHandler) {
+            window.loadingHandler.hide();
+          }
+        });
+      }
+    </script>
   </body>
 </html>

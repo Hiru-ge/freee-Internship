@@ -1720,32 +1720,6 @@ a:hover {
   color: #ffca28;
 }
 
-/* ===== ユーティリティクラス ===== */
-
-.hidden {
-  display: none !important;
-}
-
-.text-center {
-  text-align: center;
-}
-
-.text-red {
-  color: red;
-}
-
-.padding-20 {
-  padding: 20px;
-}
-
-.padding-40 {
-  padding: 40px;
-}
-
-.color-gray {
-  color: #999;
-}
-
 /* ===== シフト承認ページのデザイン改善 ===== */
 
 /* シフト承認画面のコンテナ幅を狭く */

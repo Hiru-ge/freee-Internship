@@ -27,7 +27,7 @@ class ShiftDisplayControllerTest < ActionDispatch::IntegrationTest
     get shifts_url
     assert_response :success
     assert_select "h1", "シフトページ"
-    assert_select ".wage-gauge-section", count: 1
+    assert_select "#employee-list-section", count: 1
   end
 
   test "従業員としてシフトページの表示" do
@@ -121,7 +121,7 @@ class ShiftDisplayControllerTest < ActionDispatch::IntegrationTest
     get shifts_url
     assert_response :success
     assert_select ".wage-gauge", count: 0
-    assert_select ".employee-wage-table", count: 1
+    assert_select ".employee-list", count: 1
   end
 
   test "従業員での賃金ゲージの表示" do

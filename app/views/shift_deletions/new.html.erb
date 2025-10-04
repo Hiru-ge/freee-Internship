@@ -36,3 +36,30 @@
   <% end %>
 </div>
 
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('deletion-form');
+
+    form.addEventListener('submit', function(e) {
+      const shiftSelect = document.getElementById('shift-select');
+      const reason = document.getElementById('reason');
+
+      if (!shiftSelect.value || !reason.value.trim()) {
+        e.preventDefault();
+        if (window.showFlashMessage) {
+          window.showFlashMessage('すべての項目を入力してください。', 'error');
+        } else if (window.messageHandler) {
+          window.messageHandler.show('すべての項目を入力してください。', 'error');
+        } else {
+          alert('すべての項目を入力してください。');
+        }
+        return;
+      }
+
+      // ローディング表示
+      const submitButton = document.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      submitButton.textContent = '送信中...';
+    });
+  });
+</script>

@@ -72,8 +72,7 @@ class ErrorHandlingTest < ActionController::TestCase
   test "APIエラーの適切なメッセージ" do
     post :login, params: { employee_id: "invalid_id", password: "test_password" }
     assert_response :success
-    # フラッシュメッセージまたはページ内のエラーメッセージを確認
-    assert_select "[data-flash-error], .message, body", text: /エラー|エラーが発生/, minimum: 0
+    assert_select "body", text: /エラー|エラーが発生/
   end
 
   test "認証エラーの明確なメッセージ" do

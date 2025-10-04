@@ -1,53 +1,180 @@
-<div class="container shift-exchange-form-page">
-  <h1>シフト交代依頼</h1>
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <!-- CSSは外部ファイルに分離済み -->
+  </head>
+  <body>
+    <div class="form-container">
+      <h1>シフト交代リクエスト</h1>
 
-  <div class="form-container">
-    <div class="form-info">
-      <h2>依頼内容</h2>
-      <div class="info-grid">
-        <div class="info-item">
-          <label>日付:</label>
-          <span><%= @date %></span>
+      <form id="request-form" action="<%= shift_exchanges_path %>" method="post">
+        <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+
+        <div class="form-group">
+          <div class="form-row">
+            <label for="applicant-display" class="form-label">申請者 (あなたの名前):</label>
+            <input type="text" id="applicant-display" class="form-input readonly" value="<%= @employees.find { |emp| emp[:id] == @applicant_id }&.dig(:display_name) || '読み込み中...' %>" readonly>
+            <input type="hidden" id="applicant-select" name="applicant_id" value="<%= @applicant_id %>">
+          </div>
         </div>
-        <div class="info-item">
-          <label>時間:</label>
-          <span><%= @start_time %> - <%= @end_time %></span>
+
+        <div class="form-group">
+          <div class="form-row">
+            <label for="shift-date" class="form-label">交代したいシフトの日付:</label>
+            <input type="date" id="shift-date" name="shift_date" class="form-input readonly" value="<%= @date %>" readonly required>
+          </div>
         </div>
-        <div class="info-item">
-          <label>申請者:</label>
-          <span><%= @applicant_name %></span>
+
+        <div class="form-group">
+          <div class="form-row">
+            <label class="form-label">交代したいシフトの時間:</label>
+            <div class="time-inputs">
+              <input type="time" id="start-time" name="start_time" class="form-input readonly" value="<%= @start_time %>" readonly required>
+              <span class="time-separator">～</span>
+              <input type="time" id="end-time" name="end_time" class="form-input readonly" value="<%= @end_time %>" readonly required>
+            </div>
+          </div>
         </div>
-      </div>
+
+        <div class="form-group">
+          <label class="form-label">交代を依頼する相手を選択してください (複数選択可)</label>
+          <div class="form-help">※ 複数の人に同時に依頼できます。誰か一人でも承認されれば交代が成立します。</div>
+          <div id="employee-list" class="form-checkbox-group">
+            <p>従業員を読み込んでいます...</p>
+          </div>
+        </div>
+
+        <div class="form-buttons">
+          <button type="submit" class="form-button">この内容でリクエストを送信</button>
+          <a href="#" onclick="goBack(); return false;" class="form-button secondary">シフトページに戻る</a>
+        </div>
+      </form>
     </div>
 
-    <form id="request-form" action="<%= shift_exchanges_path %>" method="post">
-      <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
-      <%= hidden_field_tag "shift_exchange[applicant_id]", @applicant_id %>
-      <%= hidden_field_tag "shift_exchange[date]", @date %>
-      <%= hidden_field_tag "shift_exchange[start_time]", @start_time %>
-      <%= hidden_field_tag "shift_exchange[end_time]", @end_time %>
+    <script>
+      // サーバーから渡された変数を、JavaScriptの変数として受け取る
+      var applicantIdFromUrl = "<%= @applicant_id %>";
+      var dateFromUrl = "<%= @date %>";
+      var startFromUrl = "<%= @start_time %>";
+      var endFromUrl = "<%= @end_time %>";
+      var employees = <%= @employees.to_json.html_safe %>;
 
-      <div class="form-section">
-        <h3>交代相手の選択</h3>
-        <p>交代を依頼したい従業員を選択してください。</p>
+      /**
+       * ページが読み込まれたときに実行される
+       */
+      document.addEventListener('DOMContentLoaded', function() {
+        setupFormHandler();
+        loadEmployees();
+      });
 
-        <div class="employee-selection">
-          <select id="employee-select" name="shift_exchange[employee_id]" required>
-            <option value="">従業員を選択してください</option>
-          </select>
-        </div>
-      </div>
+      /**
+       * フォームハンドラーの設定
+       */
+      function setupFormHandler() {
+        document.getElementById('request-form').addEventListener('submit', function(e) {
+          var selectedEmployees = getSelectedEmployees();
 
-      <div class="form-section">
-        <h3>メッセージ（任意）</h3>
-        <textarea name="shift_exchange[message]" placeholder="交代依頼の理由やメッセージを入力してください"></textarea>
-      </div>
+          if (selectedEmployees.length === 0) {
+            e.preventDefault();
+            showMessage('交代を依頼する相手を選択してください。複数の人に同時に依頼することも可能です。', 'error');
+            return;
+          }
 
-      <div class="form-buttons">
-        <button type="submit" class="form-button">この内容でリクエストを送信</button>
-        <a href="#" data-action="go-back" class="form-button secondary">シフトページに戻る</a>
-      </div>
-    </form>
-  </div>
+          // 選択された従業員IDをhiddenフィールドに設定
+          selectedEmployees.forEach(function(employeeId) {
+            var hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'approver_ids[]';
+            hiddenInput.value = employeeId;
+            this.appendChild(hiddenInput);
+          }.bind(this));
 
-</div>
+          // ローディング表示
+          if (window.loadingHandler) {
+            window.loadingHandler.show('リクエスト送信中...');
+          } else {
+            // フォールバック
+            var submitButton = document.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.textContent = '送信中...';
+          }
+        });
+      }
+
+      /**
+       * 従業員リストを読み込んで表示
+       */
+      function loadEmployees() {
+        var employeeList = document.getElementById('employee-list');
+
+        if (!employees || employees.length === 0) {
+          employeeList.innerHTML = '<p style="color: #f44336;">従業員情報の読み込みに失敗しました。</p>';
+          return;
+        }
+
+        var html = '';
+        employees.forEach(function(employee) {
+          // 申請者自身は除外
+          if (employee.id === applicantIdFromUrl) {
+            return;
+          }
+
+          html += '<div class="form-checkbox-item">';
+          html += '<input type="checkbox" id="employee-' + employee.id + '" value="' + employee.id + '">';
+          html += '<label for="employee-' + employee.id + '">' + employee.display_name + '</label>';
+          html += '</div>';
+        });
+
+        employeeList.innerHTML = html;
+      }
+
+      /**
+       * 選択された従業員IDの配列を取得
+       */
+      function getSelectedEmployees() {
+        var checkboxes = document.querySelectorAll('#employee-list input[type="checkbox"]:checked');
+        var selectedIds = [];
+
+        checkboxes.forEach(function(checkbox) {
+          selectedIds.push(checkbox.value);
+        });
+
+        return selectedIds;
+      }
+
+      /**
+       * 戻るボタンの処理
+       */
+      function goBack() {
+        if (window.history.length > 1) {
+          window.history.back();
+        } else {
+          window.location.href = '/shifts';
+        }
+      }
+
+      /**
+       * メッセージ表示（統一されたシステムを使用）
+       */
+      function showMessage(message, type) {
+        if (window.messageHandler) {
+          return window.messageHandler.show(message, type);
+        } else {
+          // フォールバック（統一システムが利用できない場合）
+          var existingMessage = document.querySelector('.message');
+          if (existingMessage) {
+            existingMessage.remove();
+          }
+
+          var messageDiv = document.createElement('div');
+          messageDiv.className = 'message ' + type;
+          messageDiv.textContent = message;
+
+          var form = document.getElementById('request-form');
+          form.parentNode.insertBefore(messageDiv, form.nextSibling);
+        }
+      }
+    </script>
+  </body>
+</html>
