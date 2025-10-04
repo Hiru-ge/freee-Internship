@@ -7,7 +7,7 @@
       <div class="form-group">
         <%= form.label :employee_id, "従業員を選択してください:" %>
         <%= form.select :employee_id,
-            options_for_select(@employees.map { |emp| [emp[:display_name], emp[:employee_id]] }, params[:employee_id]),
+            options_for_select(@employees.map { |emp| [emp[:display_name], emp[:id]] }, params[:employee_id]),
             { prompt: "-- 従業員を選択 --" },
             { required: true, id: "employee-select" } %>
       </div>

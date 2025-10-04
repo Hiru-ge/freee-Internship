@@ -88,7 +88,7 @@ module InputValidation
 
   def validate_employee_id_format(employee_id, redirect_path)
     if employee_id.blank?
-      flash[:error] = "従業員IDを入力してください"
+      flash[:error] = "従業員を選択してください"
       redirect_to redirect_path
       return false
     end
@@ -146,7 +146,7 @@ module InputValidation
 
     # 従業員IDの検証
     if employee_id.blank?
-      flash[:alert] = "従業員IDを入力してください"
+      flash[:alert] = "従業員を選択してください"
       redirect_to auth_login_path
       return false
     end

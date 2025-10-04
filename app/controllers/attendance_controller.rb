@@ -8,6 +8,9 @@ class AttendanceController < ApplicationController
     @employee_id = current_employee_id
     @clock_service = ClockService.new(@employee_id)
     @clock_status = @clock_service.get_clock_status
+
+    @employee_name ||= get_employee_name
+    @is_owner ||= owner?
   end
 
   def clock_in

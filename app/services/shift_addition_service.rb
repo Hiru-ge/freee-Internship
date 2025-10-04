@@ -7,7 +7,7 @@ class ShiftAdditionService
     return { success: false, message: "過去の日付のシフト追加依頼はできません。" } if Date.parse(params[:shift_date]) < Date.current
     created_requests = []
     params[:target_employee_ids].each do |target_employee_id|
-  
+
       existing_request = ShiftAddition.find_by(
         requester_id: params[:requester_id],
         target_employee_id: target_employee_id,

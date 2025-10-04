@@ -1,4 +1,6 @@
 class EmailNotificationService
+  include FreeeApiHelper
+
   def initialize
     @freee_service = FreeeApiService.new(ENV.fetch("FREEE_ACCESS_TOKEN", nil), ENV.fetch("FREEE_COMPANY_ID", nil))
   end
@@ -99,7 +101,7 @@ class EmailNotificationService
 
     begin
       send_shift_deletion_request_email(
-        deletion_request.employee_id,
+        deletion_request.requester_id,
         deletion_request.shift.shift_date,
         deletion_request.shift.start_time,
         deletion_request.shift.end_time,
@@ -115,7 +117,7 @@ class EmailNotificationService
 
     begin
       send_shift_deletion_approved_email(
-        deletion_request.employee_id,
+        deletion_request.requester_id,
         deletion_request.shift.shift_date,
         deletion_request.shift.start_time,
         deletion_request.shift.end_time
@@ -130,7 +132,7 @@ class EmailNotificationService
 
     begin
       send_shift_deletion_denied_email(
-        deletion_request.employee_id,
+        deletion_request.requester_id,
         deletion_request.shift.shift_date,
         deletion_request.shift.start_time,
         deletion_request.shift.end_time
@@ -160,9 +162,18 @@ class EmailNotificationService
       approver = Employee.find_by(employee_id: approver_id)
       next unless approver
 
+      requester_info = freee_api_service.get_employee_info(requester_id)
+      approver_info = freee_api_service.get_employee_info(approver_id)
+
+      requester_email = requester_info&.dig("profile_rule", "email")
+      requester_name = requester_info&.dig("display_name") || requester.display_name
+      approver_email = approver_info&.dig("profile_rule", "email")
+      approver_name = approver_info&.dig("display_name") || approver.display_name
+
       ShiftMailer.shift_exchange_request(
-        requester,
-        approver,
+        approver_email,
+        approver_name,
+        requester_name,
         shift_date,
         start_time,
         end_time
@@ -175,9 +186,17 @@ class EmailNotificationService
     approver = Employee.find_by(employee_id: approver_id)
     return unless requester && approver
 
+    requester_info = freee_api_service.get_employee_info(requester_id)
+    approver_info = freee_api_service.get_employee_info(approver_id)
+
+    requester_email = requester_info&.dig("profile_rule", "email")
+    requester_name = requester_info&.dig("display_name") || requester.display_name
+    approver_name = approver_info&.dig("display_name") || approver.display_name
+
     ShiftMailer.shift_exchange_approved(
-      requester,
-      approver,
+      requester_email,
+      requester_name,
+      approver_name,
       shift_date,
       start_time,
       end_time
@@ -189,12 +208,14 @@ class EmailNotificationService
     approver = Employee.find_by(employee_id: approver_id)
     return unless requester && approver
 
+    requester_info = freee_api_service.get_employee_info(requester_id)
+
+    requester_email = requester_info&.dig("profile_rule", "email")
+    requester_name = requester_info&.dig("display_name") || requester.display_name
+
     ShiftMailer.shift_exchange_denied(
-      requester,
-      approver,
-      shift_date,
-      start_time,
-      end_time
+      requester_email,
+      requester_name
     ).deliver_now
   end
 
@@ -202,8 +223,13 @@ class EmailNotificationService
     target_employee = Employee.find_by(employee_id: target_employee_id)
     return unless target_employee
 
+    employee_info = freee_api_service.get_employee_info(target_employee_id)
+    target_email = employee_info&.dig("profile_rule", "email")
+    target_name = employee_info&.dig("display_name") || target_employee.display_name
+
     ShiftMailer.shift_addition_request(
-      target_employee,
+      target_email,
+      target_name,
       shift_date,
       start_time,
       end_time
@@ -215,9 +241,14 @@ class EmailNotificationService
     target_employee = Employee.find_by(employee_id: target_employee_id)
     return unless requester && target_employee
 
+    # オーナーのメールアドレスと対象従業員の名前を取得
+    owner_info = freee_api_service.get_employee_info(requester_id)
+    owner_email = owner_info&.dig("profile_rule", "email")
+    target_name = target_employee.display_name
+
     ShiftMailer.shift_addition_approved(
-      requester,
-      target_employee,
+      owner_email,
+      target_name,
       shift_date,
       start_time,
       end_time
@@ -228,20 +259,33 @@ class EmailNotificationService
     target_employee = Employee.find_by(employee_id: target_employee_id)
     return unless requester && target_employee
 
+    owner_info = freee_api_service.get_employee_info(requester_id)
+    owner_email = owner_info&.dig("profile_rule", "email")
+    target_name = target_employee.display_name
+
     ShiftMailer.shift_addition_denied(
-      requester,
-      target_employee,
-      shift_date,
-      start_time,
-      end_time
+      owner_email,
+      target_name
     ).deliver_now
   end
   def send_shift_deletion_request_email(employee_id, shift_date, start_time, end_time, reason)
     employee = Employee.find_by(employee_id: employee_id)
     return unless employee
 
+    owner_id = ENV["OWNER_EMPLOYEE_ID"]
+    return unless owner_id
+
+    owner_info = freee_api_service.get_employee_info(owner_id)
+    owner_email = owner_info&.dig("profile_rule", "email")
+    owner_name = owner_info&.dig("display_name") || "オーナー"
+
+    requester_info = freee_api_service.get_employee_info(employee_id)
+    requester_name = requester_info&.dig("display_name") || employee.display_name
+
     ShiftMailer.shift_deletion_request(
-      employee,
+      owner_email,
+      owner_name,
+      requester_name,
       shift_date,
       start_time,
       end_time,
@@ -252,8 +296,13 @@ class EmailNotificationService
     employee = Employee.find_by(employee_id: employee_id)
     return unless employee
 
+    employee_info = freee_api_service.get_employee_info(employee_id)
+    requester_email = employee_info&.dig("profile_rule", "email")
+    requester_name = employee_info&.dig("display_name") || employee.display_name
+
     ShiftMailer.shift_deletion_approved(
-      employee,
+      requester_email,
+      requester_name,
       shift_date,
       start_time,
       end_time
@@ -263,8 +312,13 @@ class EmailNotificationService
     employee = Employee.find_by(employee_id: employee_id)
     return unless employee
 
+    employee_info = freee_api_service.get_employee_info(employee_id)
+    requester_email = employee_info&.dig("profile_rule", "email")
+    requester_name = employee_info&.dig("display_name") || employee.display_name
+
     ShiftMailer.shift_deletion_denied(
-      employee,
+      requester_email,
+      requester_name,
       shift_date,
       start_time,
       end_time

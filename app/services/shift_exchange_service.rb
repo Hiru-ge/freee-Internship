@@ -9,6 +9,7 @@ class ShiftExchangeService
     shift = find_or_create_shift(params)
     return { success: false, message: "シフトの取得に失敗しました。" } unless shift
     return { success: false, message: "過去の日付のシフト交代依頼はできません。" } if shift.shift_date < Date.current
+    # 利用可能な承認者の中から既存リクエストをチェック
     existing_requests = ShiftExchange.where(
       requester_id: params[:applicant_id],
       approver_id: overlap_result[:available_ids],
@@ -16,15 +17,28 @@ class ShiftExchangeService
       status: "pending"
     )
 
-    if existing_requests.any?
-      existing_approver_names = existing_requests.map do |req|
-        approver = Employee.find_by(employee_id: req.approver_id)
-        approver&.display_name || "ID: #{req.approver_id}"
-      end
-      return { success: false, message: "以下の従業員には既にシフト交代依頼が存在します: #{existing_approver_names.join(', ')}" }
+    # 既存リクエストがある承認者を除外
+    existing_approver_ids = existing_requests.pluck(:approver_id)
+    available_approver_ids = overlap_result[:available_ids] - existing_approver_ids
+
+    # 既存リクエストがある承認者の名前を取得
+    existing_approver_names = existing_requests.map do |req|
+      approver = Employee.find_by(employee_id: req.approver_id)
+      approver&.display_name || "ID: #{req.approver_id}"
     end
+
+    # 送信可能な承認者がいない場合
+    if available_approver_ids.empty?
+      if existing_approver_names.any?
+        return { success: false, message: "選択された従業員は全員、既に同じ時間帯のシフト交代依頼が存在します: #{existing_approver_names.join(', ')}" }
+      else
+        return { success: false, message: "送信可能な承認者がいません。" }
+      end
+    end
+
+    # リクエストを作成
     created_requests = []
-    overlap_result[:available_ids].each do |approver_id|
+    available_approver_ids.each do |approver_id|
       exchange_request = ShiftExchange.create!(
         request_id: LineBotService.new.generate_request_id("EXCHANGE"),
         requester_id: params[:applicant_id],
@@ -40,7 +54,8 @@ class ShiftExchangeService
       success: true,
       created_requests: created_requests,
       overlapping_employees: overlap_result[:overlapping_names],
-      message: generate_success_message(overlap_result[:overlapping_names])
+      existing_approver_names: existing_approver_names,
+      message: generate_success_message(overlap_result[:overlapping_names], existing_approver_names)
     }
   rescue StandardError => e
     Rails.logger.error "シフト交代リクエスト作成エラー: #{e.message}"
@@ -140,7 +155,7 @@ class ShiftExchangeService
     if result[:available_ids].empty?
       return {
         success: false,
-        message: "選択された従業員は全員、指定された時間にシフトが入っています。"
+        message: "選択された従業員は全員、指定された時間に既にシフトが入っているため、交代依頼ができません。"
       }
     end
 
@@ -186,9 +201,19 @@ class ShiftExchangeService
     notification_service = EmailNotificationService.new
     notification_service.send_shift_exchange_rejection_notification(exchange_request)
   end
-  def generate_success_message(overlapping_employees)
+  def generate_success_message(overlapping_employees, existing_approver_names = [])
+    messages = []
+
     if overlapping_employees.any?
-      "リクエストを送信しました。一部の従業員は指定時間にシフトが入っているため、依頼可能な従業員のみに送信されました。"
+      messages << "一部の従業員（#{overlapping_employees.join(', ')}）は指定時間にシフトが入っているため、依頼できませんでした。"
+    end
+
+    if existing_approver_names.any?
+      messages << "一部の従業員（#{existing_approver_names.join(', ')}）には既に同じ時間帯のシフト交代依頼が存在するため、依頼できませんでした。"
+    end
+
+    if messages.any?
+      "リクエストを送信しました。#{messages.join(' ')}依頼可能な従業員のみに送信されました。"
     else
       "リクエストを送信しました。承認をお待ちください。"
     end
