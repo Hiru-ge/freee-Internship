@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class ShiftMailer < ApplicationMailer
-  # シフト交代依頼の通知メール
   def shift_exchange_request(approver_email, approver_name, requester_name, shift_date, start_time, end_time)
     @approver_name = approver_name
     @requester_name = requester_name
