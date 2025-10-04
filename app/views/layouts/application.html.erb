@@ -3,29 +3,14 @@
   <head>
     <title><%= content_for(:title) || "Freee Internship" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
     <%= yield :head %>
 
-    <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
-    <%#= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
-
-    <link rel="icon" href="/icon.png" type="image/png">
-    <link rel="icon" href="/icon.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="/icon.png">
-
     <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
-    
-    <%# 統一されたメッセージ表示システム（最初に読み込み） %>
-    <%= javascript_include_tag 'message_handler' %>
-    
-    <%# 統一されたローディング表示システム %>
-    <%= javascript_include_tag 'loading_handler' %>
-    
+
     <%= javascript_importmap_tags %>
   </head>
 
@@ -34,7 +19,7 @@
     <main class="main-content">
       <%= yield %>
     </main>
-    
+
     <!-- フラッシュメッセージをトースト形式で表示 -->
     <script>
       function showFlashMessage(message, type) {
@@ -46,7 +31,7 @@
           createFallbackToast(message, type);
         }
       }
-      
+
       function createFallbackToast(message, type) {
         // 簡易トースト通知を作成
         const toast = document.createElement('div');
@@ -65,7 +50,7 @@
           cursor: pointer;
         `;
         toast.textContent = message;
-        
+
         // アニメーション用のCSSを追加
         if (!document.getElementById('toast-animations')) {
           const style = document.createElement('style');
@@ -94,9 +79,9 @@
           `;
           document.head.appendChild(style);
         }
-        
+
         document.body.appendChild(toast);
-        
+
         // クリックで閉じる
         toast.addEventListener('click', () => {
           toast.style.animation = 'slideOutRight 0.3s ease-out';
@@ -106,7 +91,7 @@
             }
           }, 300);
         });
-        
+
         // 5秒後に自動で閉じる
         setTimeout(() => {
           if (toast.parentNode) {
@@ -119,7 +104,7 @@
           }
         }, 5000);
       }
-      
+
       document.addEventListener('DOMContentLoaded', function() {
         // フラッシュメッセージを即座にトースト形式で表示
         setTimeout(function() {
@@ -127,23 +112,23 @@
             <% if flash[:success] %>
               showFlashMessage('<%= j(flash[:success]) %>', 'success');
             <% end %>
-            
+
             <% if flash[:error] %>
               showFlashMessage('<%= j(flash[:error]) %>', 'error');
             <% end %>
-            
+
             <% if flash[:warning] %>
               showFlashMessage('<%= j(flash[:warning]) %>', 'warning');
             <% end %>
-            
+
             <% if flash[:info] %>
               showFlashMessage('<%= j(flash[:info]) %>', 'info');
             <% end %>
-            
+
             <% if flash[:notice] %>
               showFlashMessage('<%= j(flash[:notice]) %>', 'success');
             <% end %>
-            
+
             <% if flash[:alert] %>
               showFlashMessage('<%= j(flash[:alert]) %>', 'error');
             <% end %>

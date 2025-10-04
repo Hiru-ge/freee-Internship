@@ -1,4 +1,3 @@
-// 統一されたローディング表示システム
 class LoadingHandler {
   constructor() {
     this.loadingOverlay = null;
@@ -119,7 +118,7 @@ class LoadingHandler {
     this.progressBar.style.display = showProgress ? 'block' : 'none';
     this.progressText.style.display = showProgress ? 'block' : 'none';
     this.loadingOverlay.style.display = 'flex';
-    
+
     // アニメーション
     this.loadingOverlay.style.opacity = '0';
     setTimeout(() => {
@@ -143,7 +142,7 @@ class LoadingHandler {
       progressFill.style.width = `${Math.min(100, Math.max(0, percentage))}%`;
       this.progressText.textContent = `${Math.round(percentage)}%`;
     }
-    
+
     if (message) {
       this.loadingText.textContent = message;
     }
@@ -157,22 +156,22 @@ class LoadingHandler {
   // 段階的ローディング
   async showWithSteps(steps, onStepComplete = null) {
     this.show('初期化中...', true);
-    
+
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i];
       const percentage = ((i + 1) / steps.length) * 100;
-      
+
       this.updateProgress(percentage, step.message);
-      
+
       try {
         if (step.action) {
           await step.action();
         }
-        
+
         if (onStepComplete) {
           onStepComplete(step, i);
         }
-        
+
         // ステップ間の遅延
         if (step.delay) {
           await new Promise(resolve => setTimeout(resolve, step.delay));
@@ -183,7 +182,7 @@ class LoadingHandler {
         throw error;
       }
     }
-    
+
     this.hide();
   }
 }
@@ -192,22 +191,22 @@ class LoadingHandler {
 window.loadingHandler = new LoadingHandler();
 
 // 便利な関数
-window.showLoading = function(message, showProgress) {
+window.showLoading = function (message, showProgress) {
   return window.loadingHandler.show(message, showProgress);
 };
 
-window.hideLoading = function() {
+window.hideLoading = function () {
   return window.loadingHandler.hide();
 };
 
-window.updateLoadingProgress = function(percentage, message) {
+window.updateLoadingProgress = function (percentage, message) {
   return window.loadingHandler.updateProgress(percentage, message);
 };
 
 // フォーム送信時の自動ローディング
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   // フォーム送信時のローディング表示
-  document.addEventListener('submit', function(e) {
+  document.addEventListener('submit', function (e) {
     const form = e.target;
     if (form.tagName === 'FORM' && !form.hasAttribute('data-no-loading')) {
       const submitButton = form.querySelector('button[type="submit"], input[type="submit"]');
@@ -216,9 +215,9 @@ document.addEventListener('DOMContentLoaded', function() {
         submitButton.disabled = true;
         submitButton.textContent = '送信中...';
         submitButton.value = '送信中...';
-        
+
         // フォーム送信完了時の処理
-        form.addEventListener('submit', function() {
+        form.addEventListener('submit', function () {
           setTimeout(() => {
             submitButton.disabled = false;
             submitButton.textContent = originalText;
@@ -231,25 +230,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // AJAX リクエスト時のローディング表示
   const originalFetch = window.fetch;
-  window.fetch = function(...args) {
+  window.fetch = function (...args) {
     const url = args[0];
     const options = args[1] || {};
-    
+
     // 特定のURLパターンでローディング表示
     if (typeof url === 'string' && (
-      url.includes('/api/') || 
+      url.includes('/api/') ||
       url.includes('/auth/') ||
       url.includes('/shifts/') ||
       url.includes('/dashboard/')
     )) {
       window.loadingHandler.show('通信中...');
-      
+
       return originalFetch.apply(this, args)
         .finally(() => {
           window.loadingHandler.hide();
         });
     }
-    
+
     return originalFetch.apply(this, args);
   };
 });
@@ -260,12 +259,12 @@ loadingStyle.textContent = `
   .loading-spinner-large {
     animation: spin 1s linear infinite;
   }
-  
+
   @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
   }
-  
+
   #loading-overlay {
     transition: opacity 0.3s ease;
   }

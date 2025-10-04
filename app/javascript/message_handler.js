@@ -1,4 +1,3 @@
-// 統一されたメッセージ表示システム
 class MessageHandler {
   constructor() {
     this.messageContainer = null;
@@ -175,7 +174,7 @@ class MessageHandler {
 window.messageHandler = new MessageHandler();
 
 // 後方互換性のための関数
-window.showMessage = function(message, type, duration) {
+window.showMessage = function (message, type, duration) {
   return window.messageHandler.show(message, type, duration);
 };
 
