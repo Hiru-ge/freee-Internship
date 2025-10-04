@@ -13,7 +13,7 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
 
     get new_shift_exchange_url
     assert_response :success
-    assert_select "h1", "シフト交代リクエスト"
+    assert_select "h1", "シフト交代依頼"
     assert_select "form[action=?]", shift_exchanges_path
   end
 
