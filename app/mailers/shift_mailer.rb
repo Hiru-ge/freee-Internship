@@ -15,7 +15,6 @@ class ShiftMailer < ApplicationMailer
     )
   end
 
-  # シフト交代承認の通知メール
   def shift_exchange_approved(requester_email, requester_name, approver_name, shift_date, start_time, end_time)
     @requester_name = requester_name
     @approver_name = approver_name
@@ -29,7 +28,6 @@ class ShiftMailer < ApplicationMailer
     )
   end
 
-  # シフト交代否認の通知メール（全員否認の場合）
   def shift_exchange_denied(requester_email, requester_name)
     @requester_name = requester_name
 
@@ -39,7 +37,6 @@ class ShiftMailer < ApplicationMailer
     )
   end
 
-  # シフト追加依頼の通知メール
   def shift_addition_request(target_email, target_name, shift_date, start_time, end_time)
     @target_name = target_name
     @shift_date = shift_date
@@ -53,7 +50,6 @@ class ShiftMailer < ApplicationMailer
     )
   end
 
-  # シフト追加承認の通知メール（オーナー宛）
   def shift_addition_approved(owner_email, target_name, shift_date, start_time, end_time)
     @target_name = target_name
     @shift_date = shift_date
@@ -66,7 +62,6 @@ class ShiftMailer < ApplicationMailer
     )
   end
 
-  # シフト追加否認の通知メール（オーナー宛）
   def shift_addition_denied(owner_email, target_name)
     @target_name = target_name
 
@@ -76,7 +71,6 @@ class ShiftMailer < ApplicationMailer
     )
   end
 
-  # 欠勤申請の通知メール（オーナー宛）
   def shift_deletion_request(owner_email, owner_name, requester_name, shift_date, start_time, end_time, reason)
     @owner_name = owner_name
     @requester_name = requester_name
@@ -92,7 +86,6 @@ class ShiftMailer < ApplicationMailer
     )
   end
 
-  # 欠勤申請承認の通知メール
   def shift_deletion_approved(requester_email, requester_name, shift_date, start_time, end_time)
     @requester_name = requester_name
     @shift_date = shift_date
@@ -105,7 +98,6 @@ class ShiftMailer < ApplicationMailer
     )
   end
 
-  # 欠勤申請拒否の通知メール
   def shift_deletion_denied(requester_email, requester_name, shift_date, start_time, end_time)
     @requester_name = requester_name
     @shift_date = shift_date

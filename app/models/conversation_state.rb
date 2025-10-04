@@ -1,16 +1,13 @@
 # frozen_string_literal: true
 
 class ConversationState < ApplicationRecord
-  # バリデーション
   validates :line_user_id, presence: true
   validates :state_data, presence: true
   validates :expires_at, presence: true
 
-  # スコープ
   scope :active, -> { where("expires_at > ?", Time.current) }
   scope :expired, -> { where("expires_at < ?", Time.current) }
 
-  # クラスメソッド
   def self.find_active_state(line_user_id)
     active.find_by(line_user_id: line_user_id)
   end
@@ -19,7 +16,6 @@ class ConversationState < ApplicationRecord
     expired.delete_all
   end
 
-  # インスタンスメソッド
   def expired?
     expires_at < Time.current
   end

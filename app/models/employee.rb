@@ -1,24 +1,16 @@
 # frozen_string_literal: true
 
 class Employee < ApplicationRecord
-  # バリデーション
   validates :employee_id, presence: true, uniqueness: true
   validates :role, presence: true, inclusion: { in: %w[employee owner] }
   validates :line_id, uniqueness: true, allow_nil: true
 
-  # パスワードは初回ログイン時は未設定でもOK
-  # validates :password_hash, presence: true
-
-  # リレーション
   has_many :verification_codes, foreign_key: "employee_id", primary_key: "employee_id", dependent: :destroy
 
-  # スコープ
   scope :owners, -> { where(role: "owner") }
   scope :employees, -> { where(role: "employee") }
 
-  # インスタンスメソッド
   def owner?
-    # データベースのroleカラムをチェック（シードデータ作成時に決定済み）
     role == "owner"
   end
 
@@ -46,9 +38,7 @@ class Employee < ApplicationRecord
     update!(line_id: nil)
   end
 
-  # freee APIから取得した従業員名を返す
   def display_name
-    # freeeAPIから従業員情報を取得
     freee_service = FreeeApiService.new(
       ENV.fetch("FREEE_ACCESS_TOKEN", nil),
       ENV.fetch("FREEE_COMPANY_ID", nil)
@@ -64,8 +54,6 @@ class Employee < ApplicationRecord
   private
 
   def password_required?
-    # パスワードが既に設定されている場合は必須
-    # 初回作成時は不要
     persisted? && password_hash.present?
   end
 end

@@ -1,23 +1,19 @@
 # frozen_string_literal: true
 
 class ShiftDeletion < ApplicationRecord
-  # バリデーション
   validates :request_id, presence: true, uniqueness: true
   validates :requester_id, presence: true
   validates :shift_id, presence: true
   validates :reason, presence: true
   validates :status, presence: true, inclusion: { in: %w[pending approved rejected] }
 
-  # スコープ
+  belongs_to :shift
+
   scope :pending, -> { where(status: "pending") }
   scope :approved, -> { where(status: "approved") }
   scope :rejected, -> { where(status: "rejected") }
   scope :for_requester, ->(requester_id) { where(requester_id: requester_id) }
 
-  # 関連付け
-  belongs_to :shift
-
-  # メソッド
   def pending?
     status == "pending"
   end

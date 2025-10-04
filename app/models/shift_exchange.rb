@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
 class ShiftExchange < ApplicationRecord
-  # バリデーション
   validates :request_id, presence: true, uniqueness: true
   validates :requester_id, presence: true
   validates :approver_id, presence: true
   validates :status, presence: true, inclusion: { in: %w[pending approved rejected cancelled] }
 
-  # スコープ
+  belongs_to :shift, optional: true
+
   scope :pending, -> { where(status: "pending") }
   scope :approved, -> { where(status: "approved") }
   scope :rejected, -> { where(status: "rejected") }
@@ -15,10 +15,6 @@ class ShiftExchange < ApplicationRecord
   scope :for_requester, ->(requester_id) { where(requester_id: requester_id) }
   scope :for_approver, ->(approver_id) { where(approver_id: approver_id) }
 
-  # 関連付け
-  belongs_to :shift, optional: true
-
-  # メソッド
   def pending?
     status == "pending"
   end
