@@ -1,17 +1,7 @@
 // シフト表示のJavaScript
 
 // グローバル変数
-let currentEmployeeId;
-let isOwner;
-let shiftsDataPath;
-let employeesWagesPath;
-let allWagesPath;
-let wageInfoPath;
-let newShiftExchangePath;
-let newShiftDeletionPath;
-let shiftApprovalsPath;
-let newShiftAdditionPath;
-
+let config = {};
 let calendarYear;
 let calendarMonth;
 let allShiftsData;
@@ -19,7 +9,7 @@ let currentStartDate;
 let daysInMonth;
 
 // 初期化
-document.addEventListener('DOMContentLoaded', function () {
+CommonUtils.initializePage(() => {
     loadConfig();
     checkOwnerPermissions();
     loadShifts();
@@ -27,19 +17,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // 設定の読み込み
 function loadConfig() {
-    const container = document.querySelector('.shift-page-container');
-    if (!container) return;
+    const configMap = {
+        currentEmployeeId: 'employeeId',
+        isOwner: 'isOwner',
+        shiftsDataPath: 'shiftsDataPath',
+        employeesWagesPath: 'employeesWagesPath',
+        allWagesPath: 'allWagesPath',
+        wageInfoPath: 'wageInfoPath',
+        newShiftExchangePath: 'newShiftExchangePath',
+        newShiftDeletionPath: 'newShiftDeletionPath',
+        shiftApprovalsPath: 'shiftApprovalsPath',
+        newShiftAdditionPath: 'newShiftAdditionPath'
+    };
 
-    currentEmployeeId = container.dataset.employeeId;
-    isOwner = container.dataset.isOwner === 'true';
-    shiftsDataPath = container.dataset.shiftsDataPath;
-    employeesWagesPath = container.dataset.employeesWagesPath;
-    allWagesPath = container.dataset.allWagesPath;
-    wageInfoPath = container.dataset.wageInfoPath;
-    newShiftExchangePath = container.dataset.newShiftExchangePath;
-    newShiftDeletionPath = container.dataset.newShiftDeletionPath;
-    shiftApprovalsPath = container.dataset.shiftApprovalsPath;
-    newShiftAdditionPath = container.dataset.newShiftAdditionPath;
+    config = CommonUtils.loadConfigFromContainer('.shift-page-container', configMap);
 }
 
 // オーナー権限チェック
@@ -47,7 +38,7 @@ function checkOwnerPermissions() {
     const shiftPageContainer = document.querySelector('.shift-page-container');
     shiftPageContainer.classList.remove('owner-mode', 'employee-mode');
 
-    if (isOwner) {
+    if (config.isOwner) {
         shiftPageContainer.classList.add('owner-mode');
         document.getElementById('shift-add-btn').style.display = 'inline-block';
         loadEmployeeList();
@@ -59,105 +50,99 @@ function checkOwnerPermissions() {
 }
 
 // 従業員一覧の読み込み（オーナーのみ）
-function loadEmployeeList() {
+async function loadEmployeeList() {
     if (window.employeeListLoading) return;
     window.employeeListLoading = true;
 
-    fetch(employeesWagesPath)
-        .then(response => response.json())
-        .then(employees => {
-            const tbody = document.getElementById('employee-list-body');
-            tbody.innerHTML = '';
+    try {
+        const employees = await CommonUtils.apiCall(config.employeesWagesPath);
 
-            if (employees && employees.length > 0) {
-                employees.forEach(employee => {
-                    const row = document.createElement('tr');
-                    row.innerHTML =
-                        '<td>' + employee.display_name + '</td>' +
-                        '<td><div class="wage-gauge" data-employee-id="' + employee.id + '">' +
-                        '<div class="gauge-container">' +
-                        '<div class="gauge-bar"><div class="gauge-fill" style="width: 0%"></div></div>' +
-                        '<div class="gauge-text">読み込み中...</div>' +
-                        '</div></div></td>';
-                    tbody.appendChild(row);
-                });
-            } else {
-                tbody.innerHTML = '<tr><td colspan="2">従業員情報がありません</td></tr>';
-            }
+        const tbody = document.getElementById('employee-list-body');
+        tbody.innerHTML = '';
 
-            loadWageGauge();
-        })
-        .catch(error => {
-            console.error('従業員一覧取得エラー:', error);
-            document.getElementById('employee-list-body').innerHTML = '<tr><td colspan="2">エラーが発生しました</td></tr>';
-        });
+        if (employees && employees.length > 0) {
+            employees.forEach(employee => {
+                const row = document.createElement('tr');
+                row.innerHTML =
+                    '<td>' + employee.display_name + '</td>' +
+                    '<td><div class="wage-gauge" data-employee-id="' + employee.id + '">' +
+                    '<div class="gauge-container">' +
+                    '<div class="gauge-bar"><div class="gauge-fill" style="width: 0%"></div></div>' +
+                    '<div class="gauge-text">読み込み中...</div>' +
+                    '</div></div></td>';
+                tbody.appendChild(row);
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="2">従業員情報がありません</td></tr>';
+        }
+
+        loadWageGauge();
+    } catch (error) {
+        CommonUtils.handleApiError(error, '従業員一覧取得');
+        document.getElementById('employee-list-body').innerHTML = '<tr><td colspan="2">エラーが発生しました</td></tr>';
+    }
 }
 
 // 給与ゲージの読み込み（オーナーのみ）
-function loadWageGauge() {
-    fetch(allWagesPath)
-        .then(response => response.json())
-        .then(wages => {
-            if (wages && wages.length > 0) {
-                wages.forEach(wage => {
-                    updateWageGaugeForEmployee(wage.employee_id, wage);
-                });
-            } else {
-                const gauges = document.querySelectorAll('.wage-gauge[data-employee-id]');
-                gauges.forEach(gauge => {
-                    const gaugeText = gauge.querySelector('.gauge-text');
-                    if (gaugeText) {
-                        gaugeText.innerHTML = 'シフトデータがありません';
-                    }
-                });
-            }
-        })
-        .catch(error => {
-            console.error('全従業員給与データ取得失敗:', error);
+async function loadWageGauge() {
+    try {
+        const wages = await CommonUtils.apiCall(config.allWagesPath);
+
+        if (wages && wages.length > 0) {
+            wages.forEach(wage => {
+                updateWageGaugeForEmployee(wage.employee_id, wage);
+            });
+        } else {
             const gauges = document.querySelectorAll('.wage-gauge[data-employee-id]');
             gauges.forEach(gauge => {
                 const gaugeText = gauge.querySelector('.gauge-text');
                 if (gaugeText) {
-                    gaugeText.innerHTML = 'エラー: 給与データの取得に失敗しました<br>' + error.message;
+                    gaugeText.innerHTML = 'シフトデータがありません';
                 }
             });
+        }
+    } catch (error) {
+        CommonUtils.handleApiError(error, '全従業員給与データ取得');
+        const gauges = document.querySelectorAll('.wage-gauge[data-employee-id]');
+        gauges.forEach(gauge => {
+            const gaugeText = gauge.querySelector('.gauge-text');
+            if (gaugeText) {
+                gaugeText.innerHTML = 'エラー: 給与データの取得に失敗しました';
+            }
         });
+    }
 }
 
 // 個人の給与ゲージの読み込み（従業員のみ）
-function loadPersonalGauge() {
+async function loadPersonalGauge() {
     const gaugeText = document.querySelector('#personal-wage-gauge .gauge-text');
     if (gaugeText) {
         gaugeText.textContent = '読み込み中...';
     }
 
-    fetch(`${wageInfoPath}?employee_id=${currentEmployeeId}`)
-        .then(response => response.json())
-        .then(wageInfo => {
-            updatePersonalWageGauge(wageInfo);
-        })
-        .catch(error => {
-            console.error('給与情報取得エラー:', error);
-            if (currentEmployeeId) {
-                document.querySelector('#personal-wage-gauge .gauge-text').textContent = 'エラーが発生しました';
-            }
-        });
+    try {
+        const wageInfo = await CommonUtils.apiCall(`${config.wageInfoPath}?employee_id=${config.currentEmployeeId}`);
+        updatePersonalWageGauge(wageInfo);
+    } catch (error) {
+        CommonUtils.handleApiError(error, '給与情報取得');
+        if (config.currentEmployeeId) {
+            document.querySelector('#personal-wage-gauge .gauge-text').textContent = 'エラーが発生しました';
+        }
+    }
 }
 
 // シフト情報の読み込み
-function loadShifts() {
+async function loadShifts() {
     const shiftCalendarContainer = document.getElementById('shift-calendar-container');
     shiftCalendarContainer.innerHTML = '<p>シフト情報を読み込んでいます...</p>';
 
-    fetch(shiftsDataPath)
-        .then(response => response.json())
-        .then(data => {
-            initializeShifts(data);
-        })
-        .catch(error => {
-            console.error('シフト情報取得エラー:', error);
-            shiftCalendarContainer.innerHTML = '<p>シフト情報の取得に失敗しました</p>';
-        });
+    try {
+        const data = await CommonUtils.apiCall(config.shiftsDataPath);
+        initializeShifts(data);
+    } catch (error) {
+        CommonUtils.handleApiError(error, 'シフト情報取得');
+        shiftCalendarContainer.innerHTML = '<p>シフト情報の取得に失敗しました</p>';
+    }
 }
 
 function initializeShifts(dataFromServer) {
@@ -415,8 +400,4 @@ function updateWageGaugeForEmployee(employeeId, wageInfo) {
     }
 }
 
-function showMessage(message, type) {
-    if (window.messageHandler) {
-        return window.messageHandler.show(message, type);
-    }
-}
+// showMessage関数はCommonUtilsを使用

@@ -1,5 +1,6 @@
 // Configure your import map in config/importmap.rb. Read more: https://github.com/rails/importmap-rails
 
+import "common"
 import "attendance"
 import "flash_messages"
 import "loading_handler"

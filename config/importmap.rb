@@ -3,6 +3,7 @@
 # Pin npm packages by running ./bin/importmap
 
 pin "application"
+pin "common"
 pin "attendance"
 pin "flash_messages"
 pin "loading_handler"

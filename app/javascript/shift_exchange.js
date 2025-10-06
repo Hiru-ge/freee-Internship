@@ -1,14 +1,10 @@
 // シフト交代のJavaScript
 
 // グローバル変数
-let applicantIdFromUrl;
-let dateFromUrl;
-let startFromUrl;
-let endFromUrl;
-let employees;
+let config = {};
 
 // 初期化
-document.addEventListener('DOMContentLoaded', function () {
+CommonUtils.initializePage(() => {
     loadConfig();
     setupFormHandler();
     loadEmployees();
@@ -16,60 +12,51 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // 設定の読み込み
 function loadConfig() {
-    const container = document.querySelector('.form-container');
-    if (!container) return;
+    const configMap = {
+        applicantIdFromUrl: 'applicantId',
+        dateFromUrl: 'date',
+        startFromUrl: 'startTime',
+        endFromUrl: 'endTime',
+        employees: 'employees'
+    };
 
-    applicantIdFromUrl = container.dataset.applicantId;
-    dateFromUrl = container.dataset.date;
-    startFromUrl = container.dataset.startTime;
-    endFromUrl = container.dataset.endTime;
-    employees = JSON.parse(container.dataset.employees || '[]');
+    config = CommonUtils.loadConfigFromContainer('.form-container', configMap);
 }
 
 // フォームハンドラーの設定
 function setupFormHandler() {
-    document.getElementById('request-form').addEventListener('submit', function (e) {
-        const selectedEmployees = getSelectedEmployees();
+    CommonUtils.setupFormSubmission('#request-form', validateForm, handleFormSuccess);
+}
 
-        if (selectedEmployees.length === 0) {
-            e.preventDefault();
-            showMessage('交代を依頼する相手を選択してください。複数の人に同時に依頼することも可能です。', 'error');
-            return;
-        }
+// フォームバリデーション
+function validateForm() {
+    const selectedEmployees = getSelectedEmployees();
+    if (selectedEmployees.length === 0) {
+        CommonUtils.showMessage('交代を依頼する相手を選択してください。複数の人に同時に依頼することも可能です。', 'error');
+        return false;
+    }
+    return true;
+}
 
-        // 選択された従業員IDをhiddenフィールドに設定
-        selectedEmployees.forEach(employeeId => {
-            const hiddenInput = document.createElement('input');
-            hiddenInput.type = 'hidden';
-            hiddenInput.name = 'approver_ids[]';
-            hiddenInput.value = employeeId;
-            e.target.appendChild(hiddenInput);
-        });
-
-        // ローディング表示
-        if (window.loadingHandler) {
-            window.loadingHandler.show('リクエスト送信中...');
-        } else {
-            const submitButton = document.querySelector('button[type="submit"]');
-            submitButton.disabled = true;
-            submitButton.textContent = '送信中...';
-        }
-    });
+// フォーム送信成功時の処理
+function handleFormSuccess(response) {
+    CommonUtils.showMessage('シフト交代リクエストを送信しました', 'success');
+    // 必要に応じてリダイレクト処理
 }
 
 // 従業員リストを読み込んで表示
 function loadEmployees() {
     const employeeList = document.getElementById('employee-list');
 
-    if (!employees || employees.length === 0) {
+    if (!config.employees || config.employees.length === 0) {
         employeeList.innerHTML = '<p style="color: #f44336;">従業員情報の読み込みに失敗しました。</p>';
         return;
     }
 
     let html = '';
-    employees.forEach(employee => {
+    config.employees.forEach(employee => {
         // 申請者自身は除外
-        if (employee.id === applicantIdFromUrl) {
+        if (employee.id === config.applicantIdFromUrl) {
             return;
         }
 
@@ -103,8 +90,4 @@ function goBack() {
     }
 }
 
-function showMessage(message, type) {
-    if (window.messageHandler) {
-        return window.messageHandler.show(message, type);
-    }
-}
+// showMessage関数はCommonUtilsを使用
