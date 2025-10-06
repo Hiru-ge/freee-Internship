@@ -5,16 +5,10 @@ class MessageHandler {
   }
 
   init() {
-    // DOMが準備できてから実行
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => this.createContainer());
-    } else {
-      this.createContainer();
-    }
+    document.addEventListener('DOMContentLoaded', () => this.createContainer());
   }
 
   createContainer() {
-    // メッセージコンテナを作成
     this.messageContainer = document.createElement('div');
     this.messageContainer.id = 'message-container';
     this.messageContainer.style.cssText = `
@@ -27,16 +21,13 @@ class MessageHandler {
     document.body.appendChild(this.messageContainer);
   }
 
-  // メッセージ表示
   show(message, type = 'info', duration = 5000) {
-    // コンテナが存在しない場合は作成
     if (!this.messageContainer) {
       this.createContainer();
     }
     const messageElement = this.createMessageElement(message, type);
     this.messageContainer.appendChild(messageElement);
 
-    // 自動削除
     if (duration > 0) {
       setTimeout(() => {
         this.removeMessage(messageElement);
@@ -46,28 +37,37 @@ class MessageHandler {
     return messageElement;
   }
 
-  // 成功メッセージ
   success(message, duration = 5000) {
     return this.show(message, 'success', duration);
   }
 
-  // エラーメッセージ
   error(message, duration = 8000) {
     return this.show(message, 'error', duration);
   }
 
-  // 警告メッセージ
   warning(message, duration = 6000) {
     return this.show(message, 'warning', duration);
   }
 
-  // 情報メッセージ
   info(message, duration = 5000) {
     return this.show(message, 'info', duration);
   }
 
-  // メッセージ要素作成
   createMessageElement(message, type) {
+    const messageDiv = this.createMessageDiv(type);
+    const messageText = this.createMessageText(message);
+    const closeButton = this.createCloseButton(messageDiv);
+
+    messageDiv.appendChild(messageText);
+    messageDiv.appendChild(closeButton);
+    messageDiv.addEventListener('click', () => {
+      this.removeMessage(messageDiv);
+    });
+
+    return messageDiv;
+  }
+
+  createMessageDiv(type) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message message-${type}`;
     messageDiv.style.cssText = `
@@ -80,45 +80,24 @@ class MessageHandler {
       cursor: pointer;
     `;
 
-    // タイプ別スタイル
-    switch (type) {
-      case 'success':
-        messageDiv.style.cssText += `
-          background-color: #4caf50;
-          color: white;
-          border-left: 4px solid #2e7d32;
-        `;
-        break;
-      case 'error':
-        messageDiv.style.cssText += `
-          background-color: #f44336;
-          color: white;
-          border-left: 4px solid #c62828;
-        `;
-        break;
-      case 'warning':
-        messageDiv.style.cssText += `
-          background-color: #ff9800;
-          color: white;
-          border-left: 4px solid #ef6c00;
-        `;
-        break;
-      case 'info':
-      default:
-        messageDiv.style.cssText += `
-          background-color: #2196f3;
-          color: white;
-          border-left: 4px solid #1565c0;
-        `;
-        break;
-    }
+    const typeStyles = {
+      success: 'background-color: #4caf50; color: white; border-left: 4px solid #2e7d32;',
+      error: 'background-color: #f44336; color: white; border-left: 4px solid #c62828;',
+      warning: 'background-color: #ff9800; color: white; border-left: 4px solid #ef6c00;',
+      info: 'background-color: #2196f3; color: white; border-left: 4px solid #1565c0;'
+    };
 
-    // メッセージテキスト
+    messageDiv.style.cssText += typeStyles[type] || typeStyles.info;
+    return messageDiv;
+  }
+
+  createMessageText(message) {
     const messageText = document.createElement('span');
     messageText.textContent = message;
-    messageDiv.appendChild(messageText);
+    return messageText;
+  }
 
-    // 閉じるボタン
+  createCloseButton(messageDiv) {
     const closeButton = document.createElement('button');
     closeButton.innerHTML = '×';
     closeButton.style.cssText = `
@@ -140,17 +119,9 @@ class MessageHandler {
     closeButton.addEventListener('click', () => {
       this.removeMessage(messageDiv);
     });
-    messageDiv.appendChild(closeButton);
-
-    // クリックで閉じる
-    messageDiv.addEventListener('click', () => {
-      this.removeMessage(messageDiv);
-    });
-
-    return messageDiv;
+    return closeButton;
   }
 
-  // メッセージ削除
   removeMessage(messageElement) {
     if (messageElement && messageElement.parentNode) {
       messageElement.style.animation = 'slideOut 0.3s ease-in';
@@ -162,23 +133,10 @@ class MessageHandler {
     }
   }
 
-  // 全メッセージクリア
-  clear() {
-    while (this.messageContainer.firstChild) {
-      this.messageContainer.removeChild(this.messageContainer.firstChild);
-    }
-  }
 }
 
-// グローバルインスタンス
 window.messageHandler = new MessageHandler();
 
-// 後方互換性のための関数
-window.showMessage = function (message, type, duration) {
-  return window.messageHandler.show(message, type, duration);
-};
-
-// CSS アニメーション
 const messageStyle = document.createElement('style');
 messageStyle.textContent = `
   @keyframes slideIn {

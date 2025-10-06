@@ -39,8 +39,8 @@
   // フォームハンドラーの設定
   function setupFormHandler() {
     document.getElementById('login-form').addEventListener('submit', function(e) {
-      var employeeId = document.getElementById('employee-select').value;
-      var password = document.getElementById('password').value;
+      const employeeId = document.getElementById('employee-select').value;
+      const password = document.getElementById('password').value;
 
       if (!employeeId) {
         e.preventDefault();
@@ -59,30 +59,16 @@
         window.loadingHandler.show('ログイン処理中...');
       } else {
         // フォールバック
-        var submitButton = document.querySelector('button[type="submit"]');
+        const submitButton = document.querySelector('button[type="submit"]');
         submitButton.disabled = true;
         submitButton.textContent = 'ログイン中...';
       }
     });
   }
 
-  // メッセージ表示（統一されたシステムを使用）
   function showMessage(message, type) {
     if (window.messageHandler) {
       return window.messageHandler.show(message, type);
-    } else {
-      // フォールバック（統一システムが利用できない場合）
-      var existingMessage = document.querySelector('.message');
-      if (existingMessage) {
-        existingMessage.remove();
-      }
-
-      var messageDiv = document.createElement('div');
-      messageDiv.className = 'message ' + type;
-      messageDiv.textContent = message;
-
-      var form = document.getElementById('login-form');
-      form.parentNode.insertBefore(messageDiv, form.nextSibling);
     }
   }
 </script>

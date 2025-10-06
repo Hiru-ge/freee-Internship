@@ -67,13 +67,13 @@
 </div>
 
 <script>
-  var current_employee_id = '<%= @employee_id %>';
-  var is_owner = <%= @is_owner %>;
-  var calendarYear;
-  var calendarMonth;
-  var allShiftsData;
-  var currentStartDate;
-  var daysInMonth;
+  const current_employee_id = '<%= @employee_id %>';
+  const is_owner = <%= @is_owner %>;
+  let calendarYear;
+  let calendarMonth;
+  let allShiftsData;
+  let currentStartDate;
+  let daysInMonth;
 
   // ページ読み込み時の初期化
   document.addEventListener('DOMContentLoaded', function() {
@@ -85,7 +85,7 @@
   function checkOwnerPermissions() {
 
     // コンテナに権限モードのクラスを追加
-    var shift_page_container = document.querySelector('.shift-page-container');
+    const shift_page_container = document.querySelector('.shift-page-container');
     shift_page_container.classList.remove('owner-mode', 'employee-mode');
 
     if (is_owner) {
@@ -111,7 +111,7 @@
     fetch('<%= employees_wages_path %>')
       .then(response => response.json())
       .then(employees => {
-        var tbody = document.getElementById('employee-list-body');
+        const tbody = document.getElementById('employee-list-body');
         tbody.innerHTML = '';
 
         if (employees && employees.length > 0) {
@@ -494,18 +494,9 @@
     }
   }
 
-  // メッセージ表示
   function showMessage(message, type) {
-    var messageDiv = document.getElementById('message');
-    messageDiv.textContent = message;
-    messageDiv.className = 'message ' + type;
-    messageDiv.style.display = 'block';
-
-    // 3秒後にメッセージを非表示
-    setTimeout(function() {
-      messageDiv.style.display = 'none';
-    }, 3000);
+    if (window.messageHandler) {
+      return window.messageHandler.show(message, type);
+    }
   }
 </script>
-
-<!-- CSSは外部ファイルに分離済み -->

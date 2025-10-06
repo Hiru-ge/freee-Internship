@@ -154,25 +154,9 @@
         }
       }
 
-      /**
-       * メッセージ表示（統一されたシステムを使用）
-       */
       function showMessage(message, type) {
         if (window.messageHandler) {
           return window.messageHandler.show(message, type);
-        } else {
-          // フォールバック（統一システムが利用できない場合）
-          var existingMessage = document.querySelector('.message');
-          if (existingMessage) {
-            existingMessage.remove();
-          }
-
-          var messageDiv = document.createElement('div');
-          messageDiv.className = 'message ' + type;
-          messageDiv.textContent = message;
-
-          var form = document.getElementById('request-form');
-          form.parentNode.insertBefore(messageDiv, form.nextSibling);
         }
       }
     </script>
