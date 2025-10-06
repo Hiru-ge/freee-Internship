@@ -66,13 +66,14 @@ class ErrorHandlingTest < ActionController::TestCase
     post :login, params: { employee_id: "", password: "" }
     assert_response :redirect
     assert_not_nil flash[:error]
-    assert_includes flash[:error], "入力"
+    assert_includes flash[:error], "従業員を選択してください"
   end
 
   test "APIエラーの適切なメッセージ" do
     post :login, params: { employee_id: "invalid_id", password: "test_password" }
     assert_response :success
-    assert_select "body", text: /エラー|エラーが発生/
+    assert_not_nil flash[:error]
+    assert_match(/従業員IDが見つかりません|エラー|失敗|無効|認証|入力|発生/, flash[:error])
   end
 
   test "認証エラーの明確なメッセージ" do

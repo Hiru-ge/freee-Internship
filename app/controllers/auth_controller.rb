@@ -283,26 +283,29 @@ class AuthController < ApplicationController
   end
 
   def authenticate_email
-    return unless request.post?
+    if request.post?
+      email = params[:email]
 
-    email = params[:email]
+      # 入力値検証
+      if email.blank?
+        handle_validation_error("email", "メールアドレスを入力してください")
+        render :access_control
+        return
+      end
 
-    # 入力値検証
-    if email.blank?
-      handle_validation_error("email", "メールアドレスを入力してください")
-      render :access_control
-      return
-    end
+      # メールアドレス認証
+      result = AuthService.send_access_control_verification_code(email)
 
-    # メールアドレス認証
-    result = AuthService.send_access_control_verification_code(email)
-
-    if result[:success]
-      session[:pending_email] = email
-      handle_success(result[:message])
-      redirect_to verify_access_code_path
+      if result[:success]
+        session[:pending_email] = email
+        handle_success(result[:message])
+        redirect_to verify_access_code_path
+      else
+        handle_validation_error("email", result[:message])
+        render :access_control
+      end
     else
-      handle_validation_error("email", result[:message])
+      # GETリクエストの場合はアクセス制御ページを表示
       render :access_control
     end
   end
@@ -314,31 +317,34 @@ class AuthController < ApplicationController
       return
     end
 
-    return unless request.post?
+    if request.post?
+      code = params[:code]
 
-    code = params[:code]
+      # 入力値検証
+      if code.blank?
+        handle_validation_error("code", "認証コードを入力してください")
+        render :verify_access_code
+        return
+      end
 
-    # 入力値検証
-    if code.blank?
-      handle_validation_error("code", "認証コードを入力してください")
-      render :verify_access_code
-      return
-    end
+      # 認証コード検証
+      result = AuthService.verify_access_control_code(session[:pending_email], code)
 
-    # 認証コード検証
-    result = AuthService.verify_access_control_code(session[:pending_email], code)
+      if result[:success]
+        # メールアドレス認証成功
+        session[:email_authenticated] = true
+        session[:authenticated_email] = session[:pending_email]
+        session[:email_auth_expires_at] = AppConstants::EMAIL_AUTH_TIMEOUT_HOURS.hours.from_now
+        session.delete(:pending_email)
 
-    if result[:success]
-      # メールアドレス認証成功
-      session[:email_authenticated] = true
-      session[:authenticated_email] = session[:pending_email]
-      session[:email_auth_expires_at] = AppConstants::EMAIL_AUTH_TIMEOUT_HOURS.hours.from_now
-      session.delete(:pending_email)
-
-      handle_success(result[:message])
-      redirect_to home_path
+        handle_success(result[:message])
+        redirect_to home_path
+      else
+        handle_validation_error("code", result[:message])
+        render :verify_access_code
+      end
     else
-      handle_validation_error("code", result[:message])
+      # GETリクエストの場合は認証コード入力ページを表示
       render :verify_access_code
     end
   end

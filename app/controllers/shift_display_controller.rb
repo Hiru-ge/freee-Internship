@@ -7,6 +7,7 @@ class ShiftDisplayController < ApplicationController
     @employee = current_employee
     @employee_id = current_employee_id
     @is_owner = owner?
+    render 'shifts/index'
   end
 
   def data

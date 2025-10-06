@@ -12,6 +12,7 @@ class ShiftExchangesController < ApplicationController
 
     load_employees_for_view
     @applicant_id = @employee_id
+    render 'shifts/exchanges_new'
   end
 
   def create

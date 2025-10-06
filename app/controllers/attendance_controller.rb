@@ -11,6 +11,7 @@ class AttendanceController < ApplicationController
 
     @employee_name ||= get_employee_name
     @is_owner ||= owner?
+    render 'dashboard/attendance'
   end
 
   def clock_in

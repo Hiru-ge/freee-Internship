@@ -9,6 +9,7 @@ class ShiftApprovalsController < ApplicationController
     @employee_id = current_employee_id
     load_pending_requests
     load_employee_data
+    render 'shifts/approvals_index'
   end
 
   def approve

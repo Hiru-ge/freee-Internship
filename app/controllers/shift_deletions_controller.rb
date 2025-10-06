@@ -5,6 +5,7 @@ class ShiftDeletionsController < ApplicationController
   def new
     @shifts = load_future_shifts
     @shift_deletion = ShiftDeletion.new
+    render 'shifts/deletions_new'
   end
 
   def create

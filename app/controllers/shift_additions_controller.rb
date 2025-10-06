@@ -11,6 +11,7 @@ class ShiftAdditionsController < ApplicationController
     @end_time = params[:end] || "18:00"
 
     load_employees_for_view
+    render 'shifts/additions_new'
   end
 
   def create

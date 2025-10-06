@@ -147,6 +147,6 @@ class ShiftExchangeServiceTest < ActiveSupport::TestCase
     result = @service.create_exchange_request(params)
 
     assert_not result[:success]
-    assert_includes result[:message], "既にシフト交代依頼が存在します"
+    assert_includes result[:message], "選択された従業員は全員、既に同じ時間帯のシフト交代依頼が存在します"
   end
 end

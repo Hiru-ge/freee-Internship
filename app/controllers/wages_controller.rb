@@ -14,6 +14,7 @@ class WagesController < ApplicationController
 
     setup_navigation_variables
     calculate_summary_statistics
+    render 'dashboard/wages'
   end
 
   def wage_info
