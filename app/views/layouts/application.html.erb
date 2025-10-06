@@ -14,142 +14,18 @@
     <%= javascript_importmap_tags %>
   </head>
 
-  <body>
+  <body data-flash-success="<%= j(flash[:success]) if flash[:success] %>"
+        data-flash-error="<%= j(flash[:error]) if flash[:error] %>"
+        data-flash-warning="<%= j(flash[:warning]) if flash[:warning] %>"
+        data-flash-info="<%= j(flash[:info]) if flash[:info] %>"
+        data-flash-notice="<%= j(flash[:notice]) if flash[:notice] %>"
+        data-flash-alert="<%= j(flash[:alert]) if flash[:alert] %>">
     <%= render 'shared/header' %>
     <main class="main-content">
       <%= yield %>
     </main>
 
     <!-- フラッシュメッセージをトースト形式で表示 -->
-    <script>
-      function showFlashMessage(message, type) {
-        // MessageHandlerが利用可能な場合はそれを使用
-        if (window.messageHandler) {
-          window.messageHandler.show(message, type);
-        } else {
-          // フォールバック: 簡易トースト形式
-          createFallbackToast(message, type);
-        }
-      }
-
-      function createFallbackToast(message, type) {
-        // 簡易トースト通知を作成
-        const toast = document.createElement('div');
-        toast.style.cssText = `
-          position: fixed;
-          top: 20px;
-          right: 20px;
-          background-color: ${type === 'error' ? '#f44336' : type === 'success' ? '#4caf50' : '#2196f3'};
-          color: white;
-          padding: 12px 16px;
-          border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-          z-index: 1000;
-          max-width: 400px;
-          animation: slideInRight 0.3s ease-out;
-          cursor: pointer;
-        `;
-        toast.textContent = message;
-
-        // アニメーション用のCSSを追加
-        if (!document.getElementById('toast-animations')) {
-          const style = document.createElement('style');
-          style.id = 'toast-animations';
-          style.textContent = `
-            @keyframes slideInRight {
-              from {
-                transform: translateX(100%);
-                opacity: 0;
-              }
-              to {
-                transform: translateX(0);
-                opacity: 1;
-              }
-            }
-            @keyframes slideOutRight {
-              from {
-                transform: translateX(0);
-                opacity: 1;
-              }
-              to {
-                transform: translateX(100%);
-                opacity: 0;
-              }
-            }
-          `;
-          document.head.appendChild(style);
-        }
-
-        document.body.appendChild(toast);
-
-        // クリックで閉じる
-        toast.addEventListener('click', () => {
-          toast.style.animation = 'slideOutRight 0.3s ease-out';
-          setTimeout(() => {
-            if (toast.parentNode) {
-              toast.parentNode.removeChild(toast);
-            }
-          }, 300);
-        });
-
-        // 5秒後に自動で閉じる
-        setTimeout(() => {
-          if (toast.parentNode) {
-            toast.style.animation = 'slideOutRight 0.3s ease-out';
-            setTimeout(() => {
-              if (toast.parentNode) {
-                toast.parentNode.removeChild(toast);
-              }
-            }, 300);
-          }
-        }, 5000);
-      }
-
-      document.addEventListener('DOMContentLoaded', function() {
-        // フラッシュメッセージを即座にトースト形式で表示
-        setTimeout(function() {
-          try {
-            <% if flash[:success] %>
-              showFlashMessage('<%= j(flash[:success]) %>', 'success');
-            <% end %>
-
-            <% if flash[:error] %>
-              showFlashMessage('<%= j(flash[:error]) %>', 'error');
-            <% end %>
-
-            <% if flash[:warning] %>
-              showFlashMessage('<%= j(flash[:warning]) %>', 'warning');
-            <% end %>
-
-            <% if flash[:info] %>
-              showFlashMessage('<%= j(flash[:info]) %>', 'info');
-            <% end %>
-
-            <% if flash[:notice] %>
-              showFlashMessage('<%= j(flash[:notice]) %>', 'success');
-            <% end %>
-
-            <% if flash[:alert] %>
-              showFlashMessage('<%= j(flash[:alert]) %>', 'error');
-            <% end %>
-          } catch (error) {
-            console.error('フラッシュメッセージ表示エラー:', error);
-            // フォールバック: アラートで表示
-            <% if flash[:notice] %>
-              alert('<%= j(flash[:notice]) %>');
-            <% end %>
-            <% if flash[:alert] %>
-              alert('<%= j(flash[:alert]) %>');
-            <% end %>
-            <% if flash[:error] %>
-              alert('<%= j(flash[:error]) %>');
-            <% end %>
-            <% if flash[:success] %>
-              alert('<%= j(flash[:success]) %>');
-            <% end %>
-          }
-        }, 100); // 100ms遅延で他のスクリプトの初期化を待つ
-      });
-    </script>
+    <%= javascript_include_tag 'flash_messages' %>
   </body>
 </html>

@@ -3,5 +3,9 @@
 # Pin npm packages by running ./bin/importmap
 
 pin "application"
+pin "attendance"
+pin "flash_messages"
 pin "loading_handler"
 pin "message_handler"
+pin "shift_display"
+pin "shift_exchange"

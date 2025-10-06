@@ -12,16 +12,16 @@
       <h1>給与管理</h1>
       <h2><%= @year %>年<%= @month %>月</h2>
     </div>
-    
+
     <div class="wages-navigation">
       <a href="<%= wages_path(year: @prev_year, month: @prev_month) %>" class="nav-button">← 前月</a>
       <a href="<%= wages_path(year: @next_year, month: @next_month) %>" class="nav-button">次月 →</a>
       <a href="<%= shifts_path %>" class="nav-button">シフトページに戻る</a>
     </div>
-    
+
     <div class="wages-content">
       <h3>従業員別給与一覧</h3>
-      
+
       <table class="wages-table">
         <thead>
           <tr>
@@ -43,7 +43,7 @@
               </td>
               <td>
                 <div class="wage-gauge">
-                  <div class="wage-gauge-fill <%= wage_data[:percentage] >= 100 ? 'high' : wage_data[:percentage] >= 80 ? 'medium' : 'low' %>" 
+                  <div class="wage-gauge-fill <%= wage_data[:percentage] >= 100 ? 'high' : wage_data[:percentage] >= 80 ? 'medium' : 'low' %>"
                        style="width: <%= [wage_data[:percentage], 100].min %>%"></div>
                 </div>
                 <div class="gauge-text">
@@ -54,7 +54,7 @@
           <% end %>
         </tbody>
       </table>
-      
+
       <div class="wage-summary">
         <h3>月間サマリー</h3>
         <div class="summary-stats">
