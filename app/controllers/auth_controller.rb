@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class AuthController < ApplicationController
-  include InputValidation
   include ErrorHandler
   include FreeeApiHelper
 
@@ -33,28 +32,25 @@ class AuthController < ApplicationController
     employee_id = params[:employee_id]
     password = params[:password]
 
-    return unless validate_employee_id_format(employee_id, login_path)
-    return unless validate_password_length(password, login_path)
+    # バリデーションはEmployeeモデルで実行
 
-    if contains_sql_injection?(employee_id) || contains_sql_injection?(password)
-      handle_validation_error("input", "無効な文字が含まれています")
-      render :login
-      return
-    end
-
-    result = AuthService.login(employee_id, password)
-
-    if result[:success]
+    begin
+      employee = Employee.authenticate_login(employee_id, password)
       session[:employee_id] = employee_id
       session[:authenticated] = true
       session[:created_at] = Time.current.to_i
-      handle_success(result[:message])
+      handle_success("ログインしました")
       redirect_to dashboard_path
-    elsif result[:needs_password_setup]
-      handle_warning(result[:message])
-      redirect_to password_initial_path
-    else
-      handle_validation_error("login", result[:message])
+    rescue Employee::AuthenticationError => e
+      if e.message.include?("パスワードが設定されていません")
+        handle_warning(e.message)
+        redirect_to password_initial_path
+      else
+        handle_validation_error("login", e.message)
+        render :login
+      end
+    rescue Employee::ValidationError => e
+      handle_validation_error("login", e.message)
       render :login
     end
   end
@@ -64,13 +60,11 @@ class AuthController < ApplicationController
 
     employee_id = params[:employee_id]
 
-    # 認証コード送信処理
-    result = AuthService.send_verification_code(employee_id)
-
-    if result[:success]
+    begin
+      result = Employee.send_verification_code(employee_id)
       redirect_to verify_initial_code_path(employee_id: employee_id), notice: result[:message]
-    else
-      flash.now[:alert] = result[:message]
+    rescue Employee::ValidationError => e
+      flash.now[:alert] = e.message
       render :initial_password
     end
   end
@@ -82,13 +76,12 @@ class AuthController < ApplicationController
 
     verification_code = params[:verification_code]
 
-    result = AuthService.verify_code(@employee_id, verification_code)
-
-    if result[:success]
+    begin
+      result = Employee.verify_code(@employee_id, verification_code)
       redirect_to setup_initial_password_path(employee_id: @employee_id, verification_code: verification_code),
                   notice: result[:message]
-    else
-      flash.now[:alert] = result[:message]
+    rescue Employee::ValidationError, Employee::AuthenticationError => e
+      flash.now[:alert] = e.message
       render :verify_initial_code
     end
   end
@@ -102,18 +95,14 @@ class AuthController < ApplicationController
     password = params[:password]
     confirm_password = params[:confirm_password]
 
-    if password != confirm_password
-      flash.now[:alert] = "パスワードが一致しません"
-      render :setup_initial_password
-      return
-    end
+    begin
+      # 認証コード検証
+      Employee.verify_code(@employee_id, @verification_code)
 
-    result = AuthService.set_initial_password_with_verification(@employee_id, password, @verification_code)
-
-    if result[:success]
-      redirect_to login_path, notice: result[:message]
-    else
-      flash.now[:alert] = result[:message]
+      employee = Employee.setup_initial_password(@employee_id, password, confirm_password)
+      redirect_to login_path, notice: "パスワードが設定されました"
+    rescue Employee::ValidationError, Employee::AuthenticationError => e
+      flash.now[:alert] = e.message
       render :setup_initial_password
     end
   end
@@ -121,18 +110,22 @@ class AuthController < ApplicationController
   def send_verification_code
     employee_id = params[:employee_id]
 
-    result = AuthService.send_verification_code(employee_id)
-
-    respond_to do |format|
-      format.html do
-        if result[:success]
+    begin
+      result = Employee.send_verification_code(employee_id)
+      respond_to do |format|
+        format.html do
           redirect_to verify_initial_code_path(employee_id: employee_id), notice: result[:message]
-        else
-          flash.now[:alert] = result[:message]
+        end
+        format.json { render json: result }
+      end
+    rescue Employee::ValidationError => e
+      respond_to do |format|
+        format.html do
+          flash.now[:alert] = e.message
           render :initial_password
         end
+        format.json { render json: { success: false, message: e.message } }
       end
-      format.json { render json: result }
     end
   end
 
@@ -140,19 +133,23 @@ class AuthController < ApplicationController
     employee_id = params[:employee_id]
     code = params[:code]
 
-    result = AuthService.verify_code(employee_id, code)
-
-    respond_to do |format|
-      format.html do
-        if result[:success]
+    begin
+      result = Employee.verify_code(employee_id, code)
+      respond_to do |format|
+        format.html do
           redirect_to setup_initial_password_path(employee_id: employee_id, verification_code: code),
                       notice: result[:message]
-        else
-          flash.now[:alert] = result[:message]
+        end
+        format.json { render json: result }
+      end
+    rescue Employee::ValidationError, Employee::AuthenticationError => e
+      respond_to do |format|
+        format.html do
+          flash.now[:alert] = e.message
           render :verify_initial_code
         end
+        format.json { render json: { success: false, message: e.message } }
       end
-      format.json { render json: result }
     end
   end
 
@@ -163,18 +160,11 @@ class AuthController < ApplicationController
     new_password = params[:new_password]
     confirm_password = params[:confirm_password]
 
-    if new_password != confirm_password
-      flash.now[:alert] = "パスワードが一致しません"
-      render :password_change
-      return
-    end
-
-    result = AuthService.change_password(@employee.employee_id, current_password, new_password)
-
-    if result[:success]
-      redirect_to dashboard_path, notice: result[:message]
-    else
-      flash.now[:alert] = result[:message]
+    begin
+      @employee.change_password!(current_password, new_password, confirm_password)
+      redirect_to dashboard_path, notice: "パスワードが変更されました"
+    rescue Employee::ValidationError, Employee::AuthenticationError => e
+      flash.now[:alert] = e.message
       render :password_change
     end
   end
@@ -190,13 +180,12 @@ class AuthController < ApplicationController
       return
     end
 
-    result = AuthService.send_password_reset_code(employee_id)
-
-    if result[:success]
+    begin
+      result = Employee.send_password_reset_code(employee_id)
       # 認証コード送信成功時は、認証コード入力画面にリダイレクト
       redirect_to verify_reset_path(employee_id: employee_id), notice: result[:message]
-    else
-      flash.now[:alert] = result[:message]
+    rescue Employee::ValidationError => e
+      flash.now[:alert] = e.message
       render :forgot_password
     end
   end
@@ -219,13 +208,12 @@ class AuthController < ApplicationController
       return
     end
 
-    result = AuthService.verify_password_reset_code(@employee_id, verification_code)
-
-    if result[:success]
+    begin
+      result = Employee.verify_password_reset_code(@employee_id, verification_code)
       # 認証成功時は、パスワード再設定画面にリダイレクト
       redirect_to password_reset_path(employee_id: @employee_id, code: verification_code), notice: result[:message]
-    else
-      flash.now[:alert] = result[:message]
+    rescue Employee::ValidationError, Employee::AuthenticationError => e
+      flash.now[:alert] = e.message
       render :verify_password_reset
     end
   end
@@ -256,12 +244,11 @@ class AuthController < ApplicationController
       return
     end
 
-    result = AuthService.reset_password_with_verification(@employee_id, new_password, @verification_code)
-
-    if result[:success]
+    begin
+      result = Employee.reset_password_with_verification(@employee_id, new_password, @verification_code)
       redirect_to login_path, notice: result[:message]
-    else
-      flash.now[:alert] = result[:message]
+    rescue Employee::ValidationError, Employee::AuthenticationError => e
+      flash.now[:alert] = e.message
       render :reset_password
     end
   end
@@ -307,16 +294,23 @@ class AuthController < ApplicationController
         return
       end
 
-      # メールアドレス認証
-      result = AuthService.send_access_control_verification_code(email)
-
-      if result[:success]
+      begin
+        # メールアドレス認証
+        result = Employee.send_access_control_verification_code(email)
         session[:pending_email] = email
+        session[:access_verification_code] = result[:code]  # 認証コードをセッションに保存
         handle_success(result[:message])
         redirect_to verify_access_path
-      else
-        handle_validation_error("email", result[:message])
-        render :access_control
+      rescue Employee::ValidationError => e
+        if e.message.include?("freee.co.jp")
+          # freee.co.jpドメインの場合は成功として扱う（テスト環境）
+          handle_success("テスト環境のため、メール送信をスキップしました。")
+          render :access_control
+        else
+          # 許可されていないメールアドレスやその他のエラー
+          handle_validation_error("email", e.message)
+          render :access_control
+        end
       end
     else
       # GETリクエストの場合はアクセス制御ページを表示
@@ -341,20 +335,21 @@ class AuthController < ApplicationController
         return
       end
 
-      # 認証コード検証
-      result = AuthService.verify_access_control_code(session[:pending_email], code)
+      begin
+        # 認証コード検証
+        result = Employee.verify_access_control_code(session[:pending_email], code, session[:access_verification_code])
 
-      if result[:success]
         # メールアドレス認証成功
         session[:email_authenticated] = true
         session[:authenticated_email] = session[:pending_email]
         session[:email_auth_expires_at] = AppConstants::EMAIL_AUTH_TIMEOUT_HOURS.hours.from_now
         session.delete(:pending_email)
+        session.delete(:access_verification_code)
 
         handle_success(result[:message])
         redirect_to home_path
-      else
-        handle_validation_error("code", result[:message])
+      rescue Employee::ValidationError, Employee::AuthenticationError => e
+        handle_validation_error("code", e.message)
         render :verify_access_code
       end
     else
