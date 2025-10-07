@@ -1,11 +1,4 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <base target="_top">
-    <!-- CSSは外部ファイルに分離済み -->
-  </head>
-  <body>
-    <div class="form-container"
+<div class="form-container"
          data-applicant-id="<%= @applicant_id %>"
          data-date="<%= @date %>"
          data-start-time="<%= @start_time %>"
@@ -50,13 +43,11 @@
           </div>
         </div>
 
-        <div class="form-buttons">
-          <button type="submit" class="form-button">この内容でリクエストを送信</button>
-          <a href="#" onclick="goBack(); return false;" class="form-button secondary">シフトページに戻る</a>
-        </div>
-      </form>
-    </div>
+  <div class="form-buttons">
+    <button type="submit" class="form-button">この内容でリクエストを送信</button>
+    <a href="#" onclick="goBack(); return false;" class="form-button secondary">シフトページに戻る</a>
+  </div>
+</form>
+</div>
 
-    <%= javascript_include_tag 'shift_exchange' %>
-  </body>
-</html>
+<%= javascript_include_tag 'shift_exchange' %>

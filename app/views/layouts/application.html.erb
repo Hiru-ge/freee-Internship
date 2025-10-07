@@ -20,12 +20,14 @@
         data-flash-info="<%= j(flash[:info]) if flash[:info] %>"
         data-flash-notice="<%= j(flash[:notice]) if flash[:notice] %>"
         data-flash-alert="<%= j(flash[:alert]) if flash[:alert] %>">
-    <%= render 'shared/header' %>
+    <%= render 'layouts/header' %>
+
     <main class="main-content">
       <%= yield %>
     </main>
 
     <!-- フラッシュメッセージをトースト形式で表示 -->
     <%= javascript_include_tag 'flash_messages' %>
+    <%= javascript_include_tag "header" %>
   </body>
 </html>

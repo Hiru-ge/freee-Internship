@@ -1,11 +1,4 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <base target="_top">
-    <!-- CSSは外部ファイルに分離済み -->
-  </head>
-  <body>
-    <div class="shift-approvals-container">
+<div class="shift-approvals-container">
       <h1>自分へのシフトリクエスト一覧</h1>
 
       <% if @shift_exchanges.empty? && @shift_additions.empty? && @shift_deletions.empty? %>
@@ -60,11 +53,9 @@
         <% end %>
       <% end %>
 
-      <div class="nav-buttons">
-        <a href="<%= shifts_path %>" class="form-button secondary">シフトページに戻る</a>
-      </div>
-    </div>
+  <div class="nav-buttons">
+    <a href="<%= shifts_path %>" class="form-button secondary">シフトページに戻る</a>
+  </div>
+</div>
 
 <%= javascript_include_tag "shift_approvals" %>
-  </body>
-</html>
