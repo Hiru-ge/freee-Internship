@@ -58,70 +58,64 @@
                     └─────────────────┘
 ```
 
-### サービス構成（Phase 15-4統合後）
+### アーキテクチャ設計（モデル中心設計）
 
-#### 1. LineBotService（メインコントローラー）
+#### 設計原則
+- **Fat Model, Skinny Controller**: ビジネスロジックはモデル層に集約
+- **サービス層の特化**: 外部API連携のみに限定
+- **Rails Way完全準拠**: Convention over Configuration
+
+#### 層構造
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    プレゼンテーション層                      │
+│  Controllers (薄層) + Views + JavaScript                   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│                      ビジネスロジック層                      │
+│  Models (Fat) + Concerns + Validations                     │
+└─────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│                      外部連携・通知層                        │
+│  Services (外部API特化) + Mailers                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 主要コンポーネント
+
+**モデル層（ビジネスロジック集約）**
+- `Employee`: 認証・給与計算・打刻処理
+- `Shift`: CRUD・重複チェック・バリデーション
+- `ShiftExchange`: 交代申請・承認・拒否処理
+- `ShiftAddition`: 追加申請・承認・拒否処理
+- `ShiftDeletion`: 削除申請・承認・拒否処理
+- `ShiftBase` (Concern): 共通バリデーション・通知・ステータス管理
+
+**サービス層（外部API特化）**
+- `FreeeApiService`: Freee API連携
+- `ClockService`: 打刻API連携
+- `WageService`: 給与API連携
+- `EmailNotificationService`: メール通知
+- LINE Bot関連サービス（5個）
+
+**コントローラ層（薄層設計）**
+- HTTP処理・レスポンス制御のみ
+- 各アクションは3メソッド呼び出し以内で完結
+
+### LINE Bot サービス構成
+
+#### 1. LineBotService（基盤サービス）
 - **責任**: LINE Bot のメインエントリーポイント、メッセージルーティング
-- **主要メソッド**: `handle_message`, `handle_postback_event`, `handle_request_check_command`
+- **主要メソッド**: `handle_message`, `handle_postback_event`
 
-#### 2. LineShiftManagementService（シフト管理統合サービス）
-- **責任**: シフト関連の全機能を統合管理
-- **統合元**: LineShiftService + LineShiftExchangeService + LineShiftAdditionService + LineShiftDeletionService
-- **主要メソッド**:
-  - シフト表示: `handle_shift_command`, `handle_all_shifts_command`
-  - シフト交代: `handle_shift_exchange_command`, `handle_approval_postback`
-  - シフト追加: `handle_shift_addition_command`, `handle_shift_addition_date_input`
-  - 欠勤申請: `handle_shift_deletion_command`, `handle_shift_deletion_date_input`
-
-#### 3. LineMessageService（メッセージ統合サービス）
-- **責任**: LINE Bot メッセージの生成と送信
-- **統合元**: LineMessageService + LineMessageGeneratorService + LineFlexMessageBuilderService
-- **主要メソッド**: `generate_help_message`, `build_flex_message`, `send_message`
-
-#### 4. LineValidationService（バリデーション統合サービス）
-- **責任**: LINE Bot 入力値の検証とフォーマット
-- **統合元**: LineValidationService + LineValidationManagerService + LineDateValidationService
-- **主要メソッド**: `validate_month_day_format`, `validate_and_format_time`, `validate_employee_name`
-
-#### 5. LineUtilityService（ユーティリティ統合サービス）
-- **責任**: 共通ユーティリティ、認証、会話状態管理
-- **統合元**: LineUtilityService + LineAuthenticationService + LineConversationService
-- **主要メソッド**:
-  - 認証: `handle_auth_command`, `handle_employee_name_input`
-  - 会話状態: `set_conversation_state`, `get_conversation_state`
-  - ユーティリティ: `normalize_employee_name`, `format_date`
-
-#### 6. NotificationService（通知統合サービス）
-- **責任**: メール通知とLINE通知の一元管理
-- **統合元**: UnifiedNotificationService + LineNotificationService + EmailNotificationService
-- **主要メソッド**:
-  - シフト通知: `send_shift_exchange_request_notification`, `send_shift_addition_request_notification`, `send_shift_deletion_request_notification`
-  - LINE通知: `send_verification_code_notification`, `send_authentication_success_notification`, `send_error_notification`
-  - メール通知: `send_shift_exchange_request_email`, `send_shift_addition_request_email`, `send_shift_deletion_request_email`
-
-#### 7. ShiftDisplayService（シフト表示統合サービス）
-- **責任**: シフト表示、マージ、重複チェックの一元管理
-- **統合元**: ShiftDisplayService + ShiftMergeService + ShiftOverlapService
-- **主要メソッド**:
-  - シフト表示: `get_monthly_shifts`, `get_employee_shifts`, `get_all_employee_shifts`
-  - シフトマージ: `merge_shifts`, `shift_fully_contained?`, `process_shift_approval`
-  - 重複チェック: `check_exchange_overlap`, `check_addition_overlap`, `get_available_and_overlapping_employees`
-
-#### 8. AuthService（認証統合サービス）
-- **責任**: 認証管理とアクセス制御の一元管理
-- **統合元**: AuthService + AccessControlService
-- **主要メソッド**:
-  - 認証管理: `login`, `change_password`, `set_initial_password`, `send_verification_code`
-  - アクセス制御: `allowed_email?`, `send_access_control_verification_code`, `verify_access_control_code`
-  - パスワード管理: `hash_password`, `verify_password`, `reset_password_with_verification`
-
-#### 9. ClockService（打刻統合サービス）
-- **責任**: 打刻システムとリマインダー機能の一元管理
-- **統合元**: ClockService + ClockReminderService
-- **主要メソッド**:
-  - 打刻システム: `clock_in`, `clock_out`, `get_clock_status`, `get_attendance_for_month`
-  - リマインダー機能: `check_forgotten_clock_ins`, `check_forgotten_clock_outs`
-  - メール送信: `send_clock_in_reminder`, `send_clock_out_reminder`
+#### 2. 機能別LINEサービス
+- **LineShiftExchangeService**: シフト交代処理
+- **LineShiftAdditionService**: シフト追加処理
+- **LineShiftDeletionService**: シフト削除処理
+- **LineShiftDisplayService**: シフト表示処理
+- **LineWebhookService**: イベント振り分け
 
 ## 画面構成
 

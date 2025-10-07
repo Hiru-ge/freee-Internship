@@ -1,7 +1,8 @@
-# アーキテクチャドキュメント
+# システムアーキテクチャ
 
 ## 概要
 勤怠管理システムのアーキテクチャとディレクトリ構造について説明します。
+本システムは**モデル中心設計（Fat Model, Skinny Controller）**を採用し、Rails Wayに完全準拠しています。
 
 ## ディレクトリ構造
 
@@ -63,15 +64,21 @@ app/javascript/
 └── shift_forms.js                # シフトフォーム機能
 ```
 
-### サービス層
+### サービス層（外部API特化）
 ```
 app/services/
-├── auth_service.rb                # 認証サービス
-├── attendance_service.rb          # 勤怠管理サービス
-├── shift_display_service.rb       # シフト表示サービス
-├── shift_exchange_service.rb      # シフト交代サービス
-├── wage_service.rb                # 給与管理サービス
-└── freee_api_service.rb           # Freee API連携サービス
+├── base_service.rb                # 基底サービス
+├── email_notification_service.rb  # メール通知サービス
+├── freee_api_service.rb          # Freee API連携
+├── clock_service.rb              # 打刻API連携
+├── wage_service.rb               # 給与API連携
+└── line_*.rb                     # LINE Bot関連サービス（5個）
+    ├── line_base_service.rb      # LINE基盤サービス
+    ├── line_shift_addition_service.rb
+    ├── line_shift_exchange_service.rb
+    ├── line_shift_deletion_service.rb
+    ├── line_shift_display_service.rb
+    └── line_webhook_service.rb
 ```
 
 ## ルーティング構造
@@ -106,22 +113,27 @@ app/services/
 
 ## 設計原則
 
-### 1. 責任の分離
-- **コントローラー**: リクエスト処理とレスポンス生成
-- **サービス**: ビジネスロジック
-- **モデル**: データアクセスとバリデーション
+### 1. モデル中心設計（Fat Model, Skinny Controller）
+- **コントローラー**: HTTP処理・レスポンス制御のみ（薄層）
+- **モデル**: ビジネスロジック・バリデーション・CRUD処理（厚層）
+- **サービス**: 外部API連携・メール送信のみ（特化）
 
-### 2. RESTful設計
+### 2. Rails Way完全準拠
+- Convention over Configuration
+- DRY原則（Don't Repeat Yourself）
+- 単一責任原則（Single Responsibility Principle）
+
+### 3. 責任の明確化
+- **単一リソース処理**: モデル層に完全集約
+- **外部連携処理**: サービス層に特化
+- **共通処理**: Concernで共通化
+
+### 4. RESTful設計
 - リソース指向のURL設計
 - HTTPメソッドの適切な使用
 - ステートレスな設計
 
-### 3. モジュール化
-- 共通機能はConcernsに分離
-- サービス層でのビジネスロジック分離
-- 再利用可能なコンポーネント設計
-
-### 4. フロントエンド分離
+### 5. フロントエンド分離
 - HTMLとJavaScriptの完全分離
 - 機能別のJSファイル構成
 - 共通ユーティリティの統合
