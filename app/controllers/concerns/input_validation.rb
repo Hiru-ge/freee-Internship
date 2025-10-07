@@ -229,40 +229,40 @@ module InputValidation
     # 必須項目の検証
     if applicant_id.blank? || shift_date.blank? || start_time.blank? || end_time.blank?
       flash[:error] = "すべての項目を入力してください"
-      redirect_to new_shift_exchange_path
+      redirect_to shift_exchange_new_path
       return
     end
 
     if approver_ids.blank?
       flash[:error] = "交代を依頼する相手を選択してください"
-      redirect_to new_shift_exchange_path
+      redirect_to shift_exchange_new_path
       return
     end
 
     # 文字数制限の検証
     if applicant_id.length > MAX_EMPLOYEE_ID_LENGTH
       flash[:error] = "従業員IDが長すぎます"
-      redirect_to new_shift_exchange_path
+      redirect_to shift_exchange_new_path
       return
     end
 
     # 日付形式の検証
     unless shift_date.match?(DATE_REGEX)
       flash[:error] = "日付の形式が正しくありません"
-      redirect_to new_shift_exchange_path
+      redirect_to shift_exchange_new_path
       return
     end
 
     # 時間形式の検証
     unless start_time.match?(TIME_REGEX)
       flash[:error] = "開始時間の形式が正しくありません"
-      redirect_to new_shift_exchange_path
+      redirect_to shift_exchange_new_path
       return
     end
 
     unless end_time.match?(TIME_REGEX)
       flash[:error] = "終了時間の形式が正しくありません"
-      redirect_to new_shift_exchange_path
+      redirect_to shift_exchange_new_path
       return
     end
 
@@ -270,7 +270,7 @@ module InputValidation
     if contains_sql_injection?(applicant_id) || contains_sql_injection?(shift_date) ||
        contains_sql_injection?(start_time) || contains_sql_injection?(end_time)
       flash[:error] = "無効な文字が含まれています"
-      redirect_to new_shift_exchange_path
+      redirect_to shift_exchange_new_path
       return
     end
 
@@ -278,7 +278,7 @@ module InputValidation
     if contains_xss?(applicant_id) || contains_xss?(shift_date) ||
        contains_xss?(start_time) || contains_xss?(end_time)
       flash[:error] = "無効な文字が含まれています"
-      redirect_to new_shift_exchange_path
+      redirect_to shift_exchange_new_path
       nil
     end
   end
@@ -292,34 +292,34 @@ module InputValidation
     # 必須項目の検証
     if employee_id.blank? || shift_date.blank? || start_time.blank? || end_time.blank?
       flash[:error] = "すべての項目を入力してください"
-      redirect_to new_shift_addition_path
+      redirect_to shift_addition_new_path
       return
     end
 
     # 文字数制限の検証
     if employee_id.length > MAX_EMPLOYEE_ID_LENGTH
       flash[:error] = "従業員IDが長すぎます"
-      redirect_to new_shift_addition_path
+      redirect_to shift_addition_new_path
       return
     end
 
     # 日付形式の検証
     unless shift_date.match?(DATE_REGEX)
       flash[:error] = "日付の形式が正しくありません"
-      redirect_to new_shift_addition_path
+      redirect_to shift_addition_new_path
       return
     end
 
     # 時間形式の検証
     unless start_time.match?(TIME_REGEX)
       flash[:error] = "開始時間の形式が正しくありません"
-      redirect_to new_shift_addition_path
+      redirect_to shift_addition_new_path
       return
     end
 
     unless end_time.match?(TIME_REGEX)
       flash[:error] = "終了時間の形式が正しくありません"
-      redirect_to new_shift_addition_path
+      redirect_to shift_addition_new_path
       return
     end
 
@@ -327,7 +327,7 @@ module InputValidation
     if contains_sql_injection?(employee_id) || contains_sql_injection?(shift_date) ||
        contains_sql_injection?(start_time) || contains_sql_injection?(end_time)
       flash[:error] = "無効な文字が含まれています"
-      redirect_to new_shift_addition_path
+      redirect_to shift_addition_new_path
       return
     end
 
@@ -335,7 +335,7 @@ module InputValidation
     if contains_xss?(employee_id) || contains_xss?(shift_date) ||
        contains_xss?(start_time) || contains_xss?(end_time)
       flash[:error] = "無効な文字が含まれています"
-      redirect_to new_shift_addition_path
+      redirect_to shift_addition_new_path
       nil
     end
   end

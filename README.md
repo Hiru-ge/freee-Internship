@@ -359,6 +359,13 @@ fly ssh console -a your-app-name -C "bundle exec rails clock_reminder:check_all"
 
 ## ドキュメント
 
+### 最新ドキュメント（2024-12-19更新）
+- [変更履歴](CHANGELOG.md) - ルーティング構造見直しとビューディレクトリ統合の詳細
+- [アーキテクチャ](docs/ARCHITECTURE.md) - システムアーキテクチャとディレクトリ構造
+- [開発者向けガイド](docs/DEVELOPMENT.md) - 開発環境セットアップと開発ガイドライン
+- [API仕様書](docs/API.md) - エンドポイント仕様とレスポンス形式
+
+### 既存ドキュメント
 - [デプロイガイド](DEPLOYMENT_GUIDE.md) - Fly.ioへのデプロイ手順とトラブルシューティング
 - [実装状況](docs/implementation-status.md) - 現在の実装状況と進捗
 - [セキュリティ強化](docs/security-enhancement.md) - セキュリティ機能の詳細
@@ -371,7 +378,6 @@ fly ssh console -a your-app-name -C "bundle exec rails clock_reminder:check_all"
 - [LINE Bot デプロイ手順](docs/line_bot_deployment.md) - LINE Botのデプロイと設定
 - [LINE Bot API仕様](docs/line_bot_api_spec.md) - LINE Bot APIの仕様書
 - [コンポーネント依存関係](docs/COMPONENT_DEPENDENCIES.md) - アプリケーション機能とコンポーネント依存関係
-- [変更履歴](docs/CHANGELOG.md) - システムの変更履歴
 
 詳細な実装状況は `docs/` ディレクトリ内のドキュメントを参照してください。
 

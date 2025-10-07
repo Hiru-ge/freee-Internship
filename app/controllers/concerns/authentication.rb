@@ -184,7 +184,7 @@ module Authentication
     true
   end
 
-  def check_shift_exchange_ownership(request_id, redirect_path = shift_exchanges_path)
+  def check_shift_exchange_ownership(request_id, redirect_path = shift_exchange_path)
     shift_exchange = ShiftExchange.find_by(request_id: request_id)
 
     unless shift_exchange
@@ -237,7 +237,7 @@ module Authentication
     end
   end
 
-  def check_shift_exchange_parameter_tampering(redirect_path = shift_exchanges_path)
+  def check_shift_exchange_parameter_tampering(redirect_path = shift_exchange_path)
     # シフト交代リクエストのパラメータ改ざんチェック
     if params[:applicant_id] && params[:applicant_id] != current_employee_id.to_s
       flash[:error] = "不正なパラメータが検出されました"
@@ -247,7 +247,7 @@ module Authentication
     true
   end
 
-  def check_shift_addition_parameter_tampering(redirect_path = shift_additions_path)
+  def check_shift_addition_parameter_tampering(redirect_path = shift_addition_path)
     # シフト追加リクエストのパラメータ改ざんチェック
     # オーナーのみがシフト追加可能
     unless owner?

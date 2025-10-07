@@ -3,7 +3,7 @@
     <h1>勤怠管理システム</h1>
     <h2>アクセス認証</h2>
 
-    <%= form_with url: authenticate_email_path, method: :post, local: true, id: "email-auth-form" do |form| %>
+    <%= form_with url: auth_email_path, method: :post, local: true, id: "email-auth-form" do |form| %>
       <div class="form-group email-input-group">
         <%= form.label :email, "メールアドレス:", class: "email-label" %>
         <%= form.email_field :email,

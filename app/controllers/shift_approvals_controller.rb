@@ -2,6 +2,7 @@
 
 class ShiftApprovalsController < ApplicationController
   include InputValidation
+  include FreeeApiHelper
 
   skip_before_action :verify_authenticity_token, if: :json_request?
 
@@ -9,7 +10,6 @@ class ShiftApprovalsController < ApplicationController
     @employee_id = current_employee_id
     load_pending_requests
     load_employee_data
-    render 'shifts/approvals_index'
   end
 
   def approve
@@ -51,8 +51,7 @@ class ShiftApprovalsController < ApplicationController
   end
 
   def load_employee_data
-    load_employees_for_view
-    @employee_names = fetch_employee_names
+    @employee_names = {}
   end
 
   def check_authorization_and_process_request(action)

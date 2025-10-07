@@ -2,19 +2,46 @@
 
 class WagesController < ApplicationController
   include InputValidation
+  include FreeeApiHelper
 
   def index
-    return unless check_owner_permission
-
     @month = params[:month]&.to_i || Time.current.month
     @year = params[:year]&.to_i || Time.current.year
+    @employee_id = params[:employee_id]
 
-    wage_service = WageService.new
-    @employee_wages = wage_service.get_all_employees_wages(@month, @year)
+    if @employee_id.present?
+      # 特定従業員の給料情報を表示
+      wage_service = WageService.new
+      wage_info = wage_service.get_employee_wage_info(@employee_id, @month, @year)
 
-    setup_navigation_variables
-    calculate_summary_statistics
-    render 'dashboard/wages'
+      respond_to do |format|
+        format.html do
+          @employee_wages = [wage_info]
+          setup_navigation_variables
+          calculate_summary_statistics
+        end
+        format.json do
+          render json: wage_info
+        end
+      end
+    else
+      # 全従業員のデータを表示（オーナー権限確認）
+      return unless check_owner_permission
+
+      wage_service = WageService.new(freee_api_service)
+      @employee_wages = wage_service.get_all_employees_wages(@month, @year)
+      Rails.logger.info "Employee wages loaded: #{@employee_wages.inspect}"
+
+      respond_to do |format|
+        format.html do
+          setup_navigation_variables
+          calculate_summary_statistics
+        end
+        format.json do
+          render json: @employee_wages
+        end
+      end
+    end
   end
 
   def wage_info

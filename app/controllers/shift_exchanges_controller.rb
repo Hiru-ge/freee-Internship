@@ -18,7 +18,7 @@ class ShiftExchangesController < ApplicationController
   def create
     request_params = extract_request_params
 
-    return unless validate_shift_params(request_params, new_shift_exchange_path)
+    return unless validate_shift_params(request_params, shift_exchange_new_path)
 
     validation_result = validate_exchange_request(request_params)
     return if validation_result[:redirect]
@@ -27,12 +27,12 @@ class ShiftExchangesController < ApplicationController
     handle_service_response(
       result,
       success_path: shifts_path,
-      failure_path: new_shift_exchange_path,
+      failure_path: shift_exchange_new_path,
       success_flash_key: :notice,
       error_flash_key: :error
     )
   rescue StandardError => e
-    handle_api_error(e, "シフト交代リクエスト作成", new_shift_exchange_path)
+    handle_api_error(e, "シフト交代リクエスト作成", shift_exchange_new_path)
   end
 
   private
@@ -51,13 +51,13 @@ class ShiftExchangesController < ApplicationController
     if params[:applicant_id].blank? || params[:shift_date].blank? ||
        params[:start_time].blank? || params[:end_time].blank?
       flash[:error] = "すべての項目を入力してください。"
-      redirect_to new_shift_exchange_path
+      redirect_to shift_exchange_new_path
       return { redirect: true }
     end
 
     if params[:approver_ids].blank?
       flash[:error] = "交代を依頼する相手を選択してください。"
-      redirect_to new_shift_exchange_path
+      redirect_to shift_exchange_new_path
       return { redirect: true }
     end
 

@@ -23,8 +23,10 @@ class ShiftDeletionsControllerTest < ActionDispatch::IntegrationTest
       employee_id: @employee.employee_id,
       password: "password123"
     }
+    assert_redirected_to dashboard_url
+    follow_redirect!
 
-    get new_shift_deletion_path, params: { shift_id: @shift.id }
+    get shift_deletion_new_path, params: { shift_id: @shift.id }
     assert_response :success
     assert_select "form"
   end
@@ -34,9 +36,11 @@ class ShiftDeletionsControllerTest < ActionDispatch::IntegrationTest
       employee_id: @employee.employee_id,
       password: "password123"
     }
+    assert_redirected_to dashboard_url
+    follow_redirect!
 
     assert_difference("ShiftDeletion.count") do
-      post shift_deletions_path, params: {
+      post shift_deletion_path, params: {
         shift_deletion: {
           shift_id: @shift.id,
           reason: "体調不良のため欠勤します"
@@ -57,7 +61,7 @@ class ShiftDeletionsControllerTest < ActionDispatch::IntegrationTest
     }
 
     assert_no_difference("ShiftDeletion.count") do
-      post shift_deletions_path, params: {
+      post shift_deletion_path, params: {
         shift_deletion: {
           shift_id: @shift.id,
           reason: ""
@@ -69,7 +73,7 @@ class ShiftDeletionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "未認証時のログインページリダイレクト" do
-    get new_shift_deletion_path, params: { shift_id: @shift.id }
+    get shift_deletion_new_path, params: { shift_id: @shift.id }
     assert_redirected_to login_url
   end
 end

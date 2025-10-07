@@ -24,11 +24,13 @@ class ShiftAdditionsControllerTest < ActionDispatch::IntegrationTest
       employee_id: "3313254",
       password: "password123"
     }
+    assert_redirected_to dashboard_url
+    follow_redirect!
 
-    get new_shift_addition_url
+    get shift_addition_new_url
     assert_response :success
     assert_select "h1", "シフト追加リクエスト"
-    assert_select "form[action=?]", shift_additions_path
+    assert_select "form[action=?]", shift_addition_path
   end
 
   test "シフト追加リクエスト送信成功" do
@@ -36,8 +38,10 @@ class ShiftAdditionsControllerTest < ActionDispatch::IntegrationTest
       employee_id: "3313254",
       password: "password123"
     }
+    assert_redirected_to dashboard_url
+    follow_redirect!
 
-    post shift_additions_url, params: {
+    post shift_addition_url, params: {
       target_employee_id: "3316120",
       shift_date: Date.current + 1.day,
       start_time: "18:00",
@@ -55,7 +59,7 @@ class ShiftAdditionsControllerTest < ActionDispatch::IntegrationTest
       password: "password123"
     }
 
-    get new_shift_addition_url
+    get shift_addition_new_url
     assert response.redirect? || response.forbidden?
   end
 
@@ -64,8 +68,10 @@ class ShiftAdditionsControllerTest < ActionDispatch::IntegrationTest
       employee_id: "3313254",
       password: "password123"
     }
+    assert_redirected_to dashboard_url
+    follow_redirect!
 
-    post shift_additions_url, params: {
+    post shift_addition_url, params: {
       target_employee_id: "",
       shift_date: "",
       start_time: "",

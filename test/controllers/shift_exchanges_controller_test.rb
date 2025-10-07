@@ -10,11 +10,13 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
       employee_id: "3316120",
       password: "password123"
     }
+    assert_redirected_to dashboard_url
+    follow_redirect!
 
-    get new_shift_exchange_url
+    get shift_exchange_new_url
     assert_response :success
     assert_select "h1", "シフト交代リクエスト"
-    assert_select "form[action=?]", shift_exchanges_path
+    assert_select "form[action=?]", shift_exchange_path
   end
 
   test "シフト交代リクエストの作成" do
@@ -41,7 +43,7 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
     )
 
     assert_difference("ShiftExchange.count", 1) do
-      post shift_exchanges_url, params: {
+      post shift_exchange_url, params: {
         applicant_id: "3316120",
         shift_date: Date.current.strftime("%Y-%m-%d"),
         start_time: "09:00",
@@ -60,7 +62,7 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
       password: "password123"
     }
 
-    post shift_exchanges_url, params: {
+    post shift_exchange_url, params: {
       applicant_id: "3316120",
       approver_ids: ["3317741"],
       shift_date: Date.current,
@@ -74,7 +76,7 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
   # ===== 異常系テスト =====
 
   test "未ログイン時のログインページへのリダイレクト" do
-    get new_shift_exchange_url
+    get shift_exchange_new_url
     assert_redirected_to login_url
   end
 
@@ -85,7 +87,7 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
     }
 
     assert_no_difference("ShiftExchange.count") do
-      post shift_exchanges_url, params: {
+      post shift_exchange_url, params: {
         applicant_id: "3316120",
         shift_date: "",
         start_time: "09:00",
@@ -94,7 +96,7 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
       }
     end
 
-    assert_redirected_to new_shift_exchange_path
+    assert_redirected_to shift_exchange_new_path
     assert_equal "すべての項目を入力してください。", flash[:error]
   end
 
@@ -104,7 +106,7 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
       password: "password123"
     }
 
-    post shift_exchanges_url, params: {
+    post shift_exchange_url, params: {
       applicant_id: "",
       approver_ids: [],
       shift_date: "",

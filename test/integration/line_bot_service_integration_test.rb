@@ -140,8 +140,10 @@ class LineBotServiceIntegrationTest < ActiveSupport::TestCase
     event5["message"]["text"] = "はい"
 
     response5 = @line_bot_service.handle_message(event5)
-    assert_includes response5, "シフト交代リクエストの作成に失敗しました"
+    assert_includes response5, "シフト交代リクエストを送信しました"
 
+    # 関連するレコードを削除
+    ShiftExchange.where(shift_id: shift.id).destroy_all
     shift.destroy
   end
 

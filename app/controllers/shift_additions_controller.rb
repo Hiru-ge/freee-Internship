@@ -18,25 +18,25 @@ class ShiftAdditionsController < ApplicationController
     return unless check_shift_addition_authorization
 
     begin
-      return unless validate_required_params(params, %i[employee_id shift_date start_time end_time], new_shift_addition_path)
-      return unless validate_shift_params(params, new_shift_addition_path)
+      return unless validate_required_params(params, %i[employee_id shift_date start_time end_time], shift_addition_new_path)
+      return unless validate_shift_params(params, shift_addition_new_path)
 
       overlapping_employee = check_shift_overlap
       if overlapping_employee
         flash[:error] = "#{overlapping_employee}は指定された時間にシフトが入っています。"
-        redirect_to new_shift_addition_path and return
+        redirect_to shift_addition_new_path and return
       end
 
       result = create_shift_addition_request
       handle_service_response(
         result,
         success_path: shifts_path,
-        failure_path: new_shift_addition_path,
+        failure_path: shift_addition_new_path,
         success_flash_key: :notice,
         error_flash_key: :error
       )
     rescue StandardError => e
-      handle_api_error(e, "シフト追加リクエスト作成", new_shift_addition_path)
+      handle_api_error(e, "シフト追加リクエスト作成", shift_addition_new_path)
     end
   end
 

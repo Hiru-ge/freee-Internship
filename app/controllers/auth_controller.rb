@@ -3,6 +3,7 @@
 class AuthController < ApplicationController
   include InputValidation
   include ErrorHandler
+  include FreeeApiHelper
 
   skip_before_action :require_email_authentication,
                      only: %i[login initial_password verify_initial_code setup_initial_password forgot_password verify_password_reset
@@ -14,16 +15,26 @@ class AuthController < ApplicationController
                      only: %i[login initial_password verify_initial_code setup_initial_password forgot_password verify_password_reset
                               reset_password send_verification_code verify_code access_control home authenticate_email verify_access_code]
   before_action :set_employee, only: [:password_change]
-  before_action :load_employees_for_view, only: %i[login initial_password forgot_password]
+  before_action :load_employees_for_view, only: %i[initial_password forgot_password]
 
   def login
-    return unless request.post?
+    if request.get?
+      begin
+        @employees = FreeeApiService.new.get_employees
+        Rails.logger.info "Employees loaded: #{@employees.inspect}"
+      rescue => e
+        Rails.logger.error "Error loading employees: #{e.message}"
+        @employees = []
+      end
+      render :login
+      return
+    end
 
     employee_id = params[:employee_id]
     password = params[:password]
 
-    return unless validate_employee_id_format(employee_id, auth_login_path)
-    return unless validate_password_length(password, auth_login_path)
+    return unless validate_employee_id_format(employee_id, login_path)
+    return unless validate_password_length(password, login_path)
 
     if contains_sql_injection?(employee_id) || contains_sql_injection?(password)
       handle_validation_error("input", "無効な文字が含まれています")
@@ -41,7 +52,7 @@ class AuthController < ApplicationController
       redirect_to dashboard_path
     elsif result[:needs_password_setup]
       handle_warning(result[:message])
-      redirect_to initial_password_path
+      redirect_to password_initial_path
     else
       handle_validation_error("login", result[:message])
       render :login
@@ -183,7 +194,7 @@ class AuthController < ApplicationController
 
     if result[:success]
       # 認証コード送信成功時は、認証コード入力画面にリダイレクト
-      redirect_to verify_password_reset_path(employee_id: employee_id), notice: result[:message]
+      redirect_to verify_reset_path(employee_id: employee_id), notice: result[:message]
     else
       flash.now[:alert] = result[:message]
       render :forgot_password
@@ -194,7 +205,7 @@ class AuthController < ApplicationController
     @employee_id = params[:employee_id]
 
     if @employee_id.blank?
-      redirect_to forgot_password_path, alert: "従業員IDが指定されていません"
+      redirect_to password_forgot_path, alert: "従業員IDが指定されていません"
       return
     end
 
@@ -212,7 +223,7 @@ class AuthController < ApplicationController
 
     if result[:success]
       # 認証成功時は、パスワード再設定画面にリダイレクト
-      redirect_to reset_password_path(employee_id: @employee_id, code: verification_code), notice: result[:message]
+      redirect_to password_reset_path(employee_id: @employee_id, code: verification_code), notice: result[:message]
     else
       flash.now[:alert] = result[:message]
       render :verify_password_reset
@@ -224,7 +235,7 @@ class AuthController < ApplicationController
     @verification_code = params[:code]
 
     if @employee_id.blank? || @verification_code.blank?
-      redirect_to forgot_password_path, alert: "パラメータが不正です"
+      redirect_to password_forgot_path, alert: "パラメータが不正です"
       return
     end
 
@@ -302,7 +313,7 @@ class AuthController < ApplicationController
       if result[:success]
         session[:pending_email] = email
         handle_success(result[:message])
-        redirect_to verify_access_code_path
+        redirect_to verify_access_path
       else
         handle_validation_error("email", result[:message])
         render :access_control

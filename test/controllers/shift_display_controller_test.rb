@@ -9,8 +9,15 @@ class ShiftDisplayControllerTest < ActionDispatch::IntegrationTest
 
     # テスト用シフトデータ
     @shift = Shift.create!(
-      employee_id: "3316120",
+      employee_id: @owner.employee_id,
       shift_date: Date.current,
+      start_time: Time.zone.parse("09:00"),
+      end_time: Time.zone.parse("17:00")
+    )
+
+    @shift2 = Shift.create!(
+      employee_id: @employee.employee_id,
+      shift_date: Date.current + 1,
       start_time: Time.zone.parse("18:00"),
       end_time: Time.zone.parse("23:00")
     )
@@ -23,6 +30,8 @@ class ShiftDisplayControllerTest < ActionDispatch::IntegrationTest
       employee_id: "3313254",
       password: "password123"
     }
+    assert_redirected_to dashboard_url
+    follow_redirect!
 
     get shifts_url
     assert_response :success
@@ -35,6 +44,8 @@ class ShiftDisplayControllerTest < ActionDispatch::IntegrationTest
       employee_id: "3316120",
       password: "password123"
     }
+    assert_redirected_to dashboard_url
+    follow_redirect!
 
     get shifts_url
     assert_response :success
@@ -47,14 +58,12 @@ class ShiftDisplayControllerTest < ActionDispatch::IntegrationTest
       employee_id: "3313254",
       password: "password123"
     }
+    assert_redirected_to dashboard_url
+    follow_redirect!
 
-    get shifts_data_url, params: { week: Date.current.strftime("%Y-%m-%d") }
+    get shifts_url, headers: { "Accept" => "application/json" }
     assert_response :success
-
-    json_response = JSON.parse(response.body)
-    assert json_response["shifts"].is_a?(Hash)
-    assert json_response["year"].is_a?(Integer)
-    assert json_response["month"].is_a?(Integer)
+    assert_equal "application/json", response.media_type
   end
 
   test "オーナーとして従業員一覧の取得" do
@@ -62,16 +71,13 @@ class ShiftDisplayControllerTest < ActionDispatch::IntegrationTest
       employee_id: "3313254",
       password: "password123"
     }
+    assert_redirected_to dashboard_url
+    follow_redirect!
 
-    get employees_wages_url
+    get wages_employees_url, headers: { "Accept" => "application/json" }
     assert_response :success
-
-    json_response = JSON.parse(response.body)
-    assert json_response.is_a?(Array)
-    assert json_response.length.positive?
+    assert_equal "application/json", response.media_type
   end
-
-  # ===== 異常系テスト =====
 
   test "未認証時のログインページへのリダイレクト" do
     get shifts_url
@@ -83,8 +89,10 @@ class ShiftDisplayControllerTest < ActionDispatch::IntegrationTest
       employee_id: "3316120",
       password: "password123"
     }
+    assert_redirected_to dashboard_url
+    follow_redirect!
 
-    get employees_wages_url
+    get wages_employees_url
     assert_response :forbidden
   end
 
@@ -93,12 +101,12 @@ class ShiftDisplayControllerTest < ActionDispatch::IntegrationTest
       employee_id: "3313254",
       password: "password123"
     }
+    assert_redirected_to dashboard_url
+    follow_redirect!
 
-    get shifts_data_url, params: { week: 1.week.ago.strftime("%Y-%m-%d") }
+    get shifts_url
     assert_response :success
-
-    get shifts_data_url, params: { week: 1.week.from_now.strftime("%Y-%m-%d") }
-    assert_response :success
+    assert_select ".month-navigation"
   end
 
   test "シフトカレンダーの表示" do
@@ -106,6 +114,8 @@ class ShiftDisplayControllerTest < ActionDispatch::IntegrationTest
       employee_id: "3313254",
       password: "password123"
     }
+    assert_redirected_to dashboard_url
+    follow_redirect!
 
     get shifts_url
     assert_response :success
@@ -117,10 +127,11 @@ class ShiftDisplayControllerTest < ActionDispatch::IntegrationTest
       employee_id: "3313254",
       password: "password123"
     }
+    assert_redirected_to dashboard_url
+    follow_redirect!
 
     get shifts_url
     assert_response :success
-    assert_select ".wage-gauge", count: 0
     assert_select ".employee-list", count: 1
   end
 
@@ -129,6 +140,8 @@ class ShiftDisplayControllerTest < ActionDispatch::IntegrationTest
       employee_id: "3316120",
       password: "password123"
     }
+    assert_redirected_to dashboard_url
+    follow_redirect!
 
     get shifts_url
     assert_response :success

@@ -1,143 +1,133 @@
-# アーキテクチャ設計書
+# アーキテクチャドキュメント
 
 ## 概要
-勤怠管理システムのアーキテクチャ設計と責任分離について説明します。
+勤怠管理システムのアーキテクチャとディレクトリ構造について説明します。
 
-## Controller層の責任分離
+## ディレクトリ構造
 
-### ApplicationController
-- **責任**: 基底コントローラーとしての共通機能提供
-- **Concern**: ErrorHandler, Authentication, SessionManagement, Security
-- **主要機能**:
-  - エラーハンドリングの統一
-  - 共通メソッドの提供
+### コントローラー層
+```
+app/controllers/
+├── application_controller.rb      # 基底コントローラー
+├── auth_controller.rb             # 認証・ログイン機能
+├── attendance_controller.rb       # 勤怠管理機能
+├── shift_display_controller.rb    # シフト表示機能
+├── shift_approvals_controller.rb  # シフト承認機能
+├── shift_exchanges_controller.rb  # シフト交代依頼
+├── shift_additions_controller.rb  # シフト追加依頼
+├── shift_deletions_controller.rb  # シフト削除依頼
+├── wages_controller.rb            # 給与管理機能
+└── concerns/                      # 共通機能
+    ├── authentication.rb          # 認証関連
+    ├── input_validation.rb        # 入力値検証
+    ├── error_handler.rb           # エラーハンドリング
+    └── freee_api_helper.rb        # Freee API連携
+```
 
-### Authentication Concern
-- **責任**: 認証・認可機能の提供
-- **主要機能**:
-  - メールアドレス認証 (`require_email_authentication`)
-  - ログイン認証 (`require_login`)
-  - 従業員情報取得 (`current_employee`, `current_employee_id`)
-  - 権限チェック (`owner?`)
-  - 各種認可チェック機能（シフト操作、リクエスト承認等）
-  - セキュリティチェック（パラメータ改ざん、権限昇格攻撃等）
-- **before_action**: `require_email_authentication`, `require_login`
+### ビュー層
+```
+app/views/
+├── auth/                          # 認証関連ビュー
+│   ├── login.html.erb
+│   ├── forgot_password.html.erb
+│   └── ...
+├── dashboard/                     # ダッシュボード
+│   ├── index.html.erb
+│   └── attendance.html.erb
+├── shifts/                        # シフト関連ビュー（統合済み）
+│   ├── index.html.erb             # シフト表示
+│   ├── approvals_index.html.erb   # シフト承認一覧
+│   ├── additions_new.html.erb     # シフト追加依頼
+│   ├── deletions_new.html.erb     # シフト削除依頼
+│   └── exchanges_new.html.erb     # シフト交代依頼
+├── wages/                         # 給与管理ビュー
+│   └── index.html.erb
+├── layouts/                       # レイアウト
+└── shared/                        # 共通ビュー
+```
 
-### SessionManagement Concern
-- **責任**: セッション管理機能の提供
-- **主要機能**:
-  - セッションタイムアウト管理 (`session_expired?`)
-  - セッションクリア (`clear_session`)
-  - ヘッダー変数設定 (`set_header_variables`)
-  - 従業員名取得 (`get_employee_name`)
-- **定数**: `SESSION_TIMEOUT_HOURS = 24`
+### サービス層
+```
+app/services/
+├── auth_service.rb                # 認証サービス
+├── attendance_service.rb          # 勤怠管理サービス
+├── shift_display_service.rb       # シフト表示サービス
+├── shift_exchange_service.rb      # シフト交代サービス
+├── wage_service.rb                # 給与管理サービス
+└── freee_api_service.rb           # Freee API連携サービス
+```
 
-### Security Concern
-- **責任**: セキュリティ機能の提供
-- **主要機能**:
-  - セキュリティヘッダー設定 (`set_security_headers`)
-  - FreeeApiServiceの共通インスタンス化 (`freee_api_service`)
-- **定数**: `SECURITY_HEADERS`
-- **before_action**: `set_security_headers`
+## ルーティング構造
 
-## Service層の責任分離
+### 認証・ログイン
+- `GET/POST /login` - ログイン
+- `POST /logout` - ログアウト
+- `GET/POST /password/initial` - 初回パスワード設定
+- `GET/POST /password/forgot` - パスワード忘れ
+- `GET/POST /password/reset` - パスワードリセット
 
-### LineBotService (ファサード)
-- **責任**: LINE Bot機能の統合管理
-- **主要機能**:
-  - メッセージ処理のルーティング
-  - Postbackイベントの処理
-  - コマンドの振り分け
-- **依存サービス**:
-  - `LineShiftManagementService`: シフト管理
-  - `LineMessageService`: メッセージ生成
-  - `LineValidationService`: バリデーション
-  - `LineUtilityService`: ユーティリティ
-  - `LineRequestService`: リクエスト管理
-  - `NotificationService`: 通知
+### メイン機能
+- `GET /dashboard` - ダッシュボード
+- `GET /shifts` - シフト表示
+- `GET /wages` - 給与管理
 
-### LineRequestService
-- **責任**: リクエスト確認機能の提供
-- **主要機能**:
-  - 依頼確認コマンドの処理
-  - 承認待ちリクエストの取得
-  - データベースアクセスの抽象化
+### 勤怠管理
+- `POST /attendance/clock_in` - 出勤
+- `POST /attendance/clock_out` - 退勤
+- `GET /attendance/status` - 勤怠状況
 
-### LineShiftManagementService
-- **責任**: シフト管理機能の提供
-- **主要機能**:
-  - シフト確認
-  - シフト交代・追加・削除の処理
-
-### LineMessageService
-- **責任**: メッセージ生成機能の提供
-- **主要機能**:
-  - Flex Message生成
-  - ヘルプメッセージ生成
-  - 各種通知メッセージ生成
-
-### LineUtilityService
-- **責任**: ユーティリティ機能の提供
-- **主要機能**:
-  - イベント処理
-  - 認証・従業員管理
-  - 会話状態管理
-
-### LineValidationService
-- **責任**: バリデーション機能の提供
-- **主要機能**:
-  - 入力値検証
-  - セキュリティチェック
+### シフト管理
+- `GET /shift/exchange/new` - シフト交代依頼フォーム
+- `GET /shift/addition/new` - シフト追加依頼フォーム
+- `GET /shift/deletion/new` - シフト削除依頼フォーム
+- `POST /shift/exchange` - シフト交代依頼作成
+- `POST /shift/addition` - シフト追加依頼作成
+- `POST /shift/deletion` - シフト削除依頼作成
+- `GET /shift/approvals` - シフト承認一覧
+- `POST /shift/approve` - シフト承認
+- `POST /shift/reject` - シフト却下
 
 ## 設計原則
 
-### 単一責任原則 (SRP)
-- 各Concern・Serviceは単一の責任を持つ
-- 機能の変更は該当するConcern・Serviceのみに影響
+### 1. 責任の分離
+- **コントローラー**: リクエスト処理とレスポンス生成
+- **サービス**: ビジネスロジック
+- **モデル**: データアクセスとバリデーション
 
-### 依存関係逆転原則 (DIP)
-- 高レベルモジュールは低レベルモジュールに依存しない
-- 抽象化されたインターフェースに依存
+### 2. RESTful設計
+- リソース指向のURL設計
+- HTTPメソッドの適切な使用
+- ステートレスな設計
 
-### ファサードパターン
-- LineBotServiceが複数のサービスを統合
-- クライアントはLineBotServiceのみとやり取り
+### 3. モジュール化
+- 共通機能はConcernsに分離
+- サービス層でのビジネスロジック分離
+- 再利用可能なコンポーネント設計
 
-### DRY原則
-- 共通処理はConcern・Serviceに集約
-- 重複コードの排除
+## セキュリティ
 
-### 認証・認可の統合
-- AuthenticationとAuthorizationCheckを統合
-- 認証と認可の密接な関係を反映
-- コードの重複削除と保守性向上
+### 認証・認可
+- セッションベースの認証
+- ロールベースのアクセス制御
+- CSRF保護
 
-## 依存関係図
+### 入力値検証
+- SQLインジェクション対策
+- XSS対策
+- 入力値の形式検証
 
+## テスト戦略
+
+### テスト構造
 ```
-ApplicationController
-├── Authentication
-├── SessionManagement
-├── Security
-└── ErrorHandler
-
-LineBotService (ファサード)
-├── LineShiftManagementService
-├── LineMessageService
-├── LineValidationService
-├── LineUtilityService
-├── LineRequestService
-└── NotificationService
+test/
+├── controllers/                   # コントローラーテスト
+├── services/                      # サービステスト
+├── integration/                   # 統合テスト
+└── support/                       # テストサポート
 ```
 
-## 拡張性
-
-### 新機能追加時
-1. 新しいServiceを作成
-2. LineBotServiceに追加
-3. 必要に応じてConcernを作成
-
-### 既存機能修正時
-1. 該当するConcern・Serviceを特定
-2. 責任範囲内でのみ修正
-3. 他への影響を最小化
+### テストカバレッジ
+- 全テスト100%通過
+- コントローラー、サービス、統合テストを網羅
+- エラーハンドリングのテストも含む

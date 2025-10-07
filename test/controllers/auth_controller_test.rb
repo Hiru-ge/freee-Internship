@@ -26,26 +26,26 @@ class AuthControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "許可されたメールアドレスの認証" do
-    post authenticate_email_path, params: { email: "okita2710@gmail.com" }
-    assert_redirected_to verify_access_code_path
+    post auth_email_path, params: { email: "okita2710@gmail.com" }
+    assert_redirected_to verify_access_path
     assert_equal "okita2710@gmail.com", session[:pending_email]
     assert_equal 1, ActionMailer::Base.deliveries.length
   end
 
   test "freee.co.jpドメインのメールアドレス認証" do
-    post authenticate_email_path, params: { email: "test@freee.co.jp" }
+    post auth_email_path, params: { email: "test@freee.co.jp" }
     assert_response :success
     assert_nil session[:pending_email]
     assert_equal 0, ActionMailer::Base.deliveries.length
   end
 
   test "正しい認証コードの検証" do
-    post authenticate_email_path, params: { email: "okita2710@gmail.com" }
-    assert_redirected_to verify_access_code_path
+    post auth_email_path, params: { email: "okita2710@gmail.com" }
+    assert_redirected_to verify_access_path
 
     code = EmailVerificationCode.last.code
 
-    post verify_access_code_path, params: { code: code }
+    post verify_access_path, params: { code: code }
     assert_redirected_to "/home"
     assert session[:email_authenticated]
     assert_equal "okita2710@gmail.com", session[:authenticated_email]
@@ -54,11 +54,11 @@ class AuthControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "メール認証済み時のホームページリダイレクト" do
-    post authenticate_email_path, params: { email: "okita2710@gmail.com" }
-    assert_redirected_to verify_access_code_path
+    post auth_email_path, params: { email: "okita2710@gmail.com" }
+    assert_redirected_to verify_access_path
 
     code = EmailVerificationCode.last.code
-    post verify_access_code_path, params: { code: code }
+    post verify_access_path, params: { code: code }
     assert_redirected_to "/home"
 
     get root_url
@@ -68,58 +68,58 @@ class AuthControllerTest < ActionDispatch::IntegrationTest
   # ===== 異常系テスト =====
 
   test "許可されていないメールアドレスの認証拒否" do
-    post authenticate_email_path, params: { email: "unauthorized@gmail.com" }
+    post auth_email_path, params: { email: "unauthorized@gmail.com" }
     assert_response :success
     assert_nil session[:pending_email]
     assert_equal 0, ActionMailer::Base.deliveries.length
   end
 
   test "空のメールアドレスのエラー表示" do
-    post authenticate_email_path, params: { email: "" }
+    post auth_email_path, params: { email: "" }
     assert_response :success
     assert_nil session[:pending_email]
   end
 
   test "間違った認証コードの検証失敗" do
-    post authenticate_email_path, params: { email: "okita2710@gmail.com" }
-    assert_redirected_to verify_access_code_path
+    post auth_email_path, params: { email: "okita2710@gmail.com" }
+    assert_redirected_to verify_access_path
 
-    post verify_access_code_path, params: { code: "000000" }
+    post verify_access_path, params: { code: "000000" }
     assert_response :success
     assert_nil session[:email_authenticated]
     assert_not_nil session[:pending_email]
   end
 
   test "期限切れ認証コードの検証失敗" do
-    post authenticate_email_path, params: { email: "okita2710@gmail.com" }
-    assert_redirected_to verify_access_code_path
+    post auth_email_path, params: { email: "okita2710@gmail.com" }
+    assert_redirected_to verify_access_path
 
     code_record = EmailVerificationCode.last
     code_record.update!(expires_at: 1.minute.ago)
 
-    post verify_access_code_path, params: { code: code_record.code }
+    post verify_access_path, params: { code: code_record.code }
     assert_response :success
     assert_nil session[:email_authenticated]
     assert_not_nil session[:pending_email]
   end
 
   test "空の認証コードのエラー表示" do
-    post authenticate_email_path, params: { email: "okita2710@gmail.com" }
-    assert_redirected_to verify_access_code_path
+    post auth_email_path, params: { email: "okita2710@gmail.com" }
+    assert_redirected_to verify_access_path
 
-    post verify_access_code_path, params: { code: "" }
+    post verify_access_path, params: { code: "" }
     assert_response :success
     assert_nil session[:email_authenticated]
     assert_not_nil session[:pending_email]
   end
 
   test "保留メールなしでのルートページリダイレクト" do
-    get verify_access_code_get_path
+    get verify_access_path
     assert_redirected_to root_path
   end
 
   test "テスト環境でのfreee.co.jpドメインメール送信停止" do
-    post authenticate_email_path, params: { email: "test@freee.co.jp" }
+    post auth_email_path, params: { email: "test@freee.co.jp" }
     assert_response :success
     assert_nil session[:pending_email]
     assert_equal 0, ActionMailer::Base.deliveries.length

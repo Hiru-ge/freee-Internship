@@ -8,7 +8,7 @@
       <%= session[:pending_email] %> に送信された6桁の認証コードを入力してください。
     </div>
 
-    <%= form_with url: verify_access_code_path, method: :post, local: true, id: "verify-code-form" do |form| %>
+    <%= form_with url: verify_access_path, method: :post, local: true, id: "verify-code-form" do |form| %>
       <div class="form-group code-input-group">
         <%= form.label :code, "認証コード:", class: "code-label" %>
         <%= form.text_field :code,

@@ -1,14 +1,14 @@
 <div class="shift-page-container <%= @is_owner ? 'owner-mode' : 'employee-mode' %>"
      data-employee-id="<%= @employee_id %>"
      data-is-owner="<%= @is_owner %>"
-     data-shifts-data-path="<%= shifts_data_path %>"
-     data-employees-wages-path="<%= employees_wages_path %>"
-     data-all-wages-path="/wages/all_wages"
-     data-wage-info-path="/wages/wage_info"
-     data-new-shift-exchange-path="<%= new_shift_exchange_path %>"
-     data-new-shift-deletion-path="<%= new_shift_deletion_path %>"
+     data-shifts-data-path="<%= shifts_path %>"
+     data-employees-wages-path="<%= wages_employees_path %>"
+     data-all-wages-path="<%= wages_path %>"
+     data-wage-info-path="<%= wages_path %>"
+     data-new-shift-exchange-path="<%= shift_exchange_new_path %>"
+     data-new-shift-deletion-path="<%= shift_deletion_new_path %>"
      data-shift-approvals-path="<%= shift_approvals_path %>"
-     data-new-shift-addition-path="<%= new_shift_addition_path %>">
+     data-new-shift-addition-path="<%= shift_addition_new_path %>">
   <h1>シフトページ</h1>
 
 

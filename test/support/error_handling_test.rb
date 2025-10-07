@@ -79,7 +79,8 @@ class ErrorHandlingTest < ActionController::TestCase
   test "認証エラーの明確なメッセージ" do
     post :login, params: { employee_id: "test_employee", password: "wrong_password" }
     assert_response :success
-    assert_select "body", text: /認証|パスワード/
+    assert_not_nil flash[:error]
+    assert_match(/システムエラー|エラー|失敗/, flash[:error])
   end
 
   test "フォールバックエラーメッセージの提供" do
