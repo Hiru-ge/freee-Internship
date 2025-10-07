@@ -46,6 +46,23 @@ app/views/
 └── shared/                        # 共通ビュー
 ```
 
+### JavaScript層
+```
+app/javascript/
+├── application.js                 # アプリケーション初期化
+├── auth.js                       # 認証関連機能
+├── attendance.js                 # 勤怠管理機能
+├── common.js                     # 共通ユーティリティ
+├── flash_messages.js             # フラッシュメッセージ
+├── header.js                     # ヘッダー機能
+├── loading_handler.js            # ローディング表示
+├── message_handler.js            # メッセージ表示
+├── shift_approvals.js            # シフト承認機能
+├── shift_display.js              # シフト表示機能
+├── shift_exchange.js             # シフト交代機能
+└── shift_forms.js                # シフトフォーム機能
+```
+
 ### サービス層
 ```
 app/services/
@@ -103,6 +120,11 @@ app/services/
 - 共通機能はConcernsに分離
 - サービス層でのビジネスロジック分離
 - 再利用可能なコンポーネント設計
+
+### 4. フロントエンド分離
+- HTMLとJavaScriptの完全分離
+- 機能別のJSファイル構成
+- 共通ユーティリティの統合
 
 ## セキュリティ
 

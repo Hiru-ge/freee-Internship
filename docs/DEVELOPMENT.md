@@ -75,6 +75,13 @@ get "shift/new_feature", to: "shift_new_feature#index"
 - ビューファイルは `app/views/shifts/` に配置
 - テストの更新を忘れずに
 
+#### 3. JavaScript機能の追加
+- 新しいJS機能は適切なファイルに追加
+- 認証関連: `app/javascript/auth.js`
+- シフト関連: `app/javascript/shift_*.js`
+- 共通機能: `app/javascript/common.js`
+- インラインJSの使用は禁止
+
 ### テストの実行
 
 #### 全テストの実行
@@ -134,6 +141,11 @@ rails console -e test
 - テストの期待値が実際の動作と一致しているか確認
 - 認証状態やセッションの設定を確認
 
+#### 4. JavaScript機能が動作しない
+- インラインJSの使用を避け、適切なJSファイルに実装
+- `importmap.rb` に新しいJSファイルを追加
+- ブラウザの開発者ツールでエラーを確認
+
 ### パフォーマンス
 
 #### データベースクエリの最適化
@@ -185,6 +197,14 @@ RAILS_ENV=production bundle exec rails assets:precompile
 #### 3. `ActiveRecord::RecordNotFound`
 - データベースにレコードが存在しない
 - IDの指定が間違っている
+
+#### 4. JavaScript関連エラー
+- `ReferenceError: function is not defined`
+  - インラインJSの使用を避け、適切なJSファイルに実装
+- `Uncaught TypeError: Cannot read property`
+  - DOM要素の存在確認を追加
+- `Failed to load resource`
+  - `importmap.rb` に新しいJSファイルを追加
 
 ### サポート
 問題が解決しない場合は、以下の情報を含めて報告してください：

@@ -32,38 +32,4 @@
   </div>
 </div>
 
-<script>
-  // ページ読み込み時の初期化
-  document.addEventListener('DOMContentLoaded', function() {
-    setupEmailAuthFormHandler();
-  });
-
-  // フォームハンドラーの設定
-  function setupEmailAuthFormHandler() {
-    document.getElementById('email-auth-form').addEventListener('submit', function(e) {
-      var email = document.getElementById('email-input').value;
-
-      if (!email) {
-        e.preventDefault();
-        showMessage('メールアドレスを入力してください', 'error');
-        return;
-      }
-
-      // ローディング表示
-      if (window.loadingHandler) {
-        window.loadingHandler.show('認証コードを送信中...');
-      } else {
-        // フォールバック
-        var submitButton = document.querySelector('button[type="submit"]');
-        submitButton.disabled = true;
-        submitButton.textContent = '送信中...';
-      }
-    });
-  }
-
-  function showMessage(message, type) {
-    if (window.messageHandler) {
-      return window.messageHandler.show(message, type);
-    }
-  }
-</script>
+<%= javascript_include_tag "auth" %>

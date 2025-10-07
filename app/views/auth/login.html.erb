@@ -30,45 +30,4 @@
   </div>
 </div>
 
-<script>
-  // ページ読み込み時の初期化
-  document.addEventListener('DOMContentLoaded', function() {
-    setupFormHandler();
-  });
-
-  // フォームハンドラーの設定
-  function setupFormHandler() {
-    document.getElementById('login-form').addEventListener('submit', function(e) {
-      const employeeId = document.getElementById('employee-select').value;
-      const password = document.getElementById('password').value;
-
-      if (!employeeId) {
-        e.preventDefault();
-        showMessage('従業員を選択してください', 'error');
-        return;
-      }
-
-      if (!password) {
-        e.preventDefault();
-        showMessage('パスワードを入力してください', 'error');
-        return;
-      }
-
-      // ローディング表示
-      if (window.loadingHandler) {
-        window.loadingHandler.show('ログイン処理中...');
-      } else {
-        // フォールバック
-        const submitButton = document.querySelector('button[type="submit"]');
-        submitButton.disabled = true;
-        submitButton.textContent = 'ログイン中...';
-      }
-    });
-  }
-
-  function showMessage(message, type) {
-    if (window.messageHandler) {
-      return window.messageHandler.show(message, type);
-    }
-  }
-</script>
+<%= javascript_include_tag "auth" %>
