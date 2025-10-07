@@ -4,6 +4,9 @@ class AuthController < ApplicationController
   include InputValidation
   include ErrorHandler
 
+  skip_before_action :require_email_authentication,
+                     only: %i[login initial_password verify_initial_code setup_initial_password forgot_password verify_password_reset
+                              reset_password send_verification_code verify_code access_control home authenticate_email verify_access_code]
   skip_before_action :require_login,
                      only: %i[login initial_password verify_initial_code setup_initial_password forgot_password verify_password_reset
                               reset_password send_verification_code verify_code access_control home authenticate_email verify_access_code]
