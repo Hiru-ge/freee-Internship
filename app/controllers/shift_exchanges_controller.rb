@@ -1,15 +1,11 @@
 # frozen_string_literal: true
 
-class ShiftExchangesController < ApplicationController
-  include InputValidation
+class ShiftExchangesController < ShiftBaseController
   include ErrorHandler
 
   def new
     @employee_id = current_employee_id
-    @date = params[:date] || Date.current.strftime("%Y-%m-%d")
-    @start_time = params[:start] || "09:00"
-    @end_time = params[:end] || "18:00"
-
+    setup_shift_form_params
     load_employees_for_view
     @applicant_id = @employee_id
     render 'shifts/exchanges_new'
@@ -24,15 +20,13 @@ class ShiftExchangesController < ApplicationController
     return if validation_result[:redirect]
 
     result = create_shift_exchange_request(request_params)
-    handle_service_response(
+    handle_shift_service_response(
       result,
       success_path: shifts_path,
-      failure_path: shift_exchange_new_path,
-      success_flash_key: :notice,
-      error_flash_key: :error
+      failure_path: shift_exchange_new_path
     )
   rescue StandardError => e
-    handle_api_error(e, "シフト交代リクエスト作成", shift_exchange_new_path)
+    handle_shift_error(e, "シフト交代リクエスト作成", shift_exchange_new_path)
   end
 
   private

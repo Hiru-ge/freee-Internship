@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class ShiftDeletionsController < ApplicationController
+class ShiftDeletionsController < ShiftBaseController
 
   def new
     @shifts = load_future_shifts
@@ -13,10 +13,10 @@ class ShiftDeletionsController < ApplicationController
     result = create_shift_deletion_request
 
     if result[:success]
-      handle_service_response(
+      handle_shift_service_response(
         result,
         success_path: shifts_path,
-        failure_path: nil,
+        failure_path: shift_deletion_new_path,
         success_flash_key: :success
       )
     else

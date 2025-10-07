@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-class ShiftApprovalsController < ApplicationController
-  include InputValidation
+class ShiftApprovalsController < ShiftBaseController
   include FreeeApiHelper
 
   skip_before_action :verify_authenticity_token, if: :json_request?

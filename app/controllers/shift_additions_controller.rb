@@ -1,15 +1,11 @@
 # frozen_string_literal: true
 
-class ShiftAdditionsController < ApplicationController
-  include InputValidation
+class ShiftAdditionsController < ShiftBaseController
 
   def new
     return unless check_owner_permission
 
-    @date = params[:date] || Date.current.strftime("%Y-%m-%d")
-    @start_time = params[:start] || "09:00"
-    @end_time = params[:end] || "18:00"
-
+    setup_shift_form_params
     load_employees_for_view
     render 'shifts/additions_new'
   end
@@ -18,8 +14,7 @@ class ShiftAdditionsController < ApplicationController
     return unless check_shift_addition_authorization
 
     begin
-      return unless validate_required_params(params, %i[employee_id shift_date start_time end_time], shift_addition_new_path)
-      return unless validate_shift_params(params, shift_addition_new_path)
+      return unless validate_shift_form_params(params, %i[employee_id shift_date start_time end_time], shift_addition_new_path)
 
       overlapping_employee = check_shift_overlap
       if overlapping_employee
@@ -28,27 +23,24 @@ class ShiftAdditionsController < ApplicationController
       end
 
       result = create_shift_addition_request
-      handle_service_response(
+      handle_shift_service_response(
         result,
         success_path: shifts_path,
-        failure_path: shift_addition_new_path,
-        success_flash_key: :notice,
-        error_flash_key: :error
+        failure_path: shift_addition_new_path
       )
     rescue StandardError => e
-      handle_api_error(e, "シフト追加リクエスト作成", shift_addition_new_path)
+      handle_shift_error(e, "シフト追加リクエスト作成", shift_addition_new_path)
     end
   end
 
   private
 
   def check_shift_overlap
-    display_service = ShiftDisplayService.new
-    display_service.check_addition_overlap(
+    check_shift_overlap_for_employee(
       params[:employee_id],
-      Date.parse(params[:shift_date]),
-      Time.zone.parse(params[:start_time]),
-      Time.zone.parse(params[:end_time])
+      params[:shift_date],
+      params[:start_time],
+      params[:end_time]
     )
   end
 

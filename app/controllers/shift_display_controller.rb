@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-class ShiftDisplayController < ApplicationController
-  include InputValidation
+class ShiftDisplayController < ShiftBaseController
   include FreeeApiHelper
 
   def index
