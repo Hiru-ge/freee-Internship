@@ -130,10 +130,21 @@ class ShiftApprovalsController < ShiftBaseController
         shift_exchange_service.reject_exchange_request(service_params[:request_id], service_params[:approver_id])
       end
     when "addition"
-      if service_params[:action] == "approve"
-        shift_addition_service.approve_addition_request(service_params[:request_id], service_params[:approver_id])
-      else
-        shift_addition_service.reject_addition_request(service_params[:request_id], service_params[:approver_id])
+      begin
+        request = ShiftAddition.find_by(request_id: service_params[:request_id]) ||
+                  ShiftAddition.find_by(id: service_params[:request_id])
+
+        if request.nil?
+          { success: false, message: "リクエストが見つかりません" }
+        elsif service_params[:action] == "approve"
+          message = request.approve_by!(service_params[:approver_id])
+          { success: true, message: message }
+        else
+          message = request.reject_by!(service_params[:approver_id])
+          { success: true, message: message }
+        end
+      rescue ShiftAddition::ValidationError, ShiftAddition::AuthorizationError => e
+        { success: false, message: e.message }
       end
     when "deletion"
       if service_params[:action] == "approve"
@@ -150,9 +161,6 @@ class ShiftApprovalsController < ShiftBaseController
     @shift_exchange_service ||= ShiftExchangeService.new
   end
 
-  def shift_addition_service
-    @shift_addition_service ||= ShiftAdditionService.new
-  end
 
   def shift_deletion_service
     @shift_deletion_service ||= ShiftDeletionService.new

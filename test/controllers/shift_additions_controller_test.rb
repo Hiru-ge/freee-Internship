@@ -42,13 +42,13 @@ class ShiftAdditionsControllerTest < ActionDispatch::IntegrationTest
     follow_redirect!
 
     post shift_addition_url, params: {
-      target_employee_id: "3316120",
+      employee_id: "3316120",
       shift_date: Date.current + 1.day,
       start_time: "18:00",
       end_time: "23:00"
     }
 
-    assert response.redirect? || response.success?
+    assert_response :redirect
   end
 
   # ===== 異常系テスト =====
@@ -72,12 +72,13 @@ class ShiftAdditionsControllerTest < ActionDispatch::IntegrationTest
     follow_redirect!
 
     post shift_addition_url, params: {
-      target_employee_id: "",
+      employee_id: "",
       shift_date: "",
       start_time: "",
       end_time: ""
     }
 
-    assert response.redirect? || response.unprocessable_content?
+    assert_response :success
+    assert_select "body[data-flash-error*='必須項目']"
   end
 end
