@@ -419,21 +419,21 @@ class ClockServiceTest < ActiveSupport::TestCase
   end
 
   test "時間帯の正確な判定" do
-    wage_service = WageService.new
+    # WageServiceの機能はEmployeeモデルに移行
 
-    assert_equal :normal, wage_service.get_time_zone(10)
-    assert_equal :normal, wage_service.get_time_zone(17)
-    assert_equal :evening, wage_service.get_time_zone(18)
-    assert_equal :evening, wage_service.get_time_zone(21)
-    assert_equal :night, wage_service.get_time_zone(22)
-    assert_equal :night, wage_service.get_time_zone(2)
-    assert_equal :night, wage_service.get_time_zone(8)
+    assert_equal :normal, Employee.get_time_zone(10)
+    assert_equal :normal, Employee.get_time_zone(17)
+    assert_equal :evening, Employee.get_time_zone(18)
+    assert_equal :evening, Employee.get_time_zone(21)
+    assert_equal :night, Employee.get_time_zone(22)
+    assert_equal :night, Employee.get_time_zone(2)
+    assert_equal :night, Employee.get_time_zone(8)
   end
 
   test "時間帯別勤務時間の正確な計算" do
-    wage_service = WageService.new
+    # WageServiceの機能はEmployeeモデルに移行
 
-    work_hours = wage_service.calculate_work_hours_by_time_zone(
+    work_hours = Employee.calculate_work_hours_by_time_zone(
       Date.current,
       Time.zone.parse("18:00"),
       Time.zone.parse("23:00")
@@ -465,8 +465,10 @@ class ClockServiceTest < ActiveSupport::TestCase
       end_time: Time.zone.parse("18:00")
     )
 
-    wage_service = WageService.new
-    result = wage_service.calculate_monthly_wage(employee.employee_id, Date.current.month, Date.current.year)
+    # WageServiceの機能はEmployeeモデルに移行
+    start_date = Date.new(Date.current.year, Date.current.month, 1)
+    end_date = start_date.end_of_month
+    result = employee.calculate_wage_for_period(start_date, end_date)
     assert_not_nil result
     assert result.is_a?(Hash)
     assert result.key?(:total)

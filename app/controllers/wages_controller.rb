@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class WagesController < ApplicationController
-  include InputValidation
   include FreeeApiHelper
 
   def index

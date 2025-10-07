@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class AttendanceController < ApplicationController
-  include InputValidation
 
   def index
     @employee = current_employee

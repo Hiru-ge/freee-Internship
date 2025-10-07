@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class ShiftBaseController < ApplicationController
-  include InputValidation
   include ServiceResponseHandler
 
   # 共通の初期化処理
@@ -11,10 +10,16 @@ class ShiftBaseController < ApplicationController
     @end_time = params[:end] || "18:00"
   end
 
-  # 共通のバリデーション処理
+  # 共通のバリデーション処理（Shiftモデルに移行）
   def validate_shift_form_params(params, required_fields, redirect_path)
-    return false unless validate_required_params(params, required_fields, redirect_path)
-    return false unless validate_shift_params(params, redirect_path)
+    validation_result = Shift.validate_shift_params(params)
+
+    unless validation_result[:success]
+      flash[:error] = validation_result[:error]
+      redirect_to redirect_path
+      return false
+    end
+
     true
   end
 
@@ -39,15 +44,6 @@ class ShiftBaseController < ApplicationController
     @employees = fetch_employees
   end
 
-  # シフトパラメータのバリデーション
-  def validate_shift_params(params, redirect_path)
-    if params[:shift_date].blank? || params[:start_time].blank? || params[:end_time].blank?
-      flash[:error] = "日付と時間を入力してください。"
-      redirect_to redirect_path
-      return false
-    end
-    true
-  end
 
   private
 

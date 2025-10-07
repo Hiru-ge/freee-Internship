@@ -206,6 +206,142 @@ class Employee < ApplicationRecord
     end
   end
 
+  # === 給与計算機能（WageServiceから移行） ===
+
+  # 時間帯別時給設定
+  def self.time_zone_wage_rates
+    @time_zone_wage_rates ||= begin
+      time_zone_rates = AppConstants.wage[:time_zone_rates] || {}
+      {
+        normal: {
+          start: time_zone_rates.dig(:normal, :start_hour) || 9,
+          end: time_zone_rates.dig(:normal, :end_hour) || 18,
+          rate: time_zone_rates.dig(:normal, :rate) || 1000,
+          name: time_zone_rates.dig(:normal, :name) || "通常時給"
+        },
+        evening: {
+          start: time_zone_rates.dig(:evening, :start_hour) || 18,
+          end: time_zone_rates.dig(:evening, :end_hour) || 22,
+          rate: time_zone_rates.dig(:evening, :rate) || 1200,
+          name: time_zone_rates.dig(:evening, :name) || "夜間手当"
+        },
+        night: {
+          start: time_zone_rates.dig(:night, :start_hour) || 22,
+          end: time_zone_rates.dig(:night, :end_hour) || 9,
+          rate: time_zone_rates.dig(:night, :rate) || 1500,
+          name: time_zone_rates.dig(:night, :name) || "深夜手当"
+        }
+      }.freeze
+    end
+  end
+
+  # 月次給与目標
+  def self.monthly_wage_target
+    AppConstants.monthly_wage_target
+  end
+
+  # 時間帯判定
+  def self.get_time_zone(hour)
+    time_zone_rates = time_zone_wage_rates
+
+    if hour >= time_zone_rates[:normal][:start] && hour < time_zone_rates[:normal][:end]
+      :normal
+    elsif hour >= time_zone_rates[:evening][:start] && hour < time_zone_rates[:evening][:end]
+      :evening
+    else
+      :night
+    end
+  end
+
+  # 時間帯別勤務時間計算
+  def self.calculate_work_hours_by_time_zone(shift_date, start_time, end_time)
+    start_hour = start_time.hour
+    end_hour = end_time.hour
+    time_zone_hours = { normal: 0, evening: 0, night: 0 }
+
+    if end_hour <= start_hour
+      # 日をまたぐ場合
+      (start_hour...24).each do |hour|
+        time_zone = get_time_zone(hour)
+        time_zone_hours[time_zone] += 1
+      end
+      (0...end_hour).each do |hour|
+        time_zone = get_time_zone(hour)
+        time_zone_hours[time_zone] += 1
+      end
+    else
+      # 同日内の場合
+      (start_hour...end_hour).each do |hour|
+        time_zone = get_time_zone(hour)
+        time_zone_hours[time_zone] += 1
+      end
+    end
+
+    time_zone_hours
+  end
+
+  # 給与計算（WageServiceから完全移行）
+  def calculate_wage_for_period(start_date, end_date)
+    shifts = Shift.where(employee_id: employee_id, shift_date: start_date..end_date)
+    monthly_hours = self.class.calculate_monthly_hours_from_shifts(shifts)
+    self.class.calculate_wage_from_hours(monthly_hours).merge(
+      employee_id: employee_id,
+      employee_name: display_name,
+      shifts_count: shifts.count
+    )
+  end
+
+  # 月次勤務時間計算
+  def self.calculate_monthly_hours_from_shifts(shifts)
+    monthly_hours = { normal: 0, evening: 0, night: 0 }
+
+    shifts.each do |shift|
+      day_hours = calculate_work_hours_by_time_zone(
+        shift.shift_date,
+        shift.start_time,
+        shift.end_time
+      )
+
+      monthly_hours[:normal] += day_hours[:normal]
+      monthly_hours[:evening] += day_hours[:evening]
+      monthly_hours[:night] += day_hours[:night]
+    end
+
+    monthly_hours
+  end
+
+  # 時間から給与計算
+  def self.calculate_wage_from_hours(monthly_hours)
+    breakdown = {}
+    total = 0
+
+    monthly_hours.each do |time_zone, hours|
+      rate = time_zone_wage_rates[time_zone][:rate]
+      wage = hours * rate
+
+      breakdown[time_zone] = {
+        hours: hours,
+        rate: rate,
+        wage: wage,
+        name: time_zone_wage_rates[time_zone][:name]
+      }
+
+      total += wage
+    end
+
+    {
+      total: total,
+      breakdown: breakdown,
+      work_hours: monthly_hours
+    }
+  end
+
+  # シフトから給与計算（内部ロジック）
+  def self.calculate_wage_from_shifts(shifts)
+    monthly_hours = calculate_monthly_hours_from_shifts(shifts)
+    calculate_wage_from_hours(monthly_hours)
+  end
+
   # 従業員名正規化
   def self.normalize_employee_name(name)
     name.to_s.strip.downcase.gsub(/\s+/, "")

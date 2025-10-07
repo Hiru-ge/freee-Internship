@@ -446,4 +446,98 @@ class ShiftTest < ActiveSupport::TestCase
     unknown_result = Shift.get_employee_display_name("unknown_id")
     assert_equal "ID: unknown_id", unknown_result
   end
+
+  # === バリデーション機能テスト（InputValidationから移行） ===
+
+  test "日付形式バリデーション" do
+    # 正常な日付
+    result = Shift.validate_date_format("2024-12-25")
+    assert result[:success]
+    assert_equal Date.parse("2024-12-25"), result[:date]
+
+    # 空の日付
+    result = Shift.validate_date_format("")
+    assert_not result[:success]
+    assert_equal "日付が入力されていません", result[:error]
+
+    # 無効な形式
+    result = Shift.validate_date_format("2024/12/25")
+    assert_not result[:success]
+    assert_equal "日付の形式が正しくありません", result[:error]
+
+    # 無効な日付
+    result = Shift.validate_date_format("2024-13-40")
+    assert_not result[:success]
+    assert_equal "無効な日付です", result[:error]
+  end
+
+  test "時間形式バリデーション" do
+    # 正常な時間
+    result = Shift.validate_time_format("09:30")
+    assert result[:success]
+
+    # 空の時間
+    result = Shift.validate_time_format("")
+    assert_not result[:success]
+    assert_equal "時間が入力されていません", result[:error]
+
+    # 無効な形式（24時間を超える）
+    result = Shift.validate_time_format("25:00")
+    assert_not result[:success]
+    assert_equal "時間の形式が正しくありません", result[:error]
+
+    # 無効な形式（分が60以上）
+    result = Shift.validate_time_format("12:60")
+    assert_not result[:success]
+    assert_equal "時間の形式が正しくありません", result[:error]
+  end
+
+  test "必須パラメータバリデーション" do
+    # 正常なパラメータ
+    params = {
+      employee_id: "123456",
+      shift_date: "2024-12-25",
+      start_time: "09:00",
+      end_time: "17:00"
+    }
+    result = Shift.validate_required_shift_params(params)
+    assert result[:success]
+
+    # 従業員IDが空
+    params[:employee_id] = ""
+    result = Shift.validate_required_shift_params(params)
+    assert_not result[:success]
+    assert_includes result[:error], "従業員"
+
+    # 複数項目が空
+    params[:shift_date] = ""
+    result = Shift.validate_required_shift_params(params)
+    assert_not result[:success]
+    assert_includes result[:error], "従業員、日付"
+  end
+
+  test "シフトパラメータ総合バリデーション" do
+    # 正常なパラメータ
+    params = {
+      employee_id: "123456",
+      shift_date: "2024-12-25",
+      start_time: "09:00",
+      end_time: "17:00"
+    }
+    result = Shift.validate_shift_params(params)
+    assert result[:success]
+
+    # 終了時間が開始時間より前
+    params[:end_time] = "08:00"
+    result = Shift.validate_shift_params(params)
+    assert_not result[:success]
+    assert_equal "終了時間は開始時間より後にしてください", result[:error]
+
+    # 無効な日付形式
+    params[:end_time] = "17:00"
+    params[:shift_date] = "invalid-date"
+    result = Shift.validate_shift_params(params)
+    assert_not result[:success]
+    assert_equal "日付の形式が正しくありません", result[:error]
+  end
 end

@@ -247,6 +247,90 @@ class Shift < ApplicationRecord
     message
   end
 
+  # === バリデーション機能（InputValidationから移行） ===
+
+  # 日付形式バリデーション
+  def self.validate_date_format(date_string)
+    return { success: false, error: "日付が入力されていません" } if date_string.blank?
+
+    date_regex = /\A\d{4}-\d{2}-\d{2}\z/
+    unless date_string.match?(date_regex)
+      return { success: false, error: "日付の形式が正しくありません" }
+    end
+
+    begin
+      parsed_date = Date.parse(date_string)
+      { success: true, date: parsed_date }
+    rescue ArgumentError
+      { success: false, error: "無効な日付です" }
+    end
+  end
+
+  # 時間形式バリデーション
+  def self.validate_time_format(time_string)
+    return { success: false, error: "時間が入力されていません" } if time_string.blank?
+
+    time_regex = /\A([01]?[0-9]|2[0-3]):[0-5][0-9]\z/
+    unless time_string.match?(time_regex)
+      return { success: false, error: "時間の形式が正しくありません" }
+    end
+
+    { success: true }
+  end
+
+  # 必須パラメータバリデーション
+  def self.validate_required_shift_params(params)
+    required_fields = [:employee_id, :shift_date, :start_time, :end_time]
+    missing_fields = required_fields.select { |field| params[field].blank? }
+
+    if missing_fields.any?
+      field_names = missing_fields.map { |field|
+        case field
+        when :employee_id then "従業員"
+        when :shift_date then "日付"
+        when :start_time then "開始時間"
+        when :end_time then "終了時間"
+        else field.to_s
+        end
+      }
+      return { success: false, error: "#{field_names.join('、')}を入力してください" }
+    end
+
+    { success: true }
+  end
+
+  # シフトパラメータの総合バリデーション
+  def self.validate_shift_params(params)
+    # 必須パラメータチェック
+    required_result = validate_required_shift_params(params)
+    return required_result unless required_result[:success]
+
+    # 日付形式チェック
+    date_result = validate_date_format(params[:shift_date])
+    return date_result unless date_result[:success]
+
+    # 時間形式チェック
+    start_time_result = validate_time_format(params[:start_time])
+    return start_time_result unless start_time_result[:success]
+
+    end_time_result = validate_time_format(params[:end_time])
+    return end_time_result unless end_time_result[:success]
+
+    # 時間の整合性チェック
+    begin
+      start_time = Time.zone.parse(params[:start_time])
+      end_time = Time.zone.parse(params[:end_time])
+
+      if end_time <= start_time
+        return { success: false, error: "終了時間は開始時間より後にしてください" }
+      end
+    rescue ArgumentError
+      return { success: false, error: "時間の形式が正しくありません" }
+    end
+
+    { success: true }
+  end
+
   # クラスメソッド: CRUD操作 - バリデーション付き作成
   def self.create_with_validation(employee_id:, shift_date:, start_time:, end_time:)
     # バリデーション
