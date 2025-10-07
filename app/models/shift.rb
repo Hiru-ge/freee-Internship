@@ -127,7 +127,10 @@ class Shift < ApplicationRecord
   def self.get_monthly_shifts(year, month)
     begin
       # FreeeAPIから従業員データを取得
-      freee_api_service = FreeeApiService.new
+      freee_api_service = FreeeApiService.new(
+        ENV.fetch("FREEE_ACCESS_TOKEN", nil),
+        ENV.fetch("FREEE_COMPANY_ID", nil)
+      )
       employees = freee_api_service.get_employees
 
       if employees.empty?

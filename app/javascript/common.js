@@ -15,7 +15,7 @@ function loadConfigFromContainer(containerSelector, configMap) {
             } else if (dataKey.toLowerCase().includes('isowner') || dataKey.toLowerCase().startsWith('is')) {
                 // 'true' / 'false' の文字列を厳密にブールへ
                 config[key] = String(value) === 'true';
-            } else if (dataKey.toLowerCase().includes('employees') || dataKey.toLowerCase().includes('json')) {
+            } else if (dataKey.toLowerCase().includes('employeesdata') || dataKey.toLowerCase().includes('json')) {
                 // data-属性ではJSON内のダブルクオートが &quot; にエスケープされることがあるため復元
                 try {
                     const unescaped = (value || '')
