@@ -26,8 +26,7 @@
       <%= yield %>
     </main>
 
-    <!-- フラッシュメッセージをトースト形式で表示 -->
-    <%= javascript_include_tag 'flash_messages' %>
+    <!-- グローバルJSはimportmap経由（application.js）で読み込み -->
     <%= javascript_include_tag "header" %>
   </body>
 </html>

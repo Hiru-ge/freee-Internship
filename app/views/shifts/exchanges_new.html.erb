@@ -2,8 +2,8 @@
          data-applicant-id="<%= @applicant_id %>"
          data-date="<%= @date %>"
          data-start-time="<%= @start_time %>"
-         data-end-time="<%= @end_time %>"
-         data-employees="<%= @employees.to_json.html_safe %>">
+        data-end-time="<%= @end_time %>"
+        data-employees='<%= raw @employees.to_json %>'>
       <h1>シフト交代リクエスト</h1>
 
       <form id="request-form" action="<%= shift_exchange_path %>" method="post">
@@ -50,4 +50,6 @@
 </form>
 </div>
 
+<%= javascript_include_tag 'message_handler' %>
+<%= javascript_include_tag 'loading_handler' %>
 <%= javascript_include_tag 'shift_exchange' %>

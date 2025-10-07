@@ -29,7 +29,8 @@ function showFlashMessages() {
     ];
 
     flashTypes.forEach(({ key, type }) => {
-        const message = body.dataset[key];
+        const datasetKey = key.charAt(0).toLowerCase() + key.slice(1);
+        const message = body.dataset[datasetKey];
         if (message) {
             showFlashMessage(message, type);
         }
@@ -59,11 +60,9 @@ function showFallbackMessages() {
 
 // フラッシュメッセージの表示
 function showFlashMessage(message, type) {
-    // MessageHandlerが利用可能な場合はそれを使用
     if (window.messageHandler) {
         window.messageHandler.show(message, type);
     } else {
-        // フォールバック: 簡易トースト形式
         createFallbackToast(message, type);
     }
 }

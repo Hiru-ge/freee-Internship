@@ -27,13 +27,17 @@ class ShiftAdditionService < ShiftBaseService
     unless addition_request.target_employee_id == approver_id
       return { success: false, message: "このリクエストを承認する権限がありません。" }
     end
-    new_shift_data = {
-      shift_date: addition_request.shift_date,
-      start_time: addition_request.start_time,
-      end_time: addition_request.end_time,
-      requester_id: addition_request.requester_id
-    }
-    ShiftDisplayService.process_shift_addition_approval(addition_request.target_employee_id, new_shift_data)
+    # 追加対象従業員にシフトを作成
+    shift_service = ShiftDisplayService.new
+    create_result = shift_service.create_shift_record(
+      employee_id: addition_request.target_employee_id,
+      shift_date: addition_request.shift_date.to_s,
+      start_time: addition_request.start_time.strftime("%H:%M"),
+      end_time: addition_request.end_time.strftime("%H:%M")
+    )
+    unless create_result[:success]
+      return { success: false, message: create_result[:error] || "シフトの作成に失敗しました。" }
+    end
     addition_request.update!(status: "approved", responded_at: Time.current)
     send_approval_notification(addition_request)
 
@@ -158,6 +162,8 @@ class ShiftAdditionService < ShiftBaseService
   def check_shift_overlaps(params)
     overlapping_employees = []
 
+    log_info("重複チェック開始: #{params[:target_employee_ids]}")
+
     params[:target_employee_ids].each do |target_employee_id|
       overlapping_employee = check_addition_overlap(
         target_employee_id,
@@ -166,15 +172,22 @@ class ShiftAdditionService < ShiftBaseService
         params[:end_time]
       )
 
+      log_info("従業員 #{target_employee_id} の重複チェック結果: #{overlapping_employee}")
+
       if overlapping_employee
         overlapping_employees << overlapping_employee
       end
     end
 
+    log_info("重複している従業員: #{overlapping_employees}")
+
     if overlapping_employees.any?
-      return error_response("以下の従業員は指定された時間にシフトが入っています: #{overlapping_employees.join(', ')}")
+      error_msg = "以下の従業員は指定された時間にシフトが入っています: #{overlapping_employees.join(', ')}"
+      log_info("重複エラー: #{error_msg}")
+      return error_response(error_msg)
     end
 
+    log_info("重複チェック完了 - 重複なし")
     success_response("重複チェック完了")
   end
 

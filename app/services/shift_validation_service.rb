@@ -3,14 +3,26 @@
 class ShiftValidationService < BaseService
   # シフト重複チェック処理
   def has_shift_overlap?(employee_id, shift_date, start_time, end_time)
+    log_info("has_shift_overlap?: employee_id=#{employee_id}, date=#{shift_date}, time=#{start_time}-#{end_time}")
+
     existing_shifts = Shift.where(
       employee_id: employee_id,
       shift_date: shift_date
     )
 
-    existing_shifts.any? do |shift|
+    log_info("既存シフト数: #{existing_shifts.count}")
+
+    existing_shifts.each do |shift|
+      overlaps = shift_overlaps?(shift, start_time, end_time)
+      log_info("シフトID #{shift.id}: #{shift.start_time}-#{shift.end_time} との重複: #{overlaps}")
+    end
+
+    result = existing_shifts.any? do |shift|
       shift_overlaps?(shift, start_time, end_time)
     end
+
+    log_info("最終重複判定: #{result}")
+    result
   end
 
   def get_available_and_overlapping_employees(employee_ids, shift_date, start_time, end_time)
@@ -30,9 +42,18 @@ class ShiftValidationService < BaseService
   end
 
   def check_addition_overlap(employee_id, shift_date, start_time, end_time)
-    if has_shift_overlap?(employee_id, shift_date, start_time, end_time)
-      return get_employee_display_name(employee_id)
+    log_info("check_addition_overlap: employee_id=#{employee_id}, date=#{shift_date}, time=#{start_time}-#{end_time}")
+
+    has_overlap = has_shift_overlap?(employee_id, shift_date, start_time, end_time)
+    log_info("has_shift_overlap結果: #{has_overlap}")
+
+    if has_overlap
+      employee_name = get_employee_display_name(employee_id)
+      log_info("重複検出: #{employee_name}")
+      return employee_name
     end
+
+    log_info("重複なし")
     nil
   end
 

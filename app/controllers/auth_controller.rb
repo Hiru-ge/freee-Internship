@@ -20,7 +20,7 @@ class AuthController < ApplicationController
   def login
     if request.get?
       begin
-        @employees = FreeeApiService.new.get_employees
+        @employees = freee_api_service.get_employees
         Rails.logger.info "Employees loaded: #{@employees.inspect}"
       rescue => e
         Rails.logger.error "Error loading employees: #{e.message}"

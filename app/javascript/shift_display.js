@@ -7,11 +7,19 @@ let allShiftsData;
 let currentStartDate;
 let daysInMonth;
 
-// 初期化
-CommonUtils.initializePageWithConfig('shiftDisplay', '.shift-page-container', [
-    checkOwnerPermissions,
-    loadShifts
-]);
+// 初期化（CommonUtils読み込み待機）
+function waitForCommonUtilsForShiftDisplay() {
+    if (typeof CommonUtils !== 'undefined') {
+        CommonUtils.initializePageWithConfig('shiftDisplay', '.shift-page-container', [
+            checkOwnerPermissions,
+            loadShifts
+        ]);
+    } else {
+        setTimeout(waitForCommonUtilsForShiftDisplay, 100);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', waitForCommonUtilsForShiftDisplay);
 
 // オーナー権限チェック
 function checkOwnerPermissions() {
@@ -33,6 +41,11 @@ function checkOwnerPermissions() {
 async function loadEmployeeList() {
     if (window.employeeListLoading) return;
     window.employeeListLoading = true;
+
+    // ローディング表示
+    if (window.loadingHandler) {
+        window.loadingHandler.show('従業員情報を読み込んでいます...');
+    }
 
     try {
         const employees = await CommonUtils.apiCall(window.config.employeesWagesPath);
@@ -60,11 +73,22 @@ async function loadEmployeeList() {
     } catch (error) {
         CommonUtils.handleApiError(error, '従業員一覧取得');
         document.getElementById('employee-list-body').innerHTML = '<tr><td colspan="2">エラーが発生しました</td></tr>';
+    } finally {
+        // ローディング非表示
+        if (window.loadingHandler) {
+            window.loadingHandler.hide();
+        }
+        window.employeeListLoading = false;
     }
 }
 
 // 給与ゲージの読み込み（オーナーのみ）
 async function loadWageGauge() {
+    // ローディング表示
+    if (window.loadingHandler) {
+        window.loadingHandler.show('給与データを読み込んでいます...');
+    }
+
     try {
         const wages = await CommonUtils.apiCall(window.config.allWagesPath);
 
@@ -90,6 +114,11 @@ async function loadWageGauge() {
                 gaugeText.innerHTML = 'エラー: 給与データの取得に失敗しました';
             }
         });
+    } finally {
+        // ローディング非表示
+        if (window.loadingHandler) {
+            window.loadingHandler.hide();
+        }
     }
 }
 
@@ -100,6 +129,11 @@ async function loadPersonalGauge() {
         gaugeText.textContent = '読み込み中...';
     }
 
+    // ローディング表示
+    if (window.loadingHandler) {
+        window.loadingHandler.show('給与情報を読み込んでいます...');
+    }
+
     try {
         const wageInfo = await CommonUtils.apiCall(`${window.config.wageInfoPath}?employee_id=${window.config.currentEmployeeId}`);
         updatePersonalWageGauge(wageInfo);
@@ -108,12 +142,23 @@ async function loadPersonalGauge() {
         if (window.config.currentEmployeeId) {
             document.querySelector('#personal-wage-gauge .gauge-text').textContent = 'エラーが発生しました';
         }
+    } finally {
+        // ローディング非表示
+        if (window.loadingHandler) {
+            window.loadingHandler.hide();
+        }
     }
 }
 
 // シフト情報の読み込み
 async function loadShifts() {
     const shiftCalendarContainer = document.getElementById('shift-calendar-container');
+
+    // ローディング表示
+    if (window.loadingHandler) {
+        window.loadingHandler.show('シフト情報を読み込んでいます...');
+    }
+
     shiftCalendarContainer.innerHTML = '<p>シフト情報を読み込んでいます...</p>';
 
     try {
@@ -122,6 +167,11 @@ async function loadShifts() {
     } catch (error) {
         CommonUtils.handleApiError(error, 'シフト情報取得');
         shiftCalendarContainer.innerHTML = '<p>シフト情報の取得に失敗しました</p>';
+    } finally {
+        // ローディング非表示
+        if (window.loadingHandler) {
+            window.loadingHandler.hide();
+        }
     }
 }
 
@@ -224,7 +274,7 @@ function displayShifts() {
             const shiftCell = document.createElement('td');
             const shiftTime = employeeData.shifts[dateInfo.day] || "";
             if (shiftTime) {
-                if (String(employeeId) === String(currentEmployeeId)) {
+                if (String(employeeId) === String(window.config.currentEmployeeId)) {
                     const times = shiftTime.split('-');
                     const startTime = times[0].padStart(2, '0') + ':00';
                     const endTime = times[1].padStart(2, '0') + ':00';
@@ -232,7 +282,7 @@ function displayShifts() {
                     const dayStr = String(dateInfo.day).padStart(2, '0');
                     const dateStr = calendarYear + '-' + monthStr + '-' + dayStr;
 
-                    const baseUrl = newShiftExchangePath;
+                    const baseUrl = window.config.newShiftExchangePath;
                     const params = '?applicant_id=' + encodeURIComponent(employeeId) +
                         '&date=' + encodeURIComponent(dateStr) +
                         '&start=' + encodeURIComponent(startTime) +
@@ -312,15 +362,15 @@ function nextWeek() {
 
 // ナビゲーション関数
 function goToDeletionForm() {
-    window.location.href = newShiftDeletionPath;
+    window.location.href = window.config.newShiftDeletionPath;
 }
 
 function goToRequestList() {
-    window.location.href = shiftApprovalsPath;
+    window.location.href = window.config.shiftApprovalsPath;
 }
 
 function goToShiftAddForm() {
-    window.location.href = newShiftAdditionPath;
+    window.location.href = window.config.newShiftAdditionPath;
 }
 
 // 個人の給与ゲージの更新

@@ -62,7 +62,6 @@ class ShiftExchangeService < ShiftBaseService
     }
   rescue StandardError => e
     Rails.logger.error "シフト交代リクエスト作成エラー: #{e.message}"
-    Rails.logger.error "Backtrace: #{e.backtrace.join("\n")}"
     { success: false, message: "シフト交代リクエストの作成に失敗しました。: #{e.message}" }
   end
   def approve_exchange_request(request_id, approver_id)
@@ -71,11 +70,14 @@ class ShiftExchangeService < ShiftBaseService
     return { success: false, message: "このリクエストを承認する権限がありません。" } unless exchange_request.approver_id == approver_id
     shift = exchange_request.shift
     return { success: false, message: "シフトが削除されているため、承認できません。" } unless shift
-    shift.employee_id
     shift_date = shift.shift_date
-    shift.start_time
-    shift.end_time
-    ShiftDisplayService.process_shift_exchange_approval(approver_id, shift)
+    # 同一時間帯のシフトを承認者に作成（付け替え）
+    Shift.create!(
+      employee_id: approver_id,
+      shift_date: shift.shift_date,
+      start_time: shift.start_time,
+      end_time: shift.end_time
+    )
     ShiftExchange.where(shift_id: shift.id).update_all(shift_id: nil)
     shift.destroy!
     exchange_request.approve!
@@ -178,7 +180,12 @@ class ShiftExchangeService < ShiftBaseService
     return if Rails.env.test? || requests.empty?
 
     notification_service = EmailNotificationService.new
-    notification_service.send_shift_exchange_request_notification(requests, params)
+    begin
+      notification_service.send_shift_exchange_request_notification(requests, params)
+    rescue StandardError => e
+      Rails.logger.warn "シフト交代通知メール送信スキップ: #{e.message}"
+      # メール送信失敗はビジネスロジックの失敗としない
+    end
   end
   def send_approval_notification(exchange_request)
     return if Rails.env.test?

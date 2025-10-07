@@ -1,10 +1,10 @@
 <div class="shift-page-container <%= @is_owner ? 'owner-mode' : 'employee-mode' %>"
      data-employee-id="<%= @employee_id %>"
      data-is-owner="<%= @is_owner %>"
-     data-shifts-data-path="<%= shifts_path %>"
+     data-shifts-data-path="<%= shifts_path(format: :json) %>"
      data-employees-wages-path="<%= wages_employees_path %>"
-     data-all-wages-path="<%= wages_path %>"
-     data-wage-info-path="<%= wages_path %>"
+     data-all-wages-path="<%= wages_path(format: :json) %>"
+     data-wage-info-path="<%= wages_path(format: :json) %>"
      data-new-shift-exchange-path="<%= shift_exchange_new_path %>"
      data-new-shift-deletion-path="<%= shift_deletion_new_path %>"
      data-shift-approvals-path="<%= shift_approvals_path %>"
@@ -76,4 +76,5 @@
   <div id="message" class="message hidden"></div>
 </div>
 
+<%= javascript_include_tag 'loading_handler' %>
 <%= javascript_include_tag 'shift_display' %>

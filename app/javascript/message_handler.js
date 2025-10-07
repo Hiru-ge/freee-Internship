@@ -12,9 +12,13 @@ function ensureMessageContainer() {
     z-index: 1000;
     max-width: 400px;
   `;
-  document.addEventListener('DOMContentLoaded', () => {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.appendChild(messageContainer);
+    });
+  } else {
     document.body.appendChild(messageContainer);
-  });
+  }
 }
 
 function createMessageDiv(type) {
@@ -89,6 +93,7 @@ function show(message, type = 'info', duration = 5000) {
   } else {
     messageContainer.appendChild(messageDiv);
   }
+
   if (duration > 0) {
     setTimeout(() => removeMessage(messageDiv), duration);
   }

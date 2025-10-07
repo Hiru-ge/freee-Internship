@@ -8,7 +8,10 @@ class ShiftExchangesController < ShiftBaseController
     setup_shift_form_params
     load_employees_for_view
     @applicant_id = @employee_id
-    render 'shifts/exchanges_new'
+    respond_to do |format|
+      format.html { render 'shifts/exchanges_new' }
+      format.json { render json: { ok: true } }
+    end
   end
 
   def create
@@ -20,11 +23,17 @@ class ShiftExchangesController < ShiftBaseController
     return if validation_result[:redirect]
 
     result = create_shift_exchange_request(request_params)
-    handle_shift_service_response(
-      result,
-      success_path: shifts_path,
-      failure_path: shift_exchange_new_path
-    )
+
+    respond_to do |format|
+      format.html do
+        handle_shift_service_response(
+          result,
+          success_path: shifts_path,
+          failure_path: shift_exchange_new_path
+        )
+      end
+      format.json { render json: result }
+    end
   rescue StandardError => e
     handle_shift_error(e, "シフト交代リクエスト作成", shift_exchange_new_path)
   end

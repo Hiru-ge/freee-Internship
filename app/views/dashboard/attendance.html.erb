@@ -5,8 +5,8 @@
      data-attendance-month="<%= Date.current.month %>"
      data-clock-in-path="<%= attendance_clock_in_path %>"
      data-clock-out-path="<%= attendance_clock_out_path %>"
-     data-clock-status-path="<%= attendance_status_path %>"
-     data-attendance-history-path="<%= attendance_history_path %>">
+     data-clock-status-path="<%= attendance_status_path(format: :json) %>"
+     data-attendance-history-path="<%= attendance_history_path(format: :json) %>">
   <h1>ダッシュボード</h1>
 
   <!-- ユーザー情報 -->

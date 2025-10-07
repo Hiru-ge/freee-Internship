@@ -27,11 +27,17 @@ function setupShiftAdditionForm() {
         }
 
         // ローディング表示
-        const submitButton = form.querySelector('button[type="submit"]');
-        if (submitButton) {
-            submitButton.disabled = true;
-            submitButton.textContent = '送信中...';
+        if (window.loadingHandler) {
+            window.loadingHandler.show('送信中...');
         }
+
+        // フォーム送信後、少し遅延してからローディングを非表示
+        // （リダイレクトが発生する場合があるため）
+        setTimeout(() => {
+            if (window.loadingHandler) {
+                window.loadingHandler.hide();
+            }
+        }, 1000);
     });
 }
 
@@ -57,11 +63,17 @@ function setupShiftDeletionForm() {
         }
 
         // ローディング表示
-        const submitButton = form.querySelector('button[type="submit"]');
-        if (submitButton) {
-            submitButton.disabled = true;
-            submitButton.textContent = '送信中...';
+        if (window.loadingHandler) {
+            window.loadingHandler.show('送信中...');
         }
+
+        // フォーム送信後、少し遅延してからローディングを非表示
+        // （リダイレクトが発生する場合があるため）
+        setTimeout(() => {
+            if (window.loadingHandler) {
+                window.loadingHandler.hide();
+            }
+        }, 1000);
     });
 }
 

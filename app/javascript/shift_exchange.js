@@ -1,14 +1,34 @@
 // シフト交代のJavaScript
 
-// 初期化
-CommonUtils.initializePageWithConfig('shiftExchange', '.form-container', [
-    setupFormHandler,
-    loadEmployees
-]);
+// CommonUtilsが利用可能になるまで待機して初期化
+function waitForCommonUtilsForExchange() {
+    if (typeof CommonUtils !== 'undefined') {
+        CommonUtils.initializePageWithConfig('shiftExchange', '.form-container', [
+            setupFormHandler,
+            loadEmployees
+        ]);
+    } else {
+        setTimeout(waitForCommonUtilsForExchange, 100);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', waitForCommonUtilsForExchange);
 
 // フォームハンドラーの設定
 function setupFormHandler() {
-    CommonUtils.setupFormSubmission('#request-form', validateForm, handleFormSuccess);
+    CommonUtils.setupFormSubmission('#request-form', () => {
+        const isValid = validateForm();
+        if (!isValid) return false;
+        if (window.loadingHandler) {
+            window.loadingHandler.show('リクエストを送信しています...');
+        }
+        return true;
+    }, (response) => {
+        if (window.loadingHandler) {
+            window.loadingHandler.hide();
+        }
+        handleFormSuccess(response);
+    });
 }
 
 // フォームバリデーション
@@ -23,28 +43,47 @@ function validateForm() {
 
 // フォーム送信成功時の処理
 function handleFormSuccess(response) {
-    CommonUtils.showMessage('シフト交代リクエストを送信しました', 'success');
-    // 必要に応じてリダイレクト処理
+    // サービスからのメッセージを使用（重複チェック結果を含む）
+    const message = response?.message || 'シフト交代リクエストを送信しました';
+    CommonUtils.showMessage(message, 'success');
+    // 少し待ってからシフトページへリダイレクト
+    setTimeout(() => {
+        window.location.href = '/shifts';
+    }, 600);
 }
 
 // 従業員リストを読み込んで表示
 function loadEmployees() {
     const employeeList = document.getElementById('employee-list');
 
-    if (!window.config.employees || window.config.employees.length === 0) {
+    // data-attributesからの取り込みでJSON文字列になっている可能性があるためパース
+    let employees = window.config.employees;
+    if (typeof employees === 'string') {
+        try {
+            employees = JSON.parse(employees);
+        } catch (e) {
+            employeeList.innerHTML = '<p style="color: #f44336;">従業員情報の解析に失敗しました。</p>';
+            return;
+        }
+    }
+
+    if (!Array.isArray(employees) || employees.length === 0) {
         employeeList.innerHTML = '<p style="color: #f44336;">従業員情報の読み込みに失敗しました。</p>';
         return;
     }
 
     let html = '';
-    window.config.employees.forEach(employee => {
+    // 申請者IDの特定（data属性 or hidden input）
+    const applicantId = window.config.applicantId || window.config.applicantIdFromUrl || document.getElementById('applicant-select')?.value;
+
+    employees.forEach(employee => {
         // 申請者自身は除外
-        if (employee.id === window.config.applicantIdFromUrl) {
+        if (String(employee.id) === String(applicantId)) {
             return;
         }
 
-        html += '<div class="form-checkbox-item">';
-        html += '<input type="checkbox" id="employee-' + employee.id + '" value="' + employee.id + '">';
+        html += '<div class="form-checkbox-item employee-option">';
+        html += '<input type="checkbox" id="employee-' + employee.id + '" name="approver_ids[]" value="' + employee.id + '">';
         html += '<label for="employee-' + employee.id + '">' + employee.display_name + '</label>';
         html += '</div>';
     });

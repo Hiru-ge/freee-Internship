@@ -56,7 +56,7 @@ class ShiftDeletionsController < ShiftBaseController
     flash.now[:error] = result[:message]
     @shifts = load_future_shifts
     @shift_deletion = ShiftDeletion.new(shift_deletion_params)
-    render :new, status: :unprocessable_content
+    render 'shifts/deletions_new', status: :unprocessable_content
   end
 
   def shift_deletion_params

@@ -356,6 +356,35 @@ a:hover {
   font-weight: 600;
 }
 
+/* === シフト交代の相手選択: 3列レイアウト === */
+#employee-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+#employee-list .form-checkbox-item {
+  margin: 0;
+  /* グリッド間隔に統一 */
+}
+
+#employee-list .form-checkbox-item label {
+  width: 100%;
+  /* ボタンをセル幅いっぱいに */
+}
+
+@media (max-width: 520px) {
+  #employee-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 交代相手ボタンの横幅調整（少し短めに） */
+.form-checkbox-item.employee-option label {
+  width: auto;
+  min-width: 160px;
+}
+
 .form-checkbox-item input[type="checkbox"]:checked {
   background: #ffd700;
   border-color: #ffd700;

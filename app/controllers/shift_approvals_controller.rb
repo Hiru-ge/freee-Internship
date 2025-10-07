@@ -9,6 +9,7 @@ class ShiftApprovalsController < ShiftBaseController
     @employee_id = current_employee_id
     load_pending_requests
     load_employee_data
+    render 'shifts/approvals_index'
   end
 
   def approve
@@ -16,17 +17,28 @@ class ShiftApprovalsController < ShiftBaseController
     service_params = prepare_approval_params("approve")
 
     # 2. 認証チェック
-    return unless check_shift_approval_authorization(service_params[:request_id], service_params[:request_type])
+    unless check_shift_approval_authorization(service_params[:request_id], service_params[:request_type])
+      if request.format.json?
+        render json: { success: false, message: "権限がありません" }, status: :forbidden
+        return
+      else
+        return
+      end
+    end
 
     # 3. サービスの呼び出し
     result = process_approval_request(service_params)
 
     # 4. レスポンスの処理
-    handle_shift_service_response(
-      result,
-      success_path: shift_approvals_path,
-      failure_path: shift_approvals_path
-    )
+    if request.format.json?
+      render json: result
+    else
+      handle_shift_service_response(
+        result,
+        success_path: shift_approvals_path,
+        failure_path: shift_approvals_path
+      )
+    end
   end
 
   def reject
@@ -34,17 +46,28 @@ class ShiftApprovalsController < ShiftBaseController
     service_params = prepare_approval_params("reject")
 
     # 2. 認証チェック
-    return unless check_shift_approval_authorization(service_params[:request_id], service_params[:request_type])
+    unless check_shift_approval_authorization(service_params[:request_id], service_params[:request_type])
+      if request.format.json?
+        render json: { success: false, message: "権限がありません" }, status: :forbidden
+        return
+      else
+        return
+      end
+    end
 
     # 3. サービスの呼び出し
     result = process_approval_request(service_params)
 
     # 4. レスポンスの処理
-    handle_shift_service_response(
-      result,
-      success_path: shift_approvals_path,
-      failure_path: shift_approvals_path
-    )
+    if request.format.json?
+      render json: result
+    else
+      handle_shift_service_response(
+        result,
+        success_path: shift_approvals_path,
+        failure_path: shift_approvals_path
+      )
+    end
   end
 
   def pending_requests_for_user
@@ -78,7 +101,15 @@ class ShiftApprovalsController < ShiftBaseController
   end
 
   def load_employee_data
-    @employee_names = {}
+    # 申請者表示用に従業員名マップを用意
+    begin
+      employees = freee_api_service.get_employees
+      @employee_names = employees.each_with_object({}) do |emp, acc|
+        acc[emp[:id] || emp["id"]] = { display_name: (emp[:display_name] || emp["display_name"]) }
+      end
+    rescue StandardError
+      @employee_names = {}
+    end
   end
 
   def prepare_approval_params(action)

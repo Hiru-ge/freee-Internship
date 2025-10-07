@@ -1,10 +1,21 @@
 // 勤怠管理のJavaScript
 
-// 初期化
-CommonUtils.initializePageWithConfig('attendance', '.dashboard-container', [
-    updateClockButtons,
-    initializeAttendanceHistory
-]);
+// CommonUtilsが利用可能になるまで待機
+function waitForCommonUtils() {
+    if (typeof CommonUtils !== 'undefined') {
+        // 初期化
+        CommonUtils.initializePageWithConfig('attendance', '.dashboard-container', [
+            updateClockButtons,
+            initializeAttendanceHistory
+        ]);
+    } else {
+        // CommonUtilsがまだ読み込まれていない場合は少し待ってから再試行
+        setTimeout(waitForCommonUtils, 100);
+    }
+}
+
+// ページ読み込み完了後に初期化
+document.addEventListener('DOMContentLoaded', waitForCommonUtils);
 
 // 勤怠履歴の初期化
 function initializeAttendanceHistory() {
@@ -17,6 +28,10 @@ function initializeAttendanceHistory() {
 
 // 勤怠データを読み込み
 async function loadAttendanceData() {
+    // ローディング表示
+    if (window.loadingHandler) {
+        window.loadingHandler.show('勤怠データを読み込んでいます...');
+    }
     try {
         const data = await CommonUtils.apiCall(
             `${window.config.attendanceHistoryPath}?year=${window.config.attendanceYear}&month=${window.config.attendanceMonth}`
@@ -25,6 +40,11 @@ async function loadAttendanceData() {
     } catch (error) {
         CommonUtils.handleApiError(error, '勤怠データの取得');
         showAttendanceError('勤怠データの取得に失敗しました');
+    } finally {
+        // ローディング非表示
+        if (window.loadingHandler) {
+            window.loadingHandler.hide();
+        }
     }
 }
 
@@ -35,7 +55,7 @@ function displayAttendanceData(attendanceRecords) {
         const title = document.getElementById('attendance-title');
 
         // タイトルを更新（ページネーションボタンを保持）
-        title.innerHTML = attendanceYear + '年' + attendanceMonth + '月の勤怠履歴' +
+        title.innerHTML = window.config.attendanceYear + '年' + window.config.attendanceMonth + '月の勤怠履歴' +
             '<span class="month-navigation-buttons">' +
             '<button class="button" onclick="prevMonth()">前月</button>' +
             '<button class="button" onclick="nextMonth()">次月</button>' +

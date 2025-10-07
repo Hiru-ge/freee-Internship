@@ -12,10 +12,20 @@ function loadConfigFromContainer(containerSelector, configMap) {
             // 数値の場合は変換
             if (dataKey.includes('Year') || dataKey.includes('Month') || dataKey.includes('Id')) {
                 config[key] = parseInt(value) || value;
-            } else if (dataKey.includes('IsOwner') || dataKey.includes('Is')) {
-                config[key] = value === 'true';
-            } else if (dataKey.includes('Employees') || dataKey.includes('Json')) {
-                config[key] = JSON.parse(value || '[]');
+            } else if (dataKey.toLowerCase().includes('isowner') || dataKey.toLowerCase().startsWith('is')) {
+                // 'true' / 'false' の文字列を厳密にブールへ
+                config[key] = String(value) === 'true';
+            } else if (dataKey.toLowerCase().includes('employees') || dataKey.toLowerCase().includes('json')) {
+                // data-属性ではJSON内のダブルクオートが &quot; にエスケープされることがあるため復元
+                try {
+                    const unescaped = (value || '')
+                        .replace(/&quot;/g, '"')
+                        .replace(/&#34;/g, '"')
+                        .replace(/&amp;/g, '&');
+                    config[key] = JSON.parse(unescaped || '[]');
+                } catch (_) {
+                    config[key] = [];
+                }
             } else {
                 config[key] = value;
             }
@@ -63,14 +73,23 @@ function createPageConfig(pageType, containerSelector) {
 
 // API呼び出しの共通関数
 async function apiCall(url, options = {}) {
-    const defaultOptions = {
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
-        }
-    };
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const isFormData = options.body instanceof FormData;
 
-    const mergedOptions = { ...defaultOptions, ...options };
+    // 基本ヘッダ
+    const headers = {
+        'Accept': 'application/json',
+        'X-CSRF-Token': csrfToken
+    };
+    // JSON送信時のみ Content-Type を付与（FormData のときはブラウザに任せる）
+    if (!isFormData && options.body !== undefined) {
+        headers['Content-Type'] = 'application/json';
+    }
+
+    const mergedOptions = {
+        headers,
+        ...options
+    };
 
     try {
         const response = await fetch(url, mergedOptions);

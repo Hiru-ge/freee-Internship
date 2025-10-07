@@ -30,7 +30,6 @@ class WagesController < ApplicationController
 
       wage_service = WageService.new(freee_api_service)
       @employee_wages = wage_service.get_all_employees_wages(@month, @year)
-      Rails.logger.info "Employee wages loaded: #{@employee_wages.inspect}"
 
       respond_to do |format|
         format.html do
