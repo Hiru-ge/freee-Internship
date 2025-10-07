@@ -1,45 +1,25 @@
-class ShiftAdditionService
-  def initialize; end
+class ShiftAdditionService < ShiftBaseService
+  def initialize
+    super
+  end
   def create_addition_request(params)
-
+    # 1. バリデーション
     validation_result = validate_addition_params(params)
     return validation_result unless validation_result[:success]
-    return { success: false, message: "過去の日付のシフト追加依頼はできません。" } if Date.parse(params[:shift_date]) < Date.current
-    created_requests = []
-    params[:target_employee_ids].each do |target_employee_id|
 
-      existing_request = ShiftAddition.find_by(
-        requester_id: params[:requester_id],
-        target_employee_id: target_employee_id,
-        shift_date: Date.parse(params[:shift_date]),
-        start_time: Time.zone.parse(params[:start_time]),
-        end_time: Time.zone.parse(params[:end_time]),
-        status: %w[pending approved]
-      )
+    # 2. 重複チェック
+    overlap_check_result = check_shift_overlaps(params)
+    return overlap_check_result unless overlap_check_result[:success]
 
-      next if existing_request
+    # 3. リクエスト作成
+    created_requests = create_addition_requests(params)
 
-      addition_request = ShiftAddition.create!(
-        request_id: LineBotService.new.generate_request_id("ADDITION"),
-        requester_id: params[:requester_id],
-        target_employee_id: target_employee_id,
-        shift_date: Date.parse(params[:shift_date]),
-        start_time: Time.zone.parse(params[:start_time]),
-        end_time: Time.zone.parse(params[:end_time]),
-        status: "pending"
-      )
-      created_requests << addition_request
-    end
+    # 4. 通知送信
     send_addition_notifications(created_requests, params)
 
-    {
-      success: true,
-      created_requests: created_requests,
-      message: generate_success_message([])
-    }
+    success_response("シフト追加依頼を作成しました", { created_requests: created_requests })
   rescue StandardError => e
-    Rails.logger.error "シフト追加リクエスト作成エラー: #{e.message}"
-    { success: false, message: "シフト追加リクエストの作成に失敗しました。" }
+    handle_shift_error(e, "シフト追加リクエスト作成")
   end
   def approve_addition_request(request_id, approver_id)
     addition_request = find_addition_request(request_id)
@@ -167,5 +147,70 @@ class ShiftAdditionService
     message += "❌ 拒否済み (#{status_counts[:rejected]}件)\n" if status_counts[:rejected].positive?
 
     message
+  end
+
+  private
+
+  def validate_addition_params(params)
+    validate_shift_params(params, %i[requester_id target_employee_ids shift_date start_time end_time])
+  end
+
+  def check_shift_overlaps(params)
+    overlapping_employees = []
+
+    params[:target_employee_ids].each do |target_employee_id|
+      overlapping_employee = check_addition_overlap(
+        target_employee_id,
+        params[:shift_date],
+        params[:start_time],
+        params[:end_time]
+      )
+
+      if overlapping_employee
+        overlapping_employees << overlapping_employee
+      end
+    end
+
+    if overlapping_employees.any?
+      return error_response("以下の従業員は指定された時間にシフトが入っています: #{overlapping_employees.join(', ')}")
+    end
+
+    success_response("重複チェック完了")
+  end
+
+  def create_addition_requests(params)
+    created_requests = []
+
+    params[:target_employee_ids].each do |target_employee_id|
+      # 既存のリクエストをチェック
+      existing_request = ShiftAddition.find_by(
+        requester_id: params[:requester_id],
+        target_employee_id: target_employee_id,
+        shift_date: Date.parse(params[:shift_date]),
+        start_time: Time.zone.parse(params[:start_time]),
+        end_time: Time.zone.parse(params[:end_time]),
+        status: %w[pending approved]
+      )
+
+      next if existing_request
+
+      # 新しいリクエストを作成
+      addition_request = ShiftAddition.create!(
+        request_id: generate_request_id("ADDITION"),
+        requester_id: params[:requester_id],
+        target_employee_id: target_employee_id,
+        shift_date: Date.parse(params[:shift_date]),
+        start_time: Time.zone.parse(params[:start_time]),
+        end_time: Time.zone.parse(params[:end_time]),
+        status: "pending"
+      )
+      created_requests << addition_request
+    end
+
+    created_requests
+  end
+
+  def generate_request_id(prefix = "REQ")
+    "#{prefix}_#{Time.current.strftime('%Y%m%d_%H%M%S')}_#{SecureRandom.hex(4)}"
   end
 end

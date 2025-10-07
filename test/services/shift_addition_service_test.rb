@@ -38,7 +38,7 @@ class ShiftAdditionServiceTest < ActiveSupport::TestCase
     result = @service.create_addition_request(params)
 
     assert result[:success]
-    assert_includes result[:message], "シフト追加リクエストを送信しました"
+    assert_includes result[:message], "シフト追加依頼を作成しました"
     assert ShiftAddition.exists?(requester_id: @employee1.employee_id)
   end
 
@@ -91,7 +91,7 @@ class ShiftAdditionServiceTest < ActiveSupport::TestCase
     result = @service.create_addition_request(params)
 
     assert_not result[:success]
-    assert_includes result[:message], "過去の日付のシフト追加依頼はできません"
+    assert_includes result[:message], "過去の日付は指定できません"
   end
 
   test "重複したシフト追加依頼の処理" do
@@ -117,6 +117,6 @@ class ShiftAdditionServiceTest < ActiveSupport::TestCase
     result = @service.create_addition_request(params)
 
     assert result[:success]
-    assert_includes result[:message], "シフト追加リクエストを送信しました"
+    assert_includes result[:message], "シフト追加依頼を作成しました"
   end
 end

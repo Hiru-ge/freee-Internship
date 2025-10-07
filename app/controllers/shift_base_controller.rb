@@ -39,6 +39,16 @@ class ShiftBaseController < ApplicationController
     @employees = fetch_employees
   end
 
+  # シフトパラメータのバリデーション
+  def validate_shift_params(params, redirect_path)
+    if params[:shift_date].blank? || params[:start_time].blank? || params[:end_time].blank?
+      flash[:error] = "日付と時間を入力してください。"
+      redirect_to redirect_path
+      return false
+    end
+    true
+  end
+
   private
 
   # シフト重複チェックの共通処理

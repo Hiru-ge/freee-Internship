@@ -45,7 +45,7 @@ class ShiftExchangeServiceTest < ActiveSupport::TestCase
 
     result = @service.create_exchange_request(params)
 
-    assert result[:success]
+    assert result[:success], "Expected success but got: #{result[:message]}"
     assert_includes result[:message], "リクエストを送信しました"
     assert ShiftExchange.exists?(shift_id: shift.id)
   end

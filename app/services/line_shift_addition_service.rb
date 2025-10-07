@@ -1,17 +1,17 @@
-class LineShiftAdditionService
+class LineShiftAdditionService < LineBaseService
   def initialize
-    @line_bot_service = LineBotService.new
+    super
   end
   def handle_shift_addition_command(event)
-    line_user_id = @line_bot_service.extract_user_id(event)
-    unless @line_bot_service.employee_already_linked?(line_user_id)
-      return "認証が必要です。個人チャットで「認証」と入力して認証を行ってください。" if @line_bot_service.group_message?(event)
+    line_user_id = extract_user_id(event)
+    unless employee_already_linked?(line_user_id)
+      return "認証が必要です。個人チャットで「認証」と入力して認証を行ってください。" if group_message?(event)
 
       return "認証が必要です。「認証」と入力して認証を行ってください。"
     end
     employee = Employee.find_by(line_id: line_user_id)
     return "シフト追加はオーナーのみが利用可能です。" unless employee&.role == "owner"
-    @line_bot_service.set_conversation_state(line_user_id, {
+    set_conversation_state(line_user_id, {
                              "state" => "waiting_for_shift_addition_date",
                              "step" => 1,
                              "created_at" => Time.current
@@ -25,11 +25,11 @@ class LineShiftAdditionService
   end
   def handle_shift_addition_date_input(line_user_id, message_text)
 
-    date_validation_result = @line_bot_service.validate_month_day_format(message_text)
+    date_validation_result = validate_month_day_format(message_text)
     return date_validation_result[:error] if date_validation_result[:error]
 
     date = date_validation_result[:date]
-    @line_bot_service.set_conversation_state(line_user_id, {
+    set_conversation_state(line_user_id, {
                              "state" => "waiting_for_shift_addition_time",
                              "step" => 2,
                              "selected_date" => date,
@@ -42,14 +42,14 @@ class LineShiftAdditionService
   end
   def handle_shift_addition_time_input(line_user_id, message_text, state)
 
-    time_validation_result = @line_bot_service.validate_and_format_time(message_text)
+    time_validation_result = validate_and_format_time(message_text)
     return time_validation_result[:error] if time_validation_result[:error]
 
     start_time = time_validation_result[:start_time]
     end_time = time_validation_result[:end_time]
     date = Date.parse(state["selected_date"]) if state["selected_date"].is_a?(String)
     date = state["selected_date"] if state["selected_date"].is_a?(Date)
-    @line_bot_service.set_conversation_state(line_user_id, {
+    set_conversation_state(line_user_id, {
                              "state" => "waiting_for_shift_addition_employee",
                              "step" => 3,
                              "selected_date" => state["selected_date"],
@@ -93,7 +93,7 @@ class LineShiftAdditionService
     invalid_selections = []
 
     employee_selections.each do |selection|
-  
+
       if selection.match?(/^\d+$/)
         selection_index = selection.to_i - 1
         if selection_index >= 0 && selection_index < available_employees.length
@@ -102,8 +102,8 @@ class LineShiftAdditionService
           invalid_selections << selection
         end
       else
-    
-        all_matches = @line_bot_service.find_employees_by_name(selection)
+
+        all_matches = find_employees_by_name(selection)
         employees = all_matches.select do |emp|
           emp_id = emp[:id] || emp["id"]
           available_employees.any? { |available| (available[:id] || available["id"]) == emp_id }
@@ -114,7 +114,7 @@ class LineShiftAdditionService
         elsif employees.one?
           selected_employees << employees.first
         else
-      
+
           selected_employees << employees.first
         end
       end
@@ -130,7 +130,7 @@ class LineShiftAdditionService
     return "有効な従業員が見つかりませんでした。" if selected_employees.empty?
     available_employees = selected_employees
     overlapping_employees = []
-    @line_bot_service.set_conversation_state(line_user_id, {
+    set_conversation_state(line_user_id, {
                              "state" => "waiting_for_shift_addition_confirmation",
                              "step" => 4,
                              "selected_date" => date,
@@ -160,7 +160,7 @@ class LineShiftAdditionService
     when "はい"
       create_shift_addition_request(line_user_id, state)
     when "いいえ"
-      @line_bot_service.clear_conversation_state(line_user_id)
+      clear_conversation_state(line_user_id)
       "シフト追加依頼をキャンセルしました。"
     else
       "「はい」または「いいえ」で回答してください。"
@@ -190,10 +190,10 @@ class LineShiftAdditionService
 
     shift_addition_service = ShiftAdditionService.new
     result = shift_addition_service.create_addition_request(request_params)
-    @line_bot_service.clear_conversation_state(line_user_id)
+    clear_conversation_state(line_user_id)
 
     if result[:success]
-  
+
       message = "✅ シフト追加依頼を送信しました！\n\n"
 
       if result[:created_requests]&.any?
@@ -221,7 +221,7 @@ class LineShiftAdditionService
     addition_request = ShiftAddition.find_by(request_id: request_id)
 
     return "シフト追加リクエストが見つかりません。" unless addition_request
-    employee = @line_bot_service.find_employee_by_line_id(line_user_id)
+    employee = find_employee_by_line_id(line_user_id)
     return "従業員情報が見つかりません。" unless employee
     shift_addition_service = ShiftAdditionService.new
 
@@ -270,7 +270,7 @@ class LineShiftAdditionService
   def extract_request_id_from_postback(postback_data, type)
     case type
     when "addition"
-  
+
       postback_data.split("_").last
     else
       postback_data

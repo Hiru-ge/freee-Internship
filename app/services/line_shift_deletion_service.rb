@@ -1,13 +1,13 @@
-class LineShiftDeletionService
+class LineShiftDeletionService < LineBaseService
   def initialize
-    @line_bot_service = LineBotService.new
+    super
   end
   def handle_shift_deletion_command(event)
-    line_user_id = @line_bot_service.extract_user_id(event)
-    unless @line_bot_service.employee_already_linked?(line_user_id)
+    line_user_id = extract_user_id(event)
+    unless employee_already_linked?(line_user_id)
       return "認証が必要です。「認証」と入力して認証を行ってください。"
     end
-    @line_bot_service.set_conversation_state(line_user_id, {
+    set_conversation_state(line_user_id, {
       step: "waiting_for_shift_deletion_date",
       state: "waiting_for_shift_deletion_date"
     })
@@ -18,7 +18,7 @@ class LineShiftDeletionService
   end
   def handle_shift_deletion_date_input(line_user_id, message_text, state)
 
-    date_validation_result = @line_bot_service.validate_month_day_format(message_text)
+    date_validation_result = validate_month_day_format(message_text)
     return date_validation_result[:error] if date_validation_result[:error]
 
     selected_date = date_validation_result[:date]
@@ -26,7 +26,7 @@ class LineShiftDeletionService
       return "過去の日付は選択できません。未来の日付を入力してください。"
     end
 
-    employee = @line_bot_service.find_employee_by_line_id(line_user_id)
+    employee = find_employee_by_line_id(line_user_id)
     return "従業員情報が見つかりません。" unless employee
     shifts_on_date = Shift.where(
       employee_id: employee.employee_id,
@@ -36,7 +36,7 @@ class LineShiftDeletionService
     if shifts_on_date.empty?
       return "指定された日付（#{selected_date.strftime('%m/%d')}）にシフトが見つかりません。\n別の日付を入力してください。"
     end
-    @line_bot_service.set_conversation_state(line_user_id, {
+    set_conversation_state(line_user_id, {
       step: "waiting_for_shift_deletion_selection",
       state: "waiting_for_shift_deletion_selection",
       selected_date: selected_date
@@ -44,7 +44,7 @@ class LineShiftDeletionService
     generate_shift_deletion_flex_message(shifts_on_date)
   end
   def handle_shift_selection(line_user_id, message_text, state)
-    employee = @line_bot_service.find_employee_by_line_id(line_user_id)
+    employee = find_employee_by_line_id(line_user_id)
     return "従業員情報が見つかりません。" unless employee
     if state["selected_date"]
       selected_date = Date.parse(state["selected_date"]) if state["selected_date"].is_a?(String)
@@ -55,7 +55,7 @@ class LineShiftDeletionService
         shift_date: selected_date
       ).order(:start_time)
     else
-  
+
       shifts = Shift.where(
         employee_id: employee.employee_id,
         shift_date: Date.current..Float::INFINITY
@@ -81,7 +81,7 @@ class LineShiftDeletionService
     shift = Shift.find_by(id: shift_id)
 
     return "シフトが見つかりません。" unless shift
-    @line_bot_service.set_conversation_state(line_user_id, {
+    set_conversation_state(line_user_id, {
       step: "waiting_deletion_reason",
       state: "waiting_deletion_reason",
       shift_id: shift_id
@@ -98,18 +98,18 @@ class LineShiftDeletionService
     create_shift_deletion_request(line_user_id, shift_id, reason)
   end
   def create_shift_deletion_request(line_user_id, shift_id, reason)
-    employee = @line_bot_service.find_employee_by_line_id(line_user_id)
+    employee = find_employee_by_line_id(line_user_id)
     return "従業員情報が見つかりません。" unless employee
     deletion_service = ShiftDeletionService.new
     result = deletion_service.create_deletion_request(shift_id, employee.employee_id, reason)
 
     if result[:success]
-  
-      @line_bot_service.clear_conversation_state(line_user_id)
-  
+
+      clear_conversation_state(line_user_id)
+
       result[:message]
     else
-  
+
       result[:message]
     end
   end
@@ -118,7 +118,7 @@ class LineShiftDeletionService
     shift_deletion = ShiftDeletion.find_by(request_id: request_id)
 
     return "欠勤申請が見つかりません。" unless shift_deletion
-    employee = @line_bot_service.find_employee_by_line_id(line_user_id)
+    employee = find_employee_by_line_id(line_user_id)
     return "この申請を処理する権限がありません。" unless employee&.owner?
 
     deletion_service = ShiftDeletionService.new

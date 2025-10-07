@@ -1,14 +1,17 @@
-class ShiftExchangeService
-  def initialize; end
+class ShiftExchangeService < ShiftBaseService
+  def initialize
+    super
+  end
   def create_exchange_request(params)
-
     validation_result = validate_exchange_params(params)
     return validation_result unless validation_result[:success]
+
     overlap_result = check_shift_overlap(params)
     return overlap_result unless overlap_result[:success]
+
     shift = find_or_create_shift(params)
-    return { success: false, message: "シフトの取得に失敗しました。" } unless shift
-    return { success: false, message: "過去の日付のシフト交代依頼はできません。" } if shift.shift_date < Date.current
+    return error_response("シフトの取得に失敗しました。") unless shift
+    return error_response("過去の日付のシフト交代依頼はできません。") if shift.shift_date < Date.current
     # 利用可能な承認者の中から既存リクエストをチェック
     existing_requests = ShiftExchange.where(
       requester_id: params[:applicant_id],
@@ -40,7 +43,7 @@ class ShiftExchangeService
     created_requests = []
     available_approver_ids.each do |approver_id|
       exchange_request = ShiftExchange.create!(
-        request_id: LineBotService.new.generate_request_id("EXCHANGE"),
+        request_id: generate_request_id("EXCHANGE"),
         requester_id: params[:applicant_id],
         approver_id: approver_id,
         shift_id: shift.id,
@@ -59,7 +62,8 @@ class ShiftExchangeService
     }
   rescue StandardError => e
     Rails.logger.error "シフト交代リクエスト作成エラー: #{e.message}"
-    { success: false, message: "シフト交代リクエストの作成に失敗しました。" }
+    Rails.logger.error "Backtrace: #{e.backtrace.join("\n")}"
+    { success: false, message: "シフト交代リクエストの作成に失敗しました。: #{e.message}" }
   end
   def approve_exchange_request(request_id, approver_id)
     exchange_request = find_exchange_request(request_id)
@@ -123,29 +127,18 @@ class ShiftExchangeService
 
   private
   def validate_exchange_params(params)
-    required_fields = %i[applicant_id shift_date start_time end_time approver_ids]
-
-    missing_fields = required_fields.select { |field| params[field].blank? }
-
-    if missing_fields.any?
-      return {
-        success: false,
-        message: "必須項目が不足しています: #{missing_fields.join(', ')}"
-      }
-    end
+    # 基本バリデーション
+    basic_validation = validate_required_params(params, %i[applicant_id shift_date start_time end_time approver_ids])
+    return basic_validation unless basic_validation[:success]
 
     if params[:approver_ids].empty?
-      return {
-        success: false,
-        message: "交代を依頼する相手を選択してください。"
-      }
+      return error_response("交代を依頼する相手を選択してください。")
     end
 
-    { success: true }
+    success_response("バリデーション成功")
   end
   def check_shift_overlap(params)
-    display_service = ShiftDisplayService.new
-    result = display_service.get_available_and_overlapping_employees(
+    result = shift_validation_service.get_available_and_overlapping_employees(
       params[:approver_ids],
       Date.parse(params[:shift_date]),
       Time.zone.parse(params[:start_time]),

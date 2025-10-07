@@ -1,5 +1,6 @@
-class ShiftDeletionService
+class ShiftDeletionService < ShiftBaseService
   def initialize
+    super
     @notification_service = EmailNotificationService.new
   end
   def create_deletion_request(shift_id, requester_id, reason)

@@ -1,21 +1,21 @@
-class LineShiftExchangeService
+class LineShiftExchangeService < LineBaseService
   def initialize
-    @line_bot_service = LineBotService.new
+    super
   end
 
   def handle_shift_exchange_command(event)
-    line_user_id = @line_bot_service.extract_user_id(event)
+    line_user_id = extract_user_id(event)
 
-    unless @line_bot_service.employee_already_linked?(line_user_id)
-      return "認証が必要です。個人チャットで「認証」と入力して認証を行ってください。" if @line_bot_service.group_message?(event)
+    unless employee_already_linked?(line_user_id)
+      return "認証が必要です。個人チャットで「認証」と入力して認証を行ってください。" if group_message?(event)
 
       return "認証が必要です。「認証」と入力して認証を行ってください。"
     end
 
-    employee = @line_bot_service.find_employee_by_line_id(line_user_id)
+    employee = find_employee_by_line_id(line_user_id)
     return "従業員情報が見つかりません。" unless employee
 
-    @line_bot_service.set_conversation_state(line_user_id, {
+    set_conversation_state(line_user_id, {
                              "state" => "waiting_for_shift_date",
                              "step" => 1,
                              "created_at" => Time.current
@@ -26,7 +26,7 @@ class LineShiftExchangeService
   end
   def handle_approval_postback(line_user_id, postback_data, action)
     request_id = postback_data.split("_")[1]
-    employee = @line_bot_service.find_employee_by_line_id(line_user_id)
+    employee = find_employee_by_line_id(line_user_id)
     return "従業員情報が見つかりません。" unless employee
     shift_exchange_service = ShiftExchangeService.new
 
@@ -52,7 +52,7 @@ class LineShiftExchangeService
 
     date = Date.parse(message_text)
     return "過去の日付のシフト交代依頼はできません。\n今日以降の日付を入力してください。" if date < Date.current
-    employee = @line_bot_service.find_employee_by_line_id(line_user_id)
+    employee = find_employee_by_line_id(line_user_id)
     return "従業員情報が見つかりません。" unless employee
 
     shifts = Shift.where(
@@ -75,7 +75,7 @@ class LineShiftExchangeService
 
     return "シフトが見つかりません。" unless shift
     available_employees = get_available_employees_for_shift(shift)
-    @line_bot_service.set_conversation_state(line_user_id, {
+    set_conversation_state(line_user_id, {
                              "state" => "waiting_for_employee_selection_exchange",
                              "shift_id" => shift_id,
                              "step" => 2
@@ -101,7 +101,7 @@ class LineShiftExchangeService
       selection_index = message_text.to_i - 1
       if selection_index >= 0 && selection_index < available_employees.length
         target_employee = available_employees[selection_index]
-        @line_bot_service.set_conversation_state(line_user_id, {
+        set_conversation_state(line_user_id, {
                                  "state" => "waiting_for_confirmation_exchange",
                                  "shift_id" => shift_id,
                                  "target_employee_id" => target_employee[:id] || target_employee["id"],
@@ -118,7 +118,7 @@ class LineShiftExchangeService
       end
       return
     end
-    all_matches = @line_bot_service.find_employees_by_name(message_text)
+    all_matches = find_employees_by_name(message_text)
     employees = all_matches.select do |emp|
       emp_id = emp[:id] || emp["id"]
       available_employees.any? { |available| (available[:id] || available["id"]) == emp_id }
@@ -128,7 +128,7 @@ class LineShiftExchangeService
       "該当する従業員が見つかりません。\n従業員名を入力してください。\nフルネームでも部分入力でも検索できます。"
     elsif employees.one?
       target_employee = employees.first
-      @line_bot_service.set_conversation_state(line_user_id, {
+      set_conversation_state(line_user_id, {
                                "state" => "waiting_for_confirmation_exchange",
                                "shift_id" => shift_id,
                                "target_employee_id" => target_employee[:id] || target_employee["id"],
@@ -147,7 +147,7 @@ class LineShiftExchangeService
         "#{index}. #{display_name}"
       end.join("\n")
 
-      @line_bot_service.set_conversation_state(line_user_id, {
+      set_conversation_state(line_user_id, {
                                "state" => "waiting_for_employee_selection_exchange",
                                "shift_id" => shift_id,
                                "employee_matches" => employees.map { |emp| emp[:id] || emp["id"] },
@@ -164,12 +164,12 @@ class LineShiftExchangeService
       target_employee_id = state["target_employee_id"]
 
       result = create_shift_exchange_request(line_user_id, shift_id, target_employee_id)
-      @line_bot_service.clear_conversation_state(line_user_id)
+      clear_conversation_state(line_user_id)
 
       result
     elsif message_text == "いいえ"
 
-      @line_bot_service.clear_conversation_state(line_user_id)
+      clear_conversation_state(line_user_id)
 
       "シフト交代をキャンセルしました。"
     else
@@ -177,7 +177,7 @@ class LineShiftExchangeService
     end
   end
   def create_shift_exchange_request(line_user_id, shift_id, target_employee_id)
-    employee = @line_bot_service.find_employee_by_line_id(line_user_id)
+    employee = find_employee_by_line_id(line_user_id)
     return "従業員情報が見つかりません。" unless employee
     shift = Shift.find_by(id: shift_id)
     return "シフトが見つかりません。" unless shift

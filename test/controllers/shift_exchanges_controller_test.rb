@@ -20,11 +20,6 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "シフト交代リクエストの作成" do
-    post login_url, params: {
-      employee_id: "3316120",
-      password: "password123"
-    }
-
     Employee.find_or_create_by(employee_id: "3316120") do |emp|
       emp.password_hash = BCrypt::Password.create("password123")
       emp.role = "employee"
@@ -34,6 +29,11 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
       emp.password_hash = BCrypt::Password.create("password123")
       emp.role = "employee"
     end
+
+    post login_url, params: {
+      employee_id: "3316120",
+      password: "password123"
+    }
 
     Shift.create!(
       employee_id: "3316120",
@@ -97,7 +97,7 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_redirected_to shift_exchange_new_path
-    assert_equal "すべての項目を入力してください。", flash[:error]
+    assert_equal "日付と時間を入力してください。", flash[:error]
   end
 
   test "シフト交代リクエストの必須項目バリデーション" do

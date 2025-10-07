@@ -1,5 +1,6 @@
-class ShiftDisplayService
+class ShiftDisplayService < ShiftBaseService
   def initialize(freee_api_service = nil)
+    super()
     @freee_api_service = freee_api_service
   end
   def get_monthly_shifts(year, month)
@@ -183,17 +184,17 @@ class ShiftDisplayService
     )
 
     if existing_shift
-  
+
       new_shift = Shift.new(shift_data)
       merged_shift = if shift_fully_contained?(existing_shift, new_shift)
-                   
+
                        existing_shift
                      else
-                   
+
                        merge_shifts(existing_shift, new_shift)
                      end
     else
-  
+
       merged_shift = Shift.create!(shift_data)
     end
 
@@ -243,7 +244,7 @@ class ShiftDisplayService
     if @freee_api_service
       @freee_api_service.get_employees
     else
-  
+
       Employee.all.map do |emp|
         {
           id: emp.employee_id,

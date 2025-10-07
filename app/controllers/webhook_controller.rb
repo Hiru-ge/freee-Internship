@@ -211,7 +211,7 @@ class WebhookController < ApplicationController
       'unknown'
     end}"
 
-    line_bot_service = LineBotService.new
+    line_bot_service = LineBaseService.new
 
     # 統一されたメッセージ処理（個人・グループ共通）
     reply_text = line_bot_service.handle_message(event)
@@ -264,7 +264,7 @@ class WebhookController < ApplicationController
       'unknown'
     end}"
 
-    line_bot_service = LineBotService.new
+    line_bot_service = LineBaseService.new
 
     # postbackイベントを処理
     reply_text = line_bot_service.handle_message(event)
