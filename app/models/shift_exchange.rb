@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class ShiftExchange < ApplicationRecord
+  include ShiftBase
+  
   # カスタム例外クラス
   class ValidationError < StandardError; end
   class AuthorizationError < StandardError; end
@@ -237,22 +239,14 @@ class ShiftExchange < ApplicationRecord
     shift
   end
 
-  # クラスメソッド: 重複チェック
+  # クラスメソッド: 重複チェック（Shiftモデルに委譲）
   def self.has_shift_overlap?(employee_id, shift_date, start_time, end_time)
-    existing_shifts = Shift.where(
-      employee_id: employee_id,
-      shift_date: shift_date
-    )
-
-    existing_shifts.any? do |shift|
-      (start_time < shift.end_time) && (end_time > shift.start_time)
-    end
+    Shift.has_shift_overlap?(employee_id, shift_date, start_time, end_time)
   end
 
-  # クラスメソッド: 従業員名取得
+  # クラスメソッド: 従業員名取得（Shiftモデルに委譲）
   def self.get_employee_display_name(employee_id)
-    employee = Employee.find_by(employee_id: employee_id)
-    employee&.display_name || "ID: #{employee_id}"
+    Shift.get_employee_display_name(employee_id)
   end
 
   # クラスメソッド: リクエストID生成

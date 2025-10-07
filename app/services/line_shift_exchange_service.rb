@@ -15,24 +15,21 @@ class LineShiftExchangeService < LineBaseService
     request_id = postback_data.split("_")[1]
     employee = find_employee_by_line_id(line_user_id)
     return "従業員情報が見つかりません。" unless employee
-    shift_exchange_service = ShiftExchangeService.new
+    begin
+      shift_exchange = ShiftExchange.find_by(request_id: request_id)
+      return "申請が見つかりません" unless shift_exchange
 
-    if action == "approve"
-      result = shift_exchange_service.approve_exchange_request(request_id, employee.employee_id)
-      if result[:success]
-        "✅ シフト交代リクエストを承認しました。\n#{result[:shift_date]}"
-      else
-        result[:message]
-      end
-    elsif action == "reject"
-      result = shift_exchange_service.reject_exchange_request(request_id, employee.employee_id)
-      if result[:success]
+      if action == "approve"
+        shift_exchange.approve_by!(employee.employee_id)
+        "✅ シフト交代リクエストを承認しました。"
+      elsif action == "reject"
+        shift_exchange.reject_by!(employee.employee_id)
         "❌ シフト交代リクエストを拒否しました。"
       else
-        result[:message]
+        "不明なアクションです。"
       end
-    else
-      "不明なアクションです。"
+    rescue ShiftExchange::ValidationError, ShiftExchange::AuthorizationError => e
+      e.message
     end
   end
   def handle_shift_date_input(line_user_id, message_text)
@@ -176,13 +173,18 @@ class LineShiftExchangeService < LineBaseService
       approver_ids: [target_employee_id]
     }
 
-    shift_exchange_service = ShiftExchangeService.new
-    result = shift_exchange_service.create_exchange_request(request_params)
-
-    if result[:success]
+    begin
+      result = ShiftExchange.create_request_for(
+        requester_id: request_params[:requester_id],
+        shift_date: request_params[:shift_date],
+        start_time: request_params[:start_time],
+        end_time: request_params[:end_time],
+        approver_ids: request_params[:approver_ids]
+      )
+      result.send_notifications!
       "シフト交代リクエストを送信しました。\n承認をお待ちください。"
-    else
-      result[:message]
+    rescue ShiftExchange::ValidationError, ShiftExchange::AuthorizationError => e
+      e.message
     end
   end
 

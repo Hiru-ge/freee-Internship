@@ -9,8 +9,8 @@ class ShiftDisplayController < ShiftBaseController
         # 1. パラメータの準備
         display_params = prepare_shift_display_params
 
-        # 2. サービスの呼び出し
-        result = shift_display_service.get_display_data(display_params)
+        # 2. データの準備（直接設定）
+        result = display_params
 
         # 3. レスポンスの処理
         @employee = result[:employee]
@@ -22,8 +22,8 @@ class ShiftDisplayController < ShiftBaseController
         # 1. パラメータの準備
         service_params = prepare_monthly_shifts_params
 
-        # 2. サービスの呼び出し
-        result = shift_display_service.get_monthly_shifts(service_params[:year], service_params[:month])
+        # 2. モデルメソッドの呼び出し
+        result = Shift.get_monthly_shifts(service_params[:year], service_params[:month])
 
         # 3. レスポンスの処理
         if result[:success]
@@ -40,9 +40,6 @@ class ShiftDisplayController < ShiftBaseController
 
   private
 
-  def shift_display_service
-    @shift_display_service ||= ShiftDisplayService.new(freee_api_service)
-  end
 
   def prepare_shift_display_params
     {

@@ -158,10 +158,21 @@ class ShiftApprovalsController < ShiftBaseController
         { success: false, message: e.message }
       end
     when "deletion"
-      if service_params[:action] == "approve"
-        shift_deletion_service.approve_deletion_request(service_params[:request_id], service_params[:approver_id])
-      else
-        shift_deletion_service.reject_deletion_request(service_params[:request_id], service_params[:approver_id])
+      begin
+        request = ShiftDeletion.find_by(request_id: service_params[:request_id]) ||
+                  ShiftDeletion.find_by(id: service_params[:request_id])
+
+        if request.nil?
+          { success: false, message: "リクエストが見つかりません" }
+        elsif service_params[:action] == "approve"
+          message = request.approve_by!(service_params[:approver_id])
+          { success: true, message: message }
+        else
+          message = request.reject_by!(service_params[:approver_id])
+          { success: true, message: message }
+        end
+      rescue ShiftDeletion::ValidationError, ShiftDeletion::AuthorizationError => e
+        { success: false, message: e.message }
       end
     else
       { success: false, message: "不明なリクエストタイプです。" }
@@ -170,9 +181,6 @@ class ShiftApprovalsController < ShiftBaseController
 
 
 
-  def shift_deletion_service
-    @shift_deletion_service ||= ShiftDeletionService.new
-  end
 
   def get_all_pending_requests_for(employee_id)
     change_requests = get_pending_exchange_requests_for(employee_id)

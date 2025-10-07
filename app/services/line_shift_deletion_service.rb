@@ -94,17 +94,17 @@ class LineShiftDeletionService < LineBaseService
   def create_shift_deletion_request(line_user_id, shift_id, reason)
     employee = find_employee_by_line_id(line_user_id)
     return "従業員情報が見つかりません。" unless employee
-    deletion_service = ShiftDeletionService.new
-    result = deletion_service.create_deletion_request(shift_id, employee.employee_id, reason)
-
-    if result[:success]
-
+    begin
+      result = ShiftDeletion.create_request_for(
+        shift_id: shift_id,
+        requester_id: employee.employee_id,
+        reason: reason
+      )
+      result.send_notifications!
       clear_conversation_state(line_user_id)
-
-      result[:message]
-    else
-
-      result[:message]
+      result.success_message
+    rescue ShiftDeletion::ValidationError, ShiftDeletion::AuthorizationError => e
+      e.message
     end
   end
   def handle_deletion_approval_postback(line_user_id, postback_data, action)
@@ -115,18 +115,20 @@ class LineShiftDeletionService < LineBaseService
     employee = find_employee_by_line_id(line_user_id)
     return "この申請を処理する権限がありません。" unless employee&.owner?
 
-    deletion_service = ShiftDeletionService.new
-
-    case action
-    when "approve"
-      result = deletion_service.approve_deletion_request(request_id, employee.employee_id)
-    when "reject"
-      result = deletion_service.reject_deletion_request(request_id, employee.employee_id)
-    else
-      return "不明なアクションです。"
+    begin
+      case action
+      when "approve"
+        shift_deletion.approve_by!(employee.employee_id)
+        "欠勤申請を承認しました。"
+      when "reject"
+        shift_deletion.reject_by!(employee.employee_id)
+        "欠勤申請を拒否しました。"
+      else
+        return "不明なアクションです。"
+      end
+    rescue ShiftDeletion::ValidationError, ShiftDeletion::AuthorizationError => e
+      e.message
     end
-
-    result[:message]
   end
 
   private

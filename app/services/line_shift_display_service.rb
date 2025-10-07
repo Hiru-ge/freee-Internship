@@ -13,11 +13,10 @@ class LineShiftDisplayService < LineBaseService
     return "従業員情報が見つかりません。" unless employee
 
     # 3. シフトデータの取得と表示
-    shift_display_service = ShiftDisplayService.new
-    result = shift_display_service.get_employee_shifts(employee.employee_id)
+    result = Shift.get_employee_shifts(employee.employee_id)
 
     if result[:success]
-      shift_display_service.format_employee_shifts_for_line(result[:data])
+      Shift.format_employee_shifts_for_line(result[:data])
     else
       "シフトデータの取得に失敗しました。"
     end
@@ -26,13 +25,26 @@ class LineShiftDisplayService < LineBaseService
     # 1. 認証チェック（LineBaseServiceの共通処理）
     auth_result = check_line_authentication(event)
     return auth_result[:message] unless auth_result[:success]
-    shift_display_service = ShiftDisplayService.new
-    result = shift_display_service.get_all_employee_shifts
+    result = Shift.get_all_employee_shifts
 
     if result[:success]
-      shift_display_service.format_all_shifts_for_line(result[:data])
+      format_all_shifts_for_line(result[:data])
     else
       "シフトデータの取得に失敗しました。"
     end
+  end
+
+  private
+
+  def format_all_shifts_for_line(all_shifts)
+    return "今月のシフト情報はありません。" if all_shifts.empty?
+
+    message = "📅 全従業員のシフト\n\n"
+    all_shifts.each do |shift_data|
+      day_of_week = %w[日 月 火 水 木 金 土][shift_data[:date].wday]
+      message += "#{shift_data[:employee_name]}: #{shift_data[:date].strftime('%m/%d')} (#{day_of_week}) #{shift_data[:start_time]}-#{shift_data[:end_time]}\n"
+    end
+
+    message
   end
 end
