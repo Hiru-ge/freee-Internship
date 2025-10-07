@@ -3,6 +3,14 @@ class ShiftDisplayService < ShiftBaseService
     super()
     @freee_api_service = freee_api_service
   end
+
+  def get_display_data(params)
+    {
+      employee: params[:employee],
+      employee_id: params[:employee_id],
+      is_owner: params[:is_owner]
+    }
+  end
   def get_monthly_shifts(year, month)
 
     employees = get_employees_from_api

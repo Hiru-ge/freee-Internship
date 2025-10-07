@@ -1,66 +1,86 @@
 # frozen_string_literal: true
 
-require "ostruct"
-require "net/http"
-require "uri"
-require "json"
+class LineWebhookService < LineBaseService
+  def initialize
+    super
+  end
 
-class WebhookController < ApplicationController
-  protect_from_forgery with: :null_session
-  skip_before_action :require_login, if: -> { action_name == "callback" }
-  skip_before_action :require_email_authentication, if: -> { action_name == "callback" }
-
-  def callback
-    # 1. リクエストの検証
-    return head(:bad_request) unless validate_webhook_request
-
-    # 2. イベントの解析
-    events = parse_webhook_events
-
-    # 3. イベントの処理（LineWebhookServiceに委譲）
-    result = line_webhook_service.process_webhook_events(events)
-
-    # 4. レスポンスの生成
-    head result[:status] || :ok
+  def process_webhook_events(events)
+    events.each do |event|
+      process_single_webhook_event(event)
+    end
+    success_response("Events processed", status: :ok)
   rescue StandardError => e
-    handle_webhook_error(e)
+    handle_service_error(e, "Webhook events processing")
   end
 
   private
 
-  def line_webhook_service
-    @line_webhook_service ||= LineWebhookService.new
+  def process_single_webhook_event(event)
+    case event_type(event)
+    when "message"
+      handle_webhook_message(event)
+    when "postback"
+      handle_webhook_postback(event)
+    else
+      log_unknown_event(event)
+    end
   end
 
-  def validate_webhook_request
-    body = request.body.read
-    signature = request.env["HTTP_X_LINE_SIGNATURE"]
-
-    Rails.logger.info "LINE Bot webhook received: body=#{body[0..100]}..., signature=#{signature}"
-
-    client = initialize_client
-    client.validate_signature(body, signature)
+  def event_type(event)
+    if event.respond_to?(:type)
+      event.type
+    elsif event.is_a?(Hash)
+      event["type"]
+    else
+      "unknown"
+    end
   end
 
-  def parse_webhook_events
-    body = request.body.read
-    client = initialize_client
-    client.parse_events_from(body)
+  def handle_webhook_message(event)
+    # LineBaseServiceに委譲
+    reply_text = line_base_service.handle_message(event)
+
+    # レスポンス送信処理
+    send_line_reply(event, reply_text)
   end
 
-  def initialize_client
-    @client ||= if Rails.env.production?
-                  Rails.logger.info "Production environment - using fallback HTTP client"
-                  fallback_client
-                else
-                  Rails.logger.info "Non-production environment - using mock LINE Bot SDK"
-                  mock_client
-                end
+  def handle_webhook_postback(event)
+    # LineBaseServiceに委譲
+    reply_text = line_base_service.handle_message(event)
+
+    # レスポンス送信処理
+    send_line_reply(event, reply_text)
   end
 
-  def fallback_client
+  def send_line_reply(event, reply_text)
+    return if reply_text.nil?
+
+    client = initialize_line_client
+
+    if reply_text.is_a?(Hash) && reply_text[:type] == "flex"
+      client.reply_message(event.replyToken, reply_text)
+    else
+      client.reply_message(event.replyToken, {
+        type: "text",
+        text: reply_text
+      })
+    end
+  rescue StandardError => e
+    handle_line_reply_error(event, e)
+  end
+
+  def initialize_line_client
+    @line_client ||= if Rails.env.production?
+                       create_fallback_client
+                     else
+                       create_mock_client
+                     end
+  end
+
+  def create_fallback_client
     Rails.logger.warn "WARNING: Using fallback HTTP client for LINE Bot"
-    @fallback_client ||= Class.new do
+    Class.new do
       def initialize
         @channel_secret = ENV.fetch("LINE_CHANNEL_SECRET", nil)
         @channel_token = ENV.fetch("LINE_CHANNEL_TOKEN", nil)
@@ -69,7 +89,6 @@ class WebhookController < ApplicationController
 
       def validate_signature(_body, _signature)
         Rails.logger.info "Fallback: validate_signature called"
-        # 簡易的な署名検証（本番では適切な実装が必要）
         true
       end
 
@@ -80,18 +99,14 @@ class WebhookController < ApplicationController
           events = events_data["events"] || []
           Rails.logger.info "Fallback: parsed #{events.length} events"
 
-          # イベントをLine::Bot::Event::Messageのような形式に変換
           events.map do |event_data|
-            # フォールバック用のイベントオブジェクトを作成
             event = OpenStruct.new(event_data)
 
-            # メッセージイベントの場合
             if event_data["type"] == "message" && event_data["message"]["type"] == "text"
               event.define_singleton_method(:message) { event_data["message"] }
               event.define_singleton_method(:source) { event_data["source"] }
               event.define_singleton_method(:replyToken) { event_data["replyToken"] }
               event.define_singleton_method(:type) { "message" }
-            # Postbackイベントの場合
             elsif event_data["type"] == "postback"
               event.define_singleton_method(:postback) { event_data["postback"] }
               event.define_singleton_method(:source) { event_data["source"] }
@@ -126,7 +141,6 @@ class WebhookController < ApplicationController
           response = http.request(request)
           Rails.logger.info "Fallback reply response: #{response.code} #{response.message}"
 
-          # Flex Messageでエラーが発生した場合はテキストメッセージにフォールバック
           if response.code == "400" && message[:type] == "flex"
             Rails.logger.warn "Flex Message failed, falling back to text message"
             fallback_message = {
@@ -152,9 +166,9 @@ class WebhookController < ApplicationController
     end.new
   end
 
-  def mock_client
+  def create_mock_client
     Rails.logger.warn "WARNING: Using mock LINE Bot client - this should only happen in test environment"
-    @mock_client ||= Class.new do
+    Class.new do
       def validate_signature(_body, _signature)
         Rails.logger.info "Mock: validate_signature called"
         true
@@ -172,10 +186,25 @@ class WebhookController < ApplicationController
     end.new
   end
 
+  def handle_line_reply_error(event, error)
+    Rails.logger.error "LINE reply error: #{error.message}"
 
-  def handle_webhook_error(error)
-    Rails.logger.error "LINE Bot webhook error: #{error.message}"
-    Rails.logger.error "LINE Bot webhook error backtrace: #{error.backtrace.join('\n')}"
-    head :internal_server_error
+    begin
+      client = initialize_line_client
+      client.reply_message(event.replyToken, {
+        type: "text",
+        text: "申し訳ございませんが、処理中にエラーが発生しました。"
+      })
+    rescue StandardError => reply_error
+      Rails.logger.error "Failed to send error message: #{reply_error.message}"
+    end
+  end
+
+  def log_unknown_event(event)
+    Rails.logger.info "Unknown event type: #{event.class}"
+  end
+
+  def line_base_service
+    @line_base_service ||= LineBaseService.new
   end
 end

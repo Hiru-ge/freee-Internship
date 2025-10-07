@@ -3,18 +3,12 @@ class LineShiftDeletionService < LineBaseService
     super
   end
   def handle_shift_deletion_command(event)
-    line_user_id = extract_user_id(event)
-    unless employee_already_linked?(line_user_id)
-      return "認証が必要です。「認証」と入力して認証を行ってください。"
-    end
-    set_conversation_state(line_user_id, {
-      step: "waiting_for_shift_deletion_date",
-      state: "waiting_for_shift_deletion_date"
-    })
+    # 1. 認証チェック（LineBaseServiceの共通処理）
+    auth_result = check_line_authentication(event)
+    return auth_result[:message] unless auth_result[:success]
 
-    "欠勤申請\n\n" \
-      "欠勤したい日付を入力してください。\n" \
-      "例: 09/20"
+    # 2. コマンド処理（LineBaseServiceの共通処理）
+    process_line_command_with_state("shift_deletion", event, "waiting_for_shift_deletion_date")
   end
   def handle_shift_deletion_date_input(line_user_id, message_text, state)
 

@@ -3,25 +3,16 @@ class LineShiftAdditionService < LineBaseService
     super
   end
   def handle_shift_addition_command(event)
-    line_user_id = extract_user_id(event)
-    unless employee_already_linked?(line_user_id)
-      return "認証が必要です。個人チャットで「認証」と入力して認証を行ってください。" if group_message?(event)
+    # 1. 認証チェック（LineBaseServiceの共通処理）
+    auth_result = check_line_authentication(event)
+    return auth_result[:message] unless auth_result[:success]
 
-      return "認証が必要です。「認証」と入力して認証を行ってください。"
-    end
-    employee = Employee.find_by(line_id: line_user_id)
-    return "シフト追加はオーナーのみが利用可能です。" unless employee&.role == "owner"
-    set_conversation_state(line_user_id, {
-                             "state" => "waiting_for_shift_addition_date",
-                             "step" => 1,
-                             "created_at" => Time.current
-                           })
+    # 2. 権限チェック（LineBaseServiceの共通処理）
+    permission_result = check_line_permission(event, "shift_addition")
+    return permission_result[:message] unless permission_result[:success]
 
-    tomorrow = (Date.current + 1).strftime("%m/%d")
-    "シフト追加を開始します。\n" \
-      "追加するシフトの日付を入力してください。\n" \
-      "例：#{tomorrow}\n" \
-      "⚠️ 過去の日付は指定できません"
+    # 3. コマンド処理（LineBaseServiceの共通処理）
+    process_line_command_with_state("shift_addition", event, "waiting_for_shift_addition_date")
   end
   def handle_shift_addition_date_input(line_user_id, message_text)
 

@@ -12,11 +12,39 @@ class ShiftApprovalsController < ShiftBaseController
   end
 
   def approve
-    return unless check_authorization_and_process_request("approve")
+    # 1. パラメータの準備
+    service_params = prepare_approval_params("approve")
+
+    # 2. 認証チェック
+    return unless check_shift_approval_authorization(service_params[:request_id], service_params[:request_type])
+
+    # 3. サービスの呼び出し
+    result = process_approval_request(service_params)
+
+    # 4. レスポンスの処理
+    handle_shift_service_response(
+      result,
+      success_path: shift_approvals_path,
+      failure_path: shift_approvals_path
+    )
   end
 
   def reject
-    return unless check_authorization_and_process_request("reject")
+    # 1. パラメータの準備
+    service_params = prepare_approval_params("reject")
+
+    # 2. 認証チェック
+    return unless check_shift_approval_authorization(service_params[:request_id], service_params[:request_type])
+
+    # 3. サービスの呼び出し
+    result = process_approval_request(service_params)
+
+    # 4. レスポンスの処理
+    handle_shift_service_response(
+      result,
+      success_path: shift_approvals_path,
+      failure_path: shift_approvals_path
+    )
   end
 
   def pending_requests_for_user
@@ -53,18 +81,50 @@ class ShiftApprovalsController < ShiftBaseController
     @employee_names = {}
   end
 
-  def check_authorization_and_process_request(action)
-    request_id = params[:request_id]
-    request_type = params[:request_type]
-
-    return unless check_shift_approval_authorization(request_id, request_type)
-
-    handle_shift_request(
-      request_type: request_type,
-      request_id: request_id,
+  def prepare_approval_params(action)
+    {
+      request_id: params[:request_id],
+      request_type: params[:request_type],
       action: action,
-      redirect_path: shift_approvals_path
-    )
+      approver_id: current_employee_id
+    }
+  end
+
+  def process_approval_request(service_params)
+    case service_params[:request_type]
+    when "exchange"
+      if service_params[:action] == "approve"
+        shift_exchange_service.approve_exchange_request(service_params[:request_id], service_params[:approver_id])
+      else
+        shift_exchange_service.reject_exchange_request(service_params[:request_id], service_params[:approver_id])
+      end
+    when "addition"
+      if service_params[:action] == "approve"
+        shift_addition_service.approve_addition_request(service_params[:request_id], service_params[:approver_id])
+      else
+        shift_addition_service.reject_addition_request(service_params[:request_id], service_params[:approver_id])
+      end
+    when "deletion"
+      if service_params[:action] == "approve"
+        shift_deletion_service.approve_deletion_request(service_params[:request_id], service_params[:approver_id])
+      else
+        shift_deletion_service.reject_deletion_request(service_params[:request_id], service_params[:approver_id])
+      end
+    else
+      { success: false, message: "不明なリクエストタイプです。" }
+    end
+  end
+
+  def shift_exchange_service
+    @shift_exchange_service ||= ShiftExchangeService.new
+  end
+
+  def shift_addition_service
+    @shift_addition_service ||= ShiftAdditionService.new
+  end
+
+  def shift_deletion_service
+    @shift_deletion_service ||= ShiftDeletionService.new
   end
 
   def get_all_pending_requests_for(employee_id)

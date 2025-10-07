@@ -13,47 +13,35 @@ class ShiftAdditionsController < ShiftBaseController
   def create
     return unless check_shift_addition_authorization
 
-    begin
-      return unless validate_shift_form_params(params, %i[employee_id shift_date start_time end_time], shift_addition_new_path)
+    # 1. パラメータの準備
+    service_params = prepare_shift_addition_params
 
-      overlapping_employee = check_shift_overlap
-      if overlapping_employee
-        flash[:error] = "#{overlapping_employee}は指定された時間にシフトが入っています。"
-        redirect_to shift_addition_new_path and return
-      end
+    # 2. サービスの呼び出し
+    result = shift_addition_service.create_addition_request(service_params)
 
-      result = create_shift_addition_request
-      handle_shift_service_response(
-        result,
-        success_path: shifts_path,
-        failure_path: shift_addition_new_path
-      )
-    rescue StandardError => e
-      handle_shift_error(e, "シフト追加リクエスト作成", shift_addition_new_path)
-    end
+    # 3. レスポンスの処理
+    handle_shift_service_response(
+      result,
+      success_path: shifts_path,
+      failure_path: shift_addition_new_path
+    )
+  rescue StandardError => e
+    handle_shift_error(e, "シフト追加リクエスト作成", shift_addition_new_path)
   end
 
   private
 
-  def check_shift_overlap
-    check_shift_overlap_for_employee(
-      params[:employee_id],
-      params[:shift_date],
-      params[:start_time],
-      params[:end_time]
-    )
+  def shift_addition_service
+    @shift_addition_service ||= ShiftAdditionService.new
   end
 
-  def create_shift_addition_request
-    request_params = {
+  def prepare_shift_addition_params
+    {
       requester_id: current_employee_id,
+      target_employee_ids: [params[:employee_id]],
       shift_date: params[:shift_date],
       start_time: params[:start_time],
-      end_time: params[:end_time],
-      target_employee_ids: [params[:employee_id]]
+      end_time: params[:end_time]
     }
-
-    shift_addition_service = ShiftAdditionService.new
-    shift_addition_service.create_addition_request(request_params)
   end
 end

@@ -9,9 +9,17 @@ class ShiftDeletionsController < ShiftBaseController
   end
 
   def create
-    @shift = Shift.find(params[:shift_deletion][:shift_id])
-    result = create_shift_deletion_request
+    # 1. パラメータの準備
+    service_params = prepare_shift_deletion_params
 
+    # 2. サービスの呼び出し
+    result = shift_deletion_service.create_deletion_request(
+      service_params[:shift_id],
+      service_params[:requester_id],
+      service_params[:reason]
+    )
+
+    # 3. レスポンスの処理
     if result[:success]
       handle_shift_service_response(
         result,
@@ -32,13 +40,16 @@ class ShiftDeletionsController < ShiftBaseController
          .order(:shift_date, :start_time)
   end
 
-  def create_shift_deletion_request
-    service = ShiftDeletionService.new
-    service.create_deletion_request(
-      @shift.id,
-      current_employee_id,
-      shift_deletion_params[:reason]
-    )
+  def shift_deletion_service
+    @shift_deletion_service ||= ShiftDeletionService.new
+  end
+
+  def prepare_shift_deletion_params
+    {
+      shift_id: params[:shift_deletion][:shift_id],
+      requester_id: current_employee_id,
+      reason: shift_deletion_params[:reason]
+    }
   end
 
   def handle_deletion_failure(result)

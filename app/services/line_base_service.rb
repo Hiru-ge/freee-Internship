@@ -1093,4 +1093,66 @@ class LineBaseService < BaseService
       generate_unknown_command_message
     end
   end
+
+  # LINE認証チェックの統一処理
+  def check_line_authentication(event)
+    line_user_id = extract_user_id(event)
+
+    unless employee_already_linked?(line_user_id)
+      message = if group_message?(event)
+                  "認証が必要です。個人チャットで「認証」と入力して認証を行ってください。"
+                else
+                  "認証が必要です。「認証」と入力して認証を行ってください。"
+                end
+      return { success: false, message: message }
+    end
+
+    { success: true }
+  end
+
+  # LINE権限チェックの統一処理
+  def check_line_permission(event, command_type)
+    line_user_id = extract_user_id(event)
+    employee = find_employee_by_line_id(line_user_id)
+
+    return { success: false, message: "従業員情報が見つかりません。" } unless employee
+
+    case command_type
+    when "shift_addition"
+      unless employee.role == "owner"
+        return { success: false, message: "シフト追加はオーナーのみが利用可能です。" }
+      end
+    when "shift_exchange", "shift_deletion", "shift_display"
+      # 全従業員が利用可能
+    end
+
+    { success: true }
+  end
+
+  # LINEコマンド処理の統一処理
+  def process_line_command_with_state(command_type, event, initial_state)
+    line_user_id = extract_user_id(event)
+
+    set_conversation_state(line_user_id, {
+      "state" => initial_state,
+      "step" => 1,
+      "created_at" => Time.current
+    })
+
+    generate_line_initial_message(command_type)
+  end
+
+  # LINE初期メッセージ生成の統一処理
+  def generate_line_initial_message(command_type)
+    tomorrow = (Date.current + 1).strftime("%m/%d")
+
+    case command_type
+    when "shift_exchange"
+      "📋 シフト交代依頼\n\n交代したいシフトの日付を入力してください。\n\n📝 入力例: #{tomorrow}\n⚠️ 過去の日付は選択できません"
+    when "shift_addition"
+      "シフト追加を開始します。\n追加するシフトの日付を入力してください。\n例：#{tomorrow}\n⚠️ 過去の日付は指定できません"
+    when "shift_deletion"
+      "欠勤申請\n\n欠勤したい日付を入力してください。\n例: #{tomorrow}"
+    end
+  end
 end

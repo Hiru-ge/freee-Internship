@@ -4,25 +4,12 @@ class LineShiftExchangeService < LineBaseService
   end
 
   def handle_shift_exchange_command(event)
-    line_user_id = extract_user_id(event)
+    # 1. 認証チェック（LineBaseServiceの共通処理）
+    auth_result = check_line_authentication(event)
+    return auth_result[:message] unless auth_result[:success]
 
-    unless employee_already_linked?(line_user_id)
-      return "認証が必要です。個人チャットで「認証」と入力して認証を行ってください。" if group_message?(event)
-
-      return "認証が必要です。「認証」と入力して認証を行ってください。"
-    end
-
-    employee = find_employee_by_line_id(line_user_id)
-    return "従業員情報が見つかりません。" unless employee
-
-    set_conversation_state(line_user_id, {
-                             "state" => "waiting_for_shift_date",
-                             "step" => 1,
-                             "created_at" => Time.current
-                           })
-
-    tomorrow = (Date.current + 1).strftime("%m/%d")
-    "📋 シフト交代依頼\n\n交代したいシフトの日付を入力してください。\n\n📝 入力例: #{tomorrow}\n⚠️ 過去の日付は選択できません"
+    # 2. コマンド処理（LineBaseServiceの共通処理）
+    process_line_command_with_state("shift_exchange", event, "waiting_for_shift_date")
   end
   def handle_approval_postback(line_user_id, postback_data, action)
     request_id = postback_data.split("_")[1]
