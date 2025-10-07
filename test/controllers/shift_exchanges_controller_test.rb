@@ -70,7 +70,7 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
       end_time: "23:00"
     }
 
-    assert response.redirect? || response.success?
+    assert_response :redirect
   end
 
   # ===== 異常系テスト =====
@@ -96,8 +96,8 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
       }
     end
 
-    assert_redirected_to shift_exchange_new_path
-    assert_equal "日付と時間を入力してください。", flash[:error]
+    assert_response :success
+    assert_select "body[data-flash-error*='必須項目']"
   end
 
   test "シフト交代リクエストの必須項目バリデーション" do
@@ -114,6 +114,7 @@ class ShiftExchangesControllerTest < ActionDispatch::IntegrationTest
       end_time: ""
     }
 
-    assert response.redirect? || response.unprocessable_content?
+    assert_response :success
+    assert_select "body[data-flash-error*='必須項目']"
   end
 end

@@ -15,32 +15,35 @@ class ShiftExchangesController < ShiftBaseController
   end
 
   def create
-    request_params = extract_request_params
-
-    return unless validate_shift_params(request_params, shift_exchange_new_path)
-
-    validation_result = validate_exchange_request(request_params)
-    return if validation_result[:redirect]
-
-    result = create_shift_exchange_request(request_params)
+    # 理想形: 3つのメソッド呼び出しで完結
+    @result = ShiftExchange.create_request_for(**exchange_params)
+    @result.send_notifications!
 
     respond_to do |format|
-      format.html do
-        handle_shift_service_response(
-          result,
-          success_path: shifts_path,
-          failure_path: shift_exchange_new_path
-        )
-      end
-      format.json { render json: result }
+      format.html { redirect_to shifts_path, notice: @result.success_message }
+      format.json { render json: { success: true, message: @result.success_message } }
     end
-  rescue StandardError => e
-    handle_shift_error(e, "シフト交代リクエスト作成", shift_exchange_new_path)
+  rescue ShiftExchange::ValidationError => e
+    respond_to do |format|
+      format.html do
+        flash.now[:error] = e.message
+        setup_shift_form_params
+        load_employees_for_view
+        @applicant_id = current_employee_id
+        render 'shifts/exchanges_new'
+      end
+      format.json { render json: { success: false, message: e.message } }
+    end
+  rescue ShiftExchange::AuthorizationError => e
+    respond_to do |format|
+      format.html { redirect_to shifts_path, alert: e.message }
+      format.json { render json: { success: false, message: e.message } }
+    end
   end
 
   private
 
-  def extract_request_params
+  def exchange_params
     {
       applicant_id: params[:applicant_id],
       shift_date: params[:shift_date],
@@ -48,27 +51,5 @@ class ShiftExchangesController < ShiftBaseController
       end_time: params[:end_time],
       approver_ids: params[:approver_ids] || []
     }
-  end
-
-  def validate_exchange_request(params)
-    if params[:applicant_id].blank? || params[:shift_date].blank? ||
-       params[:start_time].blank? || params[:end_time].blank?
-      flash[:error] = "すべての項目を入力してください。"
-      redirect_to shift_exchange_new_path
-      return { redirect: true }
-    end
-
-    if params[:approver_ids].blank?
-      flash[:error] = "交代を依頼する相手を選択してください。"
-      redirect_to shift_exchange_new_path
-      return { redirect: true }
-    end
-
-    { redirect: false }
-  end
-
-  def create_shift_exchange_request(request_params)
-    shift_exchange_service = ShiftExchangeService.new
-    shift_exchange_service.create_exchange_request(request_params)
   end
 end

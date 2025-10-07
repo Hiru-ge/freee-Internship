@@ -78,7 +78,7 @@ class ShiftAdditionTest < ActiveSupport::TestCase
 
   test "create_request_for - 正常なリクエスト作成" do
     future_date = Date.current + 1.day
-    
+
     result = ShiftAddition.create_request_for(
       requester_id: @employee1.employee_id,
       target_employee_ids: [@employee2.employee_id],
@@ -90,7 +90,7 @@ class ShiftAdditionTest < ActiveSupport::TestCase
     assert_instance_of ShiftAddition::RequestResult, result
     assert_equal 1, result.requests.count
     assert_includes result.success_message, "シフト追加リクエストを送信しました"
-    
+
     created_request = result.requests.first
     assert_equal @employee1.employee_id, created_request.requester_id
     assert_equal @employee2.employee_id, created_request.target_employee_id
@@ -111,7 +111,7 @@ class ShiftAdditionTest < ActiveSupport::TestCase
 
   test "create_request_for - 対象従業員未選択でのエラー" do
     future_date = Date.current + 1.day
-    
+
     assert_raises(ShiftAddition::ValidationError, "対象従業員を選択してください") do
       ShiftAddition.create_request_for(
         requester_id: @employee1.employee_id,
@@ -125,7 +125,7 @@ class ShiftAdditionTest < ActiveSupport::TestCase
 
   test "create_request_for - 過去の日付でのエラー" do
     past_date = Date.current - 1.day
-    
+
     assert_raises(ShiftAddition::ValidationError, "過去の日付は指定できません") do
       ShiftAddition.create_request_for(
         requester_id: @employee1.employee_id,
@@ -139,7 +139,7 @@ class ShiftAdditionTest < ActiveSupport::TestCase
 
   test "create_request_for - 複数の対象従業員でのリクエスト作成" do
     future_date = Date.current + 1.day
-    
+
     result = ShiftAddition.create_request_for(
       requester_id: @employee1.employee_id,
       target_employee_ids: [@employee2.employee_id, @employee3.employee_id],
@@ -175,7 +175,7 @@ class ShiftAdditionTest < ActiveSupport::TestCase
     assert_equal "approved", shift_addition.reload.status
     assert_not_nil shift_addition.responded_at
     assert_equal "シフト追加を承認しました", message
-    
+
     # シフトが作成されていることを確認
     assert Shift.exists?(
       employee_id: @employee2.employee_id,
@@ -225,7 +225,7 @@ class ShiftAdditionTest < ActiveSupport::TestCase
 
   test "スコープの動作確認" do
     future_date = Date.current + 1.day
-    
+
     pending_request = ShiftAddition.create!(
       request_id: "ADDITION_001",
       requester_id: @employee1.employee_id,
@@ -235,7 +235,7 @@ class ShiftAdditionTest < ActiveSupport::TestCase
       end_time: Time.zone.parse("18:00"),
       status: "pending"
     )
-    
+
     approved_request = ShiftAddition.create!(
       request_id: "ADDITION_002",
       requester_id: @employee1.employee_id,
@@ -248,10 +248,10 @@ class ShiftAdditionTest < ActiveSupport::TestCase
 
     assert_includes ShiftAddition.pending, pending_request
     assert_not_includes ShiftAddition.pending, approved_request
-    
+
     assert_includes ShiftAddition.approved, approved_request
     assert_not_includes ShiftAddition.approved, pending_request
-    
+
     assert_includes ShiftAddition.for_employee(@employee2.employee_id), pending_request
     assert_not_includes ShiftAddition.for_employee(@employee2.employee_id), approved_request
   end
