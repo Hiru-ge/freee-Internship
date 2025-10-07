@@ -1,34 +1,14 @@
 // 勤怠管理のJavaScript
 
-// グローバル変数
-let config = {};
-
 // 初期化
-CommonUtils.initializePage(() => {
-    loadConfig();
-    updateClockButtons();
-    initializeAttendanceHistory();
-});
-
-// 設定の読み込み
-function loadConfig() {
-    const configMap = {
-        currentEmployeeId: 'employeeId',
-        currentEmployeeName: 'employeeName',
-        attendanceYear: 'attendanceYear',
-        attendanceMonth: 'attendanceMonth',
-        clockInPath: 'clockInPath',
-        clockOutPath: 'clockOutPath',
-        clockStatusPath: 'clockStatusPath',
-        attendanceHistoryPath: 'attendanceHistoryPath'
-    };
-
-    config = CommonUtils.loadConfigFromContainer('.dashboard-container', configMap);
-}
+CommonUtils.initializePageWithConfig('attendance', '.dashboard-container', [
+    updateClockButtons,
+    initializeAttendanceHistory
+]);
 
 // 勤怠履歴の初期化
 function initializeAttendanceHistory() {
-    if (!config.currentEmployeeId) {
+    if (!window.config.currentEmployeeId) {
         showAttendanceError('従業員IDが取得できません');
         return;
     }
@@ -39,7 +19,7 @@ function initializeAttendanceHistory() {
 async function loadAttendanceData() {
     try {
         const data = await CommonUtils.apiCall(
-            `${config.attendanceHistoryPath}?year=${config.attendanceYear}&month=${config.attendanceMonth}`
+            `${window.config.attendanceHistoryPath}?year=${window.config.attendanceYear}&month=${window.config.attendanceMonth}`
         );
         displayAttendanceData(data);
     } catch (error) {
@@ -88,20 +68,20 @@ function displayAttendanceData(attendanceRecords) {
 
 // 前の月に移動
 function prevMonth() {
-    config.attendanceMonth--;
-    if (config.attendanceMonth < 1) {
-        config.attendanceMonth = 12;
-        config.attendanceYear--;
+    window.config.attendanceMonth--;
+    if (window.config.attendanceMonth < 1) {
+        window.config.attendanceMonth = 12;
+        window.config.attendanceYear--;
     }
     loadAttendanceData();
 }
 
 // 次の月に移動
 function nextMonth() {
-    config.attendanceMonth++;
-    if (config.attendanceMonth > 12) {
-        config.attendanceMonth = 1;
-        config.attendanceYear++;
+    window.config.attendanceMonth++;
+    if (window.config.attendanceMonth > 12) {
+        window.config.attendanceMonth = 1;
+        window.config.attendanceYear++;
     }
     loadAttendanceData();
 }
@@ -114,10 +94,10 @@ function showAttendanceError(message) {
 
 // 打刻ボタンの状態更新
 async function updateClockButtons() {
-    if (!config.currentEmployeeId) return;
+    if (!window.config.currentEmployeeId) return;
 
     try {
-        const clockStatus = await CommonUtils.apiCall(config.clockStatusPath);
+        const clockStatus = await CommonUtils.apiCall(window.config.clockStatusPath);
 
         const clockInBtn = document.getElementById('clock-in-btn');
         const clockOutBtn = document.getElementById('clock-out-btn');
@@ -152,10 +132,10 @@ async function updateClockButtons() {
 
 // 出勤打刻
 async function clockIn() {
-    if (!config.currentEmployeeId) return;
+    if (!window.config.currentEmployeeId) return;
 
     try {
-        const result = await CommonUtils.apiCall(config.clockInPath, {
+        const result = await CommonUtils.apiCall(window.config.clockInPath, {
             method: 'POST'
         });
 
@@ -171,10 +151,10 @@ async function clockIn() {
 
 // 退勤打刻
 async function clockOut() {
-    if (!config.currentEmployeeId) return;
+    if (!window.config.currentEmployeeId) return;
 
     try {
-        const result = await CommonUtils.apiCall(config.clockOutPath, {
+        const result = await CommonUtils.apiCall(window.config.clockOutPath, {
             method: 'POST'
         });
 

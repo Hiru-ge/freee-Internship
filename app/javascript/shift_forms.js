@@ -2,17 +2,7 @@
 
 // フォームバリデーション
 function validateShiftForm(formId) {
-    const form = document.getElementById(formId);
-    if (!form) return { valid: false, message: 'フォームが見つかりません' };
-
-    const requiredFields = form.querySelectorAll('[required]');
-    for (const field of requiredFields) {
-        if (!field.value.trim()) {
-            return { valid: false, message: 'すべての項目を入力してください。', field: field };
-        }
-    }
-
-    return { valid: true };
+    return CommonUtils.validateRequiredFields(`#${formId}`);
 }
 
 // シフト追加フォームの設定

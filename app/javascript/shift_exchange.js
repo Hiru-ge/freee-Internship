@@ -1,27 +1,10 @@
 // シフト交代のJavaScript
 
-// グローバル変数
-let config = {};
-
 // 初期化
-CommonUtils.initializePage(() => {
-    loadConfig();
-    setupFormHandler();
-    loadEmployees();
-});
-
-// 設定の読み込み
-function loadConfig() {
-    const configMap = {
-        applicantIdFromUrl: 'applicantId',
-        dateFromUrl: 'date',
-        startFromUrl: 'startTime',
-        endFromUrl: 'endTime',
-        employees: 'employees'
-    };
-
-    config = CommonUtils.loadConfigFromContainer('.form-container', configMap);
-}
+CommonUtils.initializePageWithConfig('shiftExchange', '.form-container', [
+    setupFormHandler,
+    loadEmployees
+]);
 
 // フォームハンドラーの設定
 function setupFormHandler() {
@@ -30,8 +13,8 @@ function setupFormHandler() {
 
 // フォームバリデーション
 function validateForm() {
-    const selectedEmployees = getSelectedEmployees();
-    if (selectedEmployees.length === 0) {
+    const checkboxValidation = CommonUtils.validateCheckboxSelection('#employee-list input[type="checkbox"]', 1);
+    if (!checkboxValidation.valid) {
         CommonUtils.showMessage('交代を依頼する相手を選択してください。複数の人に同時に依頼することも可能です。', 'error');
         return false;
     }
@@ -48,15 +31,15 @@ function handleFormSuccess(response) {
 function loadEmployees() {
     const employeeList = document.getElementById('employee-list');
 
-    if (!config.employees || config.employees.length === 0) {
+    if (!window.config.employees || window.config.employees.length === 0) {
         employeeList.innerHTML = '<p style="color: #f44336;">従業員情報の読み込みに失敗しました。</p>';
         return;
     }
 
     let html = '';
-    config.employees.forEach(employee => {
+    window.config.employees.forEach(employee => {
         // 申請者自身は除外
-        if (employee.id === config.applicantIdFromUrl) {
+        if (employee.id === window.config.applicantIdFromUrl) {
             return;
         }
 

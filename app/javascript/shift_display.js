@@ -1,7 +1,6 @@
 // シフト表示のJavaScript
 
 // グローバル変数
-let config = {};
 let calendarYear;
 let calendarMonth;
 let allShiftsData;
@@ -9,36 +8,17 @@ let currentStartDate;
 let daysInMonth;
 
 // 初期化
-CommonUtils.initializePage(() => {
-    loadConfig();
-    checkOwnerPermissions();
-    loadShifts();
-});
-
-// 設定の読み込み
-function loadConfig() {
-    const configMap = {
-        currentEmployeeId: 'employeeId',
-        isOwner: 'isOwner',
-        shiftsDataPath: 'shiftsDataPath',
-        employeesWagesPath: 'employeesWagesPath',
-        allWagesPath: 'allWagesPath',
-        wageInfoPath: 'wageInfoPath',
-        newShiftExchangePath: 'newShiftExchangePath',
-        newShiftDeletionPath: 'newShiftDeletionPath',
-        shiftApprovalsPath: 'shiftApprovalsPath',
-        newShiftAdditionPath: 'newShiftAdditionPath'
-    };
-
-    config = CommonUtils.loadConfigFromContainer('.shift-page-container', configMap);
-}
+CommonUtils.initializePageWithConfig('shiftDisplay', '.shift-page-container', [
+    checkOwnerPermissions,
+    loadShifts
+]);
 
 // オーナー権限チェック
 function checkOwnerPermissions() {
     const shiftPageContainer = document.querySelector('.shift-page-container');
     shiftPageContainer.classList.remove('owner-mode', 'employee-mode');
 
-    if (config.isOwner) {
+    if (window.config.isOwner) {
         shiftPageContainer.classList.add('owner-mode');
         document.getElementById('shift-add-btn').style.display = 'inline-block';
         loadEmployeeList();
@@ -55,7 +35,7 @@ async function loadEmployeeList() {
     window.employeeListLoading = true;
 
     try {
-        const employees = await CommonUtils.apiCall(config.employeesWagesPath);
+        const employees = await CommonUtils.apiCall(window.config.employeesWagesPath);
 
         const tbody = document.getElementById('employee-list-body');
         tbody.innerHTML = '';
@@ -86,7 +66,7 @@ async function loadEmployeeList() {
 // 給与ゲージの読み込み（オーナーのみ）
 async function loadWageGauge() {
     try {
-        const wages = await CommonUtils.apiCall(config.allWagesPath);
+        const wages = await CommonUtils.apiCall(window.config.allWagesPath);
 
         if (wages && wages.length > 0) {
             wages.forEach(wage => {
@@ -121,11 +101,11 @@ async function loadPersonalGauge() {
     }
 
     try {
-        const wageInfo = await CommonUtils.apiCall(`${config.wageInfoPath}?employee_id=${config.currentEmployeeId}`);
+        const wageInfo = await CommonUtils.apiCall(`${window.config.wageInfoPath}?employee_id=${window.config.currentEmployeeId}`);
         updatePersonalWageGauge(wageInfo);
     } catch (error) {
         CommonUtils.handleApiError(error, '給与情報取得');
-        if (config.currentEmployeeId) {
+        if (window.config.currentEmployeeId) {
             document.querySelector('#personal-wage-gauge .gauge-text').textContent = 'エラーが発生しました';
         }
     }
@@ -137,7 +117,7 @@ async function loadShifts() {
     shiftCalendarContainer.innerHTML = '<p>シフト情報を読み込んでいます...</p>';
 
     try {
-        const data = await CommonUtils.apiCall(config.shiftsDataPath);
+        const data = await CommonUtils.apiCall(window.config.shiftsDataPath);
         initializeShifts(data);
     } catch (error) {
         CommonUtils.handleApiError(error, 'シフト情報取得');

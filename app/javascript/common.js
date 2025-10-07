@@ -24,6 +24,43 @@ function loadConfigFromContainer(containerSelector, configMap) {
     return config;
 }
 
+// ページ別設定の統一関数
+function createPageConfig(pageType, containerSelector) {
+    const configMaps = {
+        attendance: {
+            currentEmployeeId: 'employeeId',
+            currentEmployeeName: 'employeeName',
+            attendanceYear: 'attendanceYear',
+            attendanceMonth: 'attendanceMonth',
+            clockInPath: 'clockInPath',
+            clockOutPath: 'clockOutPath',
+            clockStatusPath: 'clockStatusPath',
+            attendanceHistoryPath: 'attendanceHistoryPath'
+        },
+        shiftDisplay: {
+            currentEmployeeId: 'employeeId',
+            isOwner: 'isOwner',
+            shiftsDataPath: 'shiftsDataPath',
+            employeesWagesPath: 'employeesWagesPath',
+            allWagesPath: 'allWagesPath',
+            wageInfoPath: 'wageInfoPath',
+            newShiftExchangePath: 'newShiftExchangePath',
+            newShiftDeletionPath: 'newShiftDeletionPath',
+            shiftApprovalsPath: 'shiftApprovalsPath',
+            newShiftAdditionPath: 'newShiftAdditionPath'
+        },
+        shiftExchange: {
+            applicantIdFromUrl: 'applicantId',
+            dateFromUrl: 'date',
+            startFromUrl: 'startTime',
+            endFromUrl: 'endTime',
+            employees: 'employees'
+        }
+    };
+
+    return loadConfigFromContainer(containerSelector, configMaps[pageType]);
+}
+
 // API呼び出しの共通関数
 async function apiCall(url, options = {}) {
     const defaultOptions = {
@@ -206,16 +243,65 @@ function createPagination(currentPage, totalPages, onPageChange) {
     return pagination;
 }
 
+// フォームバリデーションの共通関数
+function validateRequiredFields(formSelector, requiredFieldSelectors = []) {
+    const form = document.querySelector(formSelector);
+    if (!form) return { valid: false, message: 'フォームが見つかりません' };
+
+    const fieldsToCheck = requiredFieldSelectors.length > 0
+        ? requiredFieldSelectors.map(selector => form.querySelector(selector))
+        : form.querySelectorAll('[required]');
+
+    for (const field of fieldsToCheck) {
+        if (!field || !field.value.trim()) {
+            return {
+                valid: false,
+                message: 'すべての項目を入力してください。',
+                field: field
+            };
+        }
+    }
+
+    return { valid: true };
+}
+
+// チェックボックス選択バリデーション
+function validateCheckboxSelection(checkboxSelector, minCount = 1) {
+    const checkboxes = document.querySelectorAll(checkboxSelector);
+    const checkedBoxes = document.querySelectorAll(`${checkboxSelector}:checked`);
+
+    if (checkedBoxes.length < minCount) {
+        return {
+            valid: false,
+            message: `少なくとも${minCount}つ選択してください。`
+        };
+    }
+
+    return { valid: true };
+}
+
+// ページ初期化の統一関数
+function initializePageWithConfig(pageType, containerSelector, initFunctions) {
+    initializePage(() => {
+        window.config = createPageConfig(pageType, containerSelector);
+        initFunctions.forEach(func => func());
+    });
+}
+
 // グローバルに公開
 window.CommonUtils = {
     loadConfigFromContainer,
+    createPageConfig,
     apiCall,
     showMessage,
     handleApiError,
     initializePage,
+    initializePageWithConfig,
     setupFormSubmission,
     createDataTable,
     formatDate,
     formatTime,
-    createPagination
+    createPagination,
+    validateRequiredFields,
+    validateCheckboxSelection
 };
