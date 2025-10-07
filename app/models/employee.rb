@@ -342,6 +342,101 @@ class Employee < ApplicationRecord
     calculate_wage_from_hours(monthly_hours)
   end
 
+  # === 出退勤管理機能（ClockServiceから移行） ===
+
+  # 打刻忘れチェック（出勤）
+  def self.check_forgotten_clock_ins
+    now = Time.current
+    today_employee_ids = Shift.where(shift_date: Date.current).pluck(:employee_id)
+    return [] if today_employee_ids.empty?
+
+    employees = Employee.where(employee_id: today_employee_ids)
+    return [] if employees.empty?
+
+    forgotten_employees = []
+
+    employees.each do |employee|
+      today_shift = Shift.find_by(
+        employee_id: employee.employee_id,
+        shift_date: Date.current
+      )
+      next unless today_shift
+      next unless within_shift_start_window?(now, today_shift.start_time)
+
+      forgotten_employees << {
+        employee: employee,
+        shift: today_shift
+      }
+    end
+
+    forgotten_employees
+  end
+
+  # 打刻忘れチェック（退勤）
+  def self.check_forgotten_clock_outs
+    now = Time.current
+    today_employee_ids = Shift.where(shift_date: Date.current).pluck(:employee_id)
+    return [] if today_employee_ids.empty?
+
+    employees = Employee.where(employee_id: today_employee_ids)
+    return [] if employees.empty?
+
+    forgotten_employees = []
+
+    employees.each do |employee|
+      today_shift = Shift.find_by(
+        employee_id: employee.employee_id,
+        shift_date: Date.current
+      )
+      next unless today_shift
+      next unless within_shift_end_window?(now, today_shift.end_time)
+
+      forgotten_employees << {
+        employee: employee,
+        shift: today_shift
+      }
+    end
+
+    forgotten_employees
+  end
+
+  # シフト開始時間窓内判定
+  def self.within_shift_start_window?(current_time, shift_start_time)
+    current_minutes = (current_time.hour * 60) + current_time.min
+    shift_start_minutes = shift_start_time.hour * 60
+    reminder_end_minutes = (shift_start_time.hour + 1) * 60
+
+    current_minutes >= shift_start_minutes && current_minutes < reminder_end_minutes
+  end
+
+  # シフト終了時間窓内判定
+  def self.within_shift_end_window?(current_time, shift_end_time)
+    current_minutes = (current_time.hour * 60) + current_time.min
+    shift_end_minutes = shift_end_time.hour * 60
+    reminder_end_minutes = (shift_end_time.hour + 1) * 60
+
+    current_minutes >= shift_end_minutes && current_minutes < reminder_end_minutes
+  end
+
+  # 打刻フォームデータ作成
+  def self.create_clock_form_data(clock_type, time = Time.current)
+    {
+      target_date: time.strftime("%Y-%m-%d"),
+      target_time: time.strftime("%H:%M"),
+      target_type: clock_type
+    }
+  end
+
+  # シフト時間フォーマット
+  def self.format_shift_time(shift)
+    "#{shift.start_time.strftime('%H:%M')}～#{shift.end_time.strftime('%H:%M')}"
+  end
+
+  # リマインダー送信判定
+  def self.should_send_reminder?(current_time)
+    (current_time.min % 15).zero?
+  end
+
   # 従業員名正規化
   def self.normalize_employee_name(name)
     name.to_s.strip.downcase.gsub(/\s+/, "")

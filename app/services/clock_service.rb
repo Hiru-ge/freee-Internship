@@ -10,7 +10,8 @@ class ClockService
   def clock_in
     now = Time.current
 
-    clock_in_form = create_clock_form_data("clock_in", now)
+    # 内部ロジックはEmployeeモデルに委譲
+    clock_in_form = Employee.create_clock_form_data("clock_in", now)
 
     clock_result = @freee_service.create_work_record(@employee_id, clock_in_form)
 
@@ -35,7 +36,8 @@ class ClockService
   def clock_out
     now = Time.current
 
-    clock_out_form = create_clock_form_data("clock_out", now)
+    # 内部ロジックはEmployeeモデルに委譲
+    clock_out_form = Employee.create_clock_form_data("clock_out", now)
 
     clock_result = @freee_service.create_work_record(@employee_id, clock_out_form)
 
@@ -116,46 +118,38 @@ class ClockService
   end
 
   def check_forgotten_clock_ins
-    now = Time.current
-    today_employee_ids = Shift.where(shift_date: Date.current).pluck(:employee_id)
-    return if today_employee_ids.empty?
+    # 内部ロジックはEmployeeモデルに委譲
+    forgotten_employees = Employee.check_forgotten_clock_ins
+    return if forgotten_employees.empty?
 
-    employees = Employee.where(employee_id: today_employee_ids)
-    return if employees.empty?
+    forgotten_employees.each do |data|
+      employee = data[:employee]
+      shift = data[:shift]
 
-    employees.each do |employee|
-  
-      today_shift = Shift.find_by(
-        employee_id: employee.employee_id,
-        shift_date: Date.current
-      )
-      next unless today_shift
-      next unless within_shift_start_window?(now, today_shift.start_time)
+      # 外部APIで打刻状況確認
       time_clocks = get_time_clocks_for_today(employee.employee_id)
       has_clock_in = time_clocks.any? { |record| record["type"] == "clock_in" }
-      send_clock_in_reminder(employee, today_shift) unless has_clock_in
+
+      # リマインダー送信（外部API連携）
+      send_clock_in_reminder(employee, shift) unless has_clock_in
     end
   end
 
   def check_forgotten_clock_outs
-    now = Time.current
-    today_employee_ids = Shift.where(shift_date: Date.current).pluck(:employee_id)
-    return if today_employee_ids.empty?
+    # 内部ロジックはEmployeeモデルに委譲
+    forgotten_employees = Employee.check_forgotten_clock_outs
+    return if forgotten_employees.empty?
 
-    employees = Employee.where(employee_id: today_employee_ids)
-    return if employees.empty?
+    forgotten_employees.each do |data|
+      employee = data[:employee]
+      shift = data[:shift]
 
-    employees.each do |employee|
-  
-      today_shift = Shift.find_by(
-        employee_id: employee.employee_id,
-        shift_date: Date.current
-      )
-      next unless today_shift
-      next unless within_shift_end_window?(now, today_shift.end_time)
+      # 外部APIで打刻状況確認
       time_clocks = get_time_clocks_for_today(employee.employee_id)
       has_clock_out = time_clocks.any? { |record| record["type"] == "clock_out" }
-      send_clock_out_reminder(employee, today_shift) unless has_clock_out
+
+      # リマインダー送信（外部API連携）
+      send_clock_out_reminder(employee, shift) unless has_clock_out
     end
   end
   def get_time_clocks_for_today(employee_id)
@@ -167,12 +161,13 @@ class ClockService
     []
   end
   def send_clock_in_reminder(employee, shift)
-
+    # 外部APIから従業員情報取得
     all_employees = @freee_service.get_employees_full
     employee_info = all_employees.find { |emp| emp["id"].to_s == employee.employee_id.to_s }
     return unless employee_info&.dig("email")
 
-    shift_time = format_shift_time(shift)
+    # 内部ロジックはEmployeeモデルに委譲
+    shift_time = Employee.format_shift_time(shift)
 
     ClockReminderMailer.clock_in_reminder(
       employee_info["email"],
@@ -184,13 +179,15 @@ class ClockService
   rescue StandardError => e
     Rails.logger.error "出勤打刻リマインダー送信エラー: #{e.message}"
   end
-  def send_clock_out_reminder(employee, shift)
 
+  def send_clock_out_reminder(employee, shift)
+    # 外部APIから従業員情報取得
     all_employees = @freee_service.get_employees_full
     employee_info = all_employees.find { |emp| emp["id"].to_s == employee.employee_id.to_s }
     return unless employee_info&.dig("email")
 
-    shift_time = format_shift_time(shift)
+    # 内部ロジックはEmployeeモデルに委譲
+    shift_time = Employee.format_shift_time(shift)
     end_hour = shift.end_time.hour
 
     ClockReminderMailer.clock_out_reminder(
@@ -206,31 +203,5 @@ class ClockService
   end
 
   private
-  def create_clock_form_data(clock_type, time = Time.current)
-    {
-      target_date: time.strftime("%Y-%m-%d"),
-      target_time: time.strftime("%H:%M"),
-      target_type: clock_type
-    }
-  end
-  def format_shift_time(shift)
-    "#{shift.start_time.strftime('%H:%M')}～#{shift.end_time.strftime('%H:%M')}"
-  end
-  def within_shift_start_window?(current_time, shift_start_time)
-    current_minutes = (current_time.hour * 60) + current_time.min
-    shift_start_minutes = shift_start_time.hour * 60
-    reminder_end_minutes = (shift_start_time.hour + 1) * 60
-
-    current_minutes >= shift_start_minutes && current_minutes < reminder_end_minutes
-  end
-  def within_shift_end_window?(current_time, shift_end_time)
-    current_minutes = (current_time.hour * 60) + current_time.min
-    shift_end_minutes = shift_end_time.hour * 60
-    reminder_end_minutes = (shift_end_time.hour + 1) * 60
-
-    current_minutes >= shift_end_minutes && current_minutes < reminder_end_minutes
-  end
-  def should_send_reminder?(current_time)
-    (current_time.min % 15).zero?
-  end
+  # 内部ロジックはEmployeeモデルに移行済み
 end
