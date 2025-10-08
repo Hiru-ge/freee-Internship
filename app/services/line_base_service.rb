@@ -675,7 +675,7 @@ class LineBaseService < BaseService
     employee_id = employee[:id] || employee["id"]
     display_name = employee[:display_name] || employee["display_name"]
     begin
-      result = AuthService.send_verification_code(employee_id)
+      result = Employee.send_line_verification_code(employee_id)
 
       if result[:success]
         set_conversation_state(line_user_id, {

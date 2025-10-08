@@ -27,8 +27,8 @@ class Employee < ApplicationRecord
 
     # Freee APIで従業員情報を確認
     freee_service = FreeeApiService.new(
-      Rails.application.config.freee_api["access_token"],
-      Rails.application.config.freee_api["company_id"]
+      ENV.fetch("FREEE_ACCESS_TOKEN", nil),
+      ENV.fetch("FREEE_COMPANY_ID", nil)
     )
 
     employee_info = freee_service.get_employee_info(employee_id)
@@ -479,6 +479,32 @@ class Employee < ApplicationRecord
     raise e.is_a?(ValidationError) ? e : ValidationError.new("認証コードの送信に失敗しました")
   end
 
+  # LINE Bot認証コード送信
+  def self.send_line_verification_code(employee_id)
+    employee_info = get_employee_info_from_freee(employee_id)
+    raise ValidationError, "従業員のメールアドレスが見つかりません" if employee_info.nil? || employee_info[:email].blank?
+
+    verification_code = VerificationCode.generate_code
+    VerificationCode.where(employee_id: employee_id).delete_all
+    VerificationCode.create!(
+      employee_id: employee_id,
+      code: verification_code,
+      expires_at: 10.minutes.from_now
+    )
+
+    begin
+      AuthMailer.line_authentication_code(employee_info[:email], employee_info[:name], verification_code).deliver_now
+      Rails.logger.info "LINE Bot認証用メール送信成功: #{employee_info[:email]}"
+    rescue StandardError => e
+      Rails.logger.error "メール送信エラー: #{e.message}"
+    end
+
+    { success: true, message: "認証コードを送信しました。メールの送信には数分かかる場合があります。" }
+  rescue StandardError => e
+    Rails.logger.error "LINE Bot認証コード送信エラー: #{e.message}"
+    raise e.is_a?(ValidationError) ? e : ValidationError.new("認証コードの送信に失敗しました")
+  end
+
   # 認証コード検証
   def self.verify_code(employee_id, input_code)
     raise ValidationError, "認証コードが入力されていません" if input_code.blank?
@@ -639,15 +665,18 @@ class Employee < ApplicationRecord
   # Freee APIから従業員情報取得
   def self.get_employee_info_from_freee(employee_id)
     freee_service = FreeeApiService.new(
-      Rails.application.config.freee_api["access_token"],
-      Rails.application.config.freee_api["company_id"]
+      ENV.fetch("FREEE_ACCESS_TOKEN", nil),
+      ENV.fetch("FREEE_COMPANY_ID", nil)
     )
 
     employee_info = freee_service.get_employee_info(employee_id)
     return nil unless employee_info
 
+    # メールアドレスはprofile_ruleの中にある
+    email = employee_info.dig("profile_rule", "email") || employee_info["email"] || employee_info[:email]
+
     {
-      email: employee_info["email"] || employee_info[:email],
+      email: email,
       name: employee_info["display_name"] || employee_info[:display_name] || "従業員"
     }
   rescue StandardError => e
