@@ -5,6 +5,7 @@ Rails 8.0.2アプリケーションをFly.ioの無料枠でデプロイするた
 ## 概要
 
 勤怠管理システムをFly.ioにデプロイして本番環境で稼働させるための手順を説明します。
+本システムはWebアプリケーションとLINE Botの統合システムとして、Fly.ioの無料枠で運用可能です。
 
 **重要**: fly.ioでの動作確認について
 - fly.io上では、freeeアクセストークン（6時間で失効）を使用しているため、長時間の動作確認は困難です
@@ -17,6 +18,7 @@ Rails 8.0.2アプリケーションをFly.ioの無料枠でデプロイするた
 - Git リポジトリ
 - freee APIアカウント
 - Gmailアカウント
+- LINE Bot開発環境（LINE Developers Console）
 
 ## 初期設定
 
@@ -88,10 +90,14 @@ flyctl secrets set GMAIL_APP_PASSWORD="your_app_password"
 
 # LINE Bot設定
 flyctl secrets set LINE_CHANNEL_SECRET="your_channel_secret"
-flyctl secrets set LINE_CHANNEL_TOKEN="your_channel_token"
+flyctl secrets set LINE_CHANNEL_ACCESS_TOKEN="your_channel_token"
 
 # アクセス制限設定
-flyctl secrets set ALLOWED_EMAIL_ADDRESSES="your_email@gmail.com"
+flyctl secrets set ALLOWED_EMAIL_DOMAINS="@freee.co.jp"
+flyctl secrets set ALLOWED_EMAILS="admin@freee.co.jp"
+
+# APIキー設定
+flyctl secrets set API_KEY="your_api_key_for_github_actions"
 ```
 
 **注意**:
@@ -145,8 +151,8 @@ flyctl releases rollback <release_id>
 
 ### fly.toml
 ```toml
-app = "your-app-name"
-primary_region = "nrt"
+app = "freee-internship"
+primary_region = "hkg"
 
 [build]
 
@@ -173,7 +179,7 @@ primary_region = "nrt"
 
 ### Dockerfile
 ```dockerfile
-FROM ruby:3.3.0-alpine
+FROM ruby:3.2.2-alpine
 
 # 必要なパッケージをインストール
 RUN apk add --no-cache \
@@ -400,7 +406,7 @@ flyctl certs renew
 ### インフラ構成
 
 #### アプリケーション層
-- **言語**: Ruby 3.3.0
+- **言語**: Ruby 3.2.2
 - **フレームワーク**: Rails 8.0.2
 - **Webサーバー**: Puma
 - **プロセス数**: 1-3プロセス（負荷に応じて自動スケーリング）
@@ -415,6 +421,7 @@ flyctl certs renew
 - **メール送信**: Gmail SMTP
 - **API連携**: Freee API
 - **Bot連携**: LINE Messaging API
+- **定期実行**: GitHub Actions（打刻リマインダー）
 
 ### セキュリティ設定
 
@@ -428,7 +435,9 @@ flyctl certs renew
 - **CSRF保護**: 有効
 - **XSS保護**: 有効
 - **SQLインジェクション対策**: ActiveRecord使用
-- **認証**: セッションベース認証
+- **認証**: セッションベース認証 + メール認証
+- **LINE Bot認証**: 従業員アカウントとの紐付け
+- **APIキー認証**: GitHub Actions用
 
 #### データ保護
 - **暗号化**: 転送時・保存時暗号化

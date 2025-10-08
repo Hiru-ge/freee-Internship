@@ -2,6 +2,7 @@
 
 ## 概要
 勤怠管理システムのAPIエンドポイント仕様について説明します。
+本システムはWebアプリケーションとLINE Botの両方に対応した統合APIを提供します。
 
 ## 認証
 
@@ -24,6 +25,50 @@ POST /logout
 
 **レスポンス**
 - 302 Redirect to `/login`
+
+### 認証コード送信
+```http
+POST /auth/send_verification_code
+Content-Type: application/x-www-form-urlencoded
+
+employee_id=3313254
+```
+
+**レスポンス**
+```json
+{
+  "success": true,
+  "message": "認証コードを送信しました。メールの送信には数分かかる場合があります。"
+}
+```
+
+### 認証コード検証
+```http
+POST /auth/verify_code
+Content-Type: application/x-www-form-urlencoded
+
+employee_id=3313254&code=123456
+```
+
+**レスポンス**
+```json
+{
+  "success": true,
+  "message": "認証コードが確認されました"
+}
+```
+
+### 初期パスワード設定
+```http
+POST /auth/setup_initial_password
+Content-Type: application/x-www-form-urlencoded
+
+employee_id=3313254&password=newpassword&password_confirmation=newpassword
+```
+
+**レスポンス**
+- 成功: 302 Redirect to `/login`
+- 失敗: 200 OK with error message
 
 ## シフト管理
 
@@ -145,85 +190,90 @@ shift_id=123&reason=体調不良
 
 ## 勤怠管理
 
-### 出勤
+### 勤怠管理ページ
+```http
+GET /attendance
+```
+
+**レスポンス**
+- HTML: 勤怠管理ページ
+- 認証が必要
+
+### 出勤打刻
 ```http
 POST /attendance/clock_in
 ```
 
 **レスポンス**
-- 成功: 302 Redirect
-- 失敗: 400 Bad Request
+```json
+{
+  "success": true,
+  "message": "出勤打刻が完了しました"
+}
+```
 
-### 退勤
+### 退勤打刻
 ```http
 POST /attendance/clock_out
 ```
 
 **レスポンス**
-- 成功: 302 Redirect
-- 失敗: 400 Bad Request
+```json
+{
+  "success": true,
+  "message": "退勤打刻が完了しました"
+}
+```
 
-### 勤怠状況
+### 打刻状況取得
 ```http
-GET /attendance/status
+GET /attendance/clock_status
 Accept: application/json
 ```
 
 **レスポンス**
 ```json
 {
-  "status": "working",
-  "clock_in_time": "2024-12-19T09:00:00Z",
-  "current_time": "2024-12-19T15:30:00Z"
+  "can_clock_in": true,
+  "can_clock_out": false,
+  "message": "出勤打刻が可能です"
 }
 ```
 
-### 勤怠履歴
+### 勤怠履歴取得
 ```http
-GET /attendance/history
+GET /attendance/attendance_history?year=2024&month=12
 Accept: application/json
 ```
 
 **レスポンス**
 ```json
-{
-  "attendance_records": [
-    {
-      "date": "2024-12-19",
-      "clock_in": "09:00",
-      "clock_out": "17:00",
-      "work_hours": 8.0
-    }
-  ]
-}
+[
+  {
+    "type": "出勤",
+    "date": "2024-12-19 09:00"
+  },
+  {
+    "type": "退勤",
+    "date": "2024-12-19 17:00"
+  }
+]
 ```
 
 ## 給与管理
 
-### 給与一覧
+### 給与管理ページ
 ```http
 GET /wages
-Accept: application/json
 ```
 
 **レスポンス**
-```json
-{
-  "employee_wages": [
-    {
-      "employee_id": "3313254",
-      "employee_name": "店長太郎",
-      "wage": 150000,
-      "target": 1030000,
-      "percentage": 14.6
-    }
-  ]
-}
-```
+- HTML: 給与管理ページ
+- 認証が必要
 
-### 個人給与情報
+### 給与データ取得
 ```http
-GET /wages?employee_id=3313254
+GET /wages/data?start_date=2024-12-01&end_date=2024-12-31
 Accept: application/json
 ```
 
@@ -232,28 +282,76 @@ Accept: application/json
 {
   "employee_id": "3313254",
   "employee_name": "店長太郎",
-  "wage": 150000,
-  "target": 1030000,
-  "percentage": 14.6
+  "total": 150000,
+  "breakdown": {
+    "normal": {
+      "hours": 120,
+      "rate": 1000,
+      "wage": 120000,
+      "name": "通常時給"
+    },
+    "evening": {
+      "hours": 20,
+      "rate": 1200,
+      "wage": 24000,
+      "name": "夜間手当"
+    },
+    "night": {
+      "hours": 5,
+      "rate": 1500,
+      "wage": 7500,
+      "name": "深夜手当"
+    }
+  },
+  "work_hours": {
+    "normal": 120,
+    "evening": 20,
+    "night": 5
+  },
+  "shifts_count": 15
 }
 ```
 
-### 従業員一覧（オーナーのみ）
+## LINE Bot API
+
+### Webhook
 ```http
-GET /wages/employees
-Accept: application/json
+POST /webhook/callback
+Content-Type: application/json
+X-Line-Signature: [署名]
+
+{
+  "events": [
+    {
+      "type": "message",
+      "replyToken": "replyToken",
+      "source": {
+        "userId": "userId"
+      },
+      "message": {
+        "type": "text",
+        "text": "シフト確認"
+      }
+    }
+  ]
+}
+```
+
+**レスポンス**
+- 200 OK: 処理完了
+- 400 Bad Request: 署名検証失敗
+
+### 打刻リマインダー
+```http
+POST /clock_reminder/trigger
+X-API-Key: [APIキー]
 ```
 
 **レスポンス**
 ```json
 {
-  "employees": [
-    {
-      "id": "3313254",
-      "display_name": "店長太郎",
-      "email": "owner@example.com"
-    }
-  ]
+  "success": true,
+  "message": "打刻リマインダーを送信しました"
 }
 ```
 
@@ -262,21 +360,24 @@ Accept: application/json
 ### 認証エラー
 ```json
 {
-  "error": "認証が必要です"
+  "success": false,
+  "message": "認証が必要です"
 }
 ```
 
 ### 権限エラー
 ```json
 {
-  "error": "権限がありません"
+  "success": false,
+  "message": "権限がありません"
 }
 ```
 
 ### バリデーションエラー
 ```json
 {
-  "error": "入力値が不正です",
+  "success": false,
+  "message": "入力値が不正です",
   "details": {
     "employee_id": ["必須項目です"],
     "password": ["8文字以上で入力してください"]
@@ -287,7 +388,8 @@ Accept: application/json
 ### システムエラー
 ```json
 {
-  "error": "システムエラーが発生しました。しばらく時間をおいてから再度お試しください。"
+  "success": false,
+  "message": "システムエラーが発生しました。しばらく時間をおいてから再度お試しください。"
 }
 ```
 
@@ -308,6 +410,14 @@ Accept: application/json
 - 各リクエストでセッションの有効性を確認
 - セッションタイムアウト: 24時間
 
+### メール認証
+- アクセス制限用のメールアドレス認証
+- 認証コードによる一時的なアクセス許可
+
+### LINE Bot認証
+- 従業員アカウントとLINEアカウントの紐付け
+- 認証コードによる認証プロセス
+
 ### 権限レベル
 - **オーナー**: 全機能にアクセス可能
 - **従業員**: 自分のデータのみアクセス可能
@@ -319,6 +429,7 @@ Accept: application/json
 ## レート制限
 - ログイン試行: 5回/分
 - API呼び出し: 100回/分
+- Freee API呼び出し: 1秒間隔
 - 超過時は429 Too Many Requestsを返す
 
 ## バージョニング
