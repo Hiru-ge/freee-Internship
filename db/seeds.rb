@@ -102,13 +102,15 @@ shift_data_hash.each do |employee_id, shifts|
 
     date = Date.new(year, month, day)
 
-    Shift.create!(
+    # seed作成時はバリデーションをスキップ
+    shift = Shift.new(
       employee_id: employee_id,
       shift_date: date,
       start_time: start_time,
       end_time: end_time,
       is_modified: false
     )
+    shift.save!(validate: false)
   end
 end
 
